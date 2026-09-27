@@ -102,6 +102,17 @@ export function useEditor(p: Presentation, initialSlideId?: string) {
     [apply],
   );
 
+  /** Automatic corrections (e.g. text auto-grow): saved, but not an undo step. */
+  const silentUpdate = useCallback(
+    (slides: Slide[]) => {
+      const next = { ...current.current, slides };
+      current.current = next;
+      setDoc(next);
+      persist(next);
+    },
+    [persist],
+  );
+
   const setTheme = useCallback((themeId: string) => apply({ ...current.current, themeId }), [apply]);
 
   const restore = useCallback(
@@ -165,6 +176,7 @@ export function useEditor(p: Presentation, initialSlideId?: string) {
     setSelected,
     save,
     setLive,
+    silentUpdate,
     commit,
     undo,
     redo,

@@ -240,7 +240,7 @@ export class MockAIProvider implements AIProvider {
         title: subject,
         objective:
           request.objective?.trim() ||
-          `${request.purpose} the ${request.audience.toLowerCase()} on ${subject.toLowerCase()}.`,
+          `Give the ${request.audience.toLowerCase()} a clear ${request.purpose.toLowerCase()} on ${subject.toLowerCase()} and secure a decision.`,
         coreMessage: `${subject} is achievable within the proposed horizon, and the decision required today is a clear, funded commitment.`,
         recommendedSlideCount: slides.length,
         estimatedDuration: Math.max(5, Math.round(slides.length * 1.5)),

@@ -147,6 +147,8 @@ export interface Slide {
   elements: SlideElement[];
   /** Editor layout this slide was generated from. */
   layoutId?: string;
+  /** Slide background override (theme token or color). Defaults to theme background. */
+  background?: string;
   bullets?: string[];
   kpis?: string[];
   createdAt: string;

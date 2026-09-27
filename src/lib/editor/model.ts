@@ -39,7 +39,7 @@ interface BaseElement {
   zIndex: number;
   locked: boolean;
   visible: boolean;
-  role?: ContentRole;
+  role?: ContentRole | undefined;
 }
 
 export type TextAlign = "start" | "center" | "end" | "justify";

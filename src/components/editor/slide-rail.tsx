@@ -13,7 +13,7 @@ export function duplicateSlide(s: Slide): Slide {
   return { ...structuredClone(s), id, title: `${s.title}`, elements: s.elements.map((e) => ({ ...structuredClone(e), id: uid(), slideId: id })) };
 }
 
-export function SlideRail({ api, themeId, presentationId }: { api: EditorApi; themeId?: string; presentationId: string }) {
+export function SlideRail({ api, themeId, presentationId }: { api: EditorApi; themeId?: string | undefined; presentationId: string }) {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
   const slides = api.slides;
@@ -31,7 +31,7 @@ export function SlideRail({ api, themeId, presentationId }: { api: EditorApi; th
     const id = uid();
     const draft: Slide = {
       id, presentationId, slideNumber: 0, sortOrder: 0, title: "New slide", purpose: "Supporting point", slideIntent: "Solution",
-      keyMessage: "Add a supporting message", contentSummary: "", visualType: "Text", isOptional: true, elements: [], layoutId: "title-content", createdAt: stamp, updatedAt: stamp,
+      keyMessage: "Add a supporting message", contentSummary: "", visualType: "Cards", isOptional: true, elements: [], layoutId: "title-content", createdAt: stamp, updatedAt: stamp,
     };
     draft.elements = buildLayout("title-content", contentFromSlide(draft), id);
     const at = slides.findIndex((s) => s.id === api.activeId) + 1;

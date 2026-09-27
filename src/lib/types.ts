@@ -129,21 +129,8 @@ export interface StoryBeat {
   question: string;
 }
 
-/**
- * Future editor primitive. Slides own elements; elements carry geometry and
- * structured content so the same tree renders to web / PPTX / PDF / image.
- * Not authored in phase one, but part of the persisted shape from day one.
- */
-export type SlideElementType = "text" | "image" | "shape" | "icon" | "chart" | "table" | "diagram";
-
-export interface SlideElement {
-  id: string;
-  type: SlideElementType;
-  /** Percentages of the slide canvas, mirrored automatically for RTL decks. */
-  frame: { x: number; y: number; width: number; height: number };
-  content: Record<string, unknown>;
-  style?: Record<string, unknown>;
-}
+import type { SlideElement, SlideElementType } from "@/lib/editor/model";
+export type { SlideElement, SlideElementType };
 
 export interface Slide {
   id: string;
@@ -158,6 +145,10 @@ export interface Slide {
   isOptional: boolean;
   sortOrder: number;
   elements: SlideElement[];
+  /** Editor layout this slide was generated from. */
+  layoutId?: string;
+  bullets?: string[];
+  kpis?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -181,6 +172,8 @@ export interface Presentation {
   coreMessage: string;
   visualDirection: string;
   storyArc: StoryBeat[];
+  /** Slide visual theme id (see editor/themes). */
+  themeId?: string;
   slides: Slide[];
   createdAt: string;
   updatedAt: string;

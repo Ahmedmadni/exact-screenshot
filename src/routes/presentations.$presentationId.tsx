@@ -13,6 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { aiProvider, type PlanRequest } from "@/lib/ai";
 import { assetRepository, presentationRepository, uid, useDatabase, usePresentation } from "@/lib/data/store";
 import { useI18n } from "@/lib/i18n";
+import { SlideThumb } from "@/components/editor/slide-renderer";
+import { materializeSlide } from "@/lib/editor/layouts";
 import { VISUAL_TYPES, type AssetRecord, type Presentation, type Slide, type VisualType } from "@/lib/types";
 
 export const Route = createFileRoute("/presentations/$presentationId")({
@@ -109,16 +111,17 @@ function Detail() {
           <Blueprint p={p} update={update} save={save} />
         </TabsContent>
         <TabsContent value="slides" className="mt-6">
+          <div className="mb-4 flex justify-end">
+            <Button asChild><Link to="/presentations/$presentationId/editor" params={{ presentationId: p.id }}>{t("editor.open")}</Link></Button>
+          </div>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             {p.slides.map((s) => (
-              <div key={s.id} className="panel aspect-video overflow-hidden p-3">
-                <span className="eyebrow">{String(s.slideNumber).padStart(2, "0")} · {s.visualType}</span>
-                <p className="mt-2 line-clamp-2 text-sm text-foreground">{s.title}</p>
-                <div className="mt-3 space-y-1.5">
-                  <span className="block h-1.5 w-3/4 rounded bg-muted" />
-                  <span className="block h-1.5 w-1/2 rounded bg-muted" />
+              <Link key={s.id} to="/presentations/$presentationId/editor" params={{ presentationId: p.id }} search={{ slide: s.id }} className="group block">
+                <div className="overflow-hidden rounded-md border border-border transition-shadow group-hover:shadow-md">
+                  <SlideThumb slide={materializeSlide(s)} themeId={p.themeId} />
                 </div>
-              </div>
+                <p className="mt-2 truncate text-xs text-muted-foreground">{String(s.slideNumber).padStart(2, "0")} · {s.title}</p>
+              </Link>
             ))}
           </div>
         </TabsContent>
@@ -229,7 +232,7 @@ function Blueprint({ p, update, save }: { p: Presentation; update: (patch: Parti
         </div>
         <div className="flex flex-wrap justify-between gap-3">
           <Button variant="outline" onClick={add}><Plus className="size-4" /> {t("blueprint.addSlide")}</Button>
-          <Button disabled title="Coming in the next phase">{t("blueprint.continue")}</Button>
+          <Button asChild><Link to="/presentations/$presentationId/editor" params={{ presentationId: p.id }}>{t("blueprint.continue")}</Link></Button>
         </div>
       </section>
     </div>

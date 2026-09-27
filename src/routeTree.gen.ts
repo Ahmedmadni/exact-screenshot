@@ -17,6 +17,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TemplatesRouteImport } from './routes/templates'
 import { Route as PresentationsIndexRouteImport } from './routes/presentations.index'
 import { Route as PresentationsPresentationIdRouteImport } from './routes/presentations.$presentationId'
+import { Route as PresentationsPresentationIdEditorRouteImport } from './routes/presentations_.$presentationId.editor'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -59,6 +60,12 @@ const PresentationsPresentationIdRoute =
     path: '/presentations/$presentationId',
     getParentRoute: () => rootRouteImport,
   } as any)
+const PresentationsPresentationIdEditorRoute =
+  PresentationsPresentationIdEditorRouteImport.update({
+    id: '/presentations_/$presentationId/editor',
+    path: '/presentations/$presentationId/editor',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -69,6 +76,7 @@ export interface FileRoutesByFullPath {
   '/templates': typeof TemplatesRoute
   '/presentations/$presentationId': typeof PresentationsPresentationIdRoute
   '/presentations/': typeof PresentationsIndexRoute
+  '/presentations/$presentationId/editor': typeof PresentationsPresentationIdEditorRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -79,6 +87,7 @@ export interface FileRoutesByTo {
   '/templates': typeof TemplatesRoute
   '/presentations/$presentationId': typeof PresentationsPresentationIdRoute
   '/presentations': typeof PresentationsIndexRoute
+  '/presentations/$presentationId/editor': typeof PresentationsPresentationIdEditorRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -90,6 +99,7 @@ export interface FileRoutesById {
   '/templates': typeof TemplatesRoute
   '/presentations/$presentationId': typeof PresentationsPresentationIdRoute
   '/presentations/': typeof PresentationsIndexRoute
+  '/presentations_/$presentationId/editor': typeof PresentationsPresentationIdEditorRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -102,6 +112,7 @@ export interface FileRouteTypes {
     | '/templates'
     | '/presentations/$presentationId'
     | '/presentations/'
+    | '/presentations/$presentationId/editor'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -112,6 +123,7 @@ export interface FileRouteTypes {
     | '/templates'
     | '/presentations/$presentationId'
     | '/presentations'
+    | '/presentations/$presentationId/editor'
   id:
     | '__root__'
     | '/'
@@ -122,6 +134,7 @@ export interface FileRouteTypes {
     | '/templates'
     | '/presentations/$presentationId'
     | '/presentations/'
+    | '/presentations_/$presentationId/editor'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -133,6 +146,7 @@ export interface RootRouteChildren {
   TemplatesRoute: typeof TemplatesRoute
   PresentationsPresentationIdRoute: typeof PresentationsPresentationIdRoute
   PresentationsIndexRoute: typeof PresentationsIndexRoute
+  PresentationsPresentationIdEditorRoute: typeof PresentationsPresentationIdEditorRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -193,6 +207,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PresentationsPresentationIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/presentations_/$presentationId/editor': {
+      id: '/presentations_/$presentationId/editor'
+      path: '/presentations/$presentationId/editor'
+      fullPath: '/presentations/$presentationId/editor'
+      preLoaderRoute: typeof PresentationsPresentationIdEditorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -205,6 +226,8 @@ const rootRouteChildren: RootRouteChildren = {
   TemplatesRoute: TemplatesRoute,
   PresentationsPresentationIdRoute: PresentationsPresentationIdRoute,
   PresentationsIndexRoute: PresentationsIndexRoute,
+  PresentationsPresentationIdEditorRoute:
+    PresentationsPresentationIdEditorRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

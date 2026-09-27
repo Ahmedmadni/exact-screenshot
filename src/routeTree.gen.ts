@@ -12,8 +12,11 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AssetsRouteImport } from './routes/assets'
 import { Route as BrandKitsRouteImport } from './routes/brand-kits'
+import { Route as NewRouteImport } from './routes/new'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TemplatesRouteImport } from './routes/templates'
+import { Route as PresentationsIndexRouteImport } from './routes/presentations.index'
+import { Route as PresentationsPresentationIdRouteImport } from './routes/presentations.$presentationId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -30,6 +33,11 @@ const BrandKitsRoute = BrandKitsRouteImport.update({
   path: '/brand-kits',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NewRoute = NewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -40,43 +48,91 @@ const TemplatesRoute = TemplatesRouteImport.update({
   path: '/templates',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PresentationsIndexRoute = PresentationsIndexRouteImport.update({
+  id: '/presentations/',
+  path: '/presentations/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PresentationsPresentationIdRoute =
+  PresentationsPresentationIdRouteImport.update({
+    id: '/presentations/$presentationId',
+    path: '/presentations/$presentationId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/assets': typeof AssetsRoute
   '/brand-kits': typeof BrandKitsRoute
+  '/new': typeof NewRoute
   '/settings': typeof SettingsRoute
   '/templates': typeof TemplatesRoute
+  '/presentations/$presentationId': typeof PresentationsPresentationIdRoute
+  '/presentations/': typeof PresentationsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/assets': typeof AssetsRoute
   '/brand-kits': typeof BrandKitsRoute
+  '/new': typeof NewRoute
   '/settings': typeof SettingsRoute
   '/templates': typeof TemplatesRoute
+  '/presentations/$presentationId': typeof PresentationsPresentationIdRoute
+  '/presentations': typeof PresentationsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/assets': typeof AssetsRoute
   '/brand-kits': typeof BrandKitsRoute
+  '/new': typeof NewRoute
   '/settings': typeof SettingsRoute
   '/templates': typeof TemplatesRoute
+  '/presentations/$presentationId': typeof PresentationsPresentationIdRoute
+  '/presentations/': typeof PresentationsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/assets' | '/brand-kits' | '/settings' | '/templates'
+  fullPaths:
+    | '/'
+    | '/assets'
+    | '/brand-kits'
+    | '/new'
+    | '/settings'
+    | '/templates'
+    | '/presentations/$presentationId'
+    | '/presentations/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/assets' | '/brand-kits' | '/settings' | '/templates'
-  id: '__root__' | '/' | '/assets' | '/brand-kits' | '/settings' | '/templates'
+  to:
+    | '/'
+    | '/assets'
+    | '/brand-kits'
+    | '/new'
+    | '/settings'
+    | '/templates'
+    | '/presentations/$presentationId'
+    | '/presentations'
+  id:
+    | '__root__'
+    | '/'
+    | '/assets'
+    | '/brand-kits'
+    | '/new'
+    | '/settings'
+    | '/templates'
+    | '/presentations/$presentationId'
+    | '/presentations/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AssetsRoute: typeof AssetsRoute
   BrandKitsRoute: typeof BrandKitsRoute
+  NewRoute: typeof NewRoute
   SettingsRoute: typeof SettingsRoute
   TemplatesRoute: typeof TemplatesRoute
+  PresentationsPresentationIdRoute: typeof PresentationsPresentationIdRoute
+  PresentationsIndexRoute: typeof PresentationsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -102,6 +158,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BrandKitsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/new': {
+      id: '/new'
+      path: '/new'
+      fullPath: '/new'
+      preLoaderRoute: typeof NewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -116,6 +179,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TemplatesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/presentations/': {
+      id: '/presentations/'
+      path: '/presentations'
+      fullPath: '/presentations/'
+      preLoaderRoute: typeof PresentationsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/presentations/$presentationId': {
+      id: '/presentations/$presentationId'
+      path: '/presentations/$presentationId'
+      fullPath: '/presentations/$presentationId'
+      preLoaderRoute: typeof PresentationsPresentationIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -123,8 +200,11 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AssetsRoute: AssetsRoute,
   BrandKitsRoute: BrandKitsRoute,
+  NewRoute: NewRoute,
   SettingsRoute: SettingsRoute,
   TemplatesRoute: TemplatesRoute,
+  PresentationsPresentationIdRoute: PresentationsPresentationIdRoute,
+  PresentationsIndexRoute: PresentationsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

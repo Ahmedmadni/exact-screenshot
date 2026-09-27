@@ -1,9 +1,9 @@
-import { useRef, useState, type PointerEvent as RPointerEvent } from "react";
+import { useLayoutEffect, useRef, useState, type PointerEvent as RPointerEvent } from "react";
 import { SLIDE_H, SLIDE_W, type SlideElement } from "@/lib/editor/model";
 import type { SlideTheme } from "@/lib/editor/themes";
 import { resolveColor, resolveFont } from "@/lib/editor/themes";
 import type { Slide } from "@/lib/types";
-import { ElementBody, elementBoxStyle, useFitScale } from "./slide-renderer";
+import { ElementBody, elementBoxStyle, slideBackground, useFitScale } from "./slide-renderer";
 import type { EditorApi } from "./use-editor";
 
 type Handle = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
@@ -23,6 +23,23 @@ export function EditorCanvas({ api, theme, zoom }: { api: EditorApi; theme: Slid
   const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const slide = api.active;
+
+  // Text never silently disappears: boxes grow to fit their content.
+  useLayoutEffect(() => {
+    if (!slide || !stageRef.current) return;
+    const grow: Record<string, number> = {};
+    for (const el of slide.elements) {
+      if (el.type !== "text" || !el.visible || el.id === editingId) continue;
+      const node = stageRef.current.querySelector<HTMLElement>(`[data-text-content="${el.id}"]`);
+      if (!node) continue;
+      const needed = Math.ceil(node.offsetHeight);
+      if (needed > el.height + 1) grow[el.id] = needed;
+    }
+    if (Object.keys(grow).length) {
+      api.silentUpdate(api.mapElements((els) => els.map((e) => (grow[e.id] ? { ...e, height: grow[e.id]! } : e))));
+    }
+  });
+
   if (!slide) return <div ref={ref} className="flex-1" />;
 
   const toLogical = (e: { clientX: number; clientY: number }) => {
@@ -90,6 +107,9 @@ export function EditorCanvas({ api, theme, zoom }: { api: EditorApi; theme: Slid
           const sy = snap(ty, [by + dy, by + dy + bh / 2, by + dy + bh]);
           if (sy) { dy += sy.d; g.push({ axis: "y", pos: sy.t }); }
         }
+        // Keep the moving group inside the logical slide.
+        dx = Math.min(Math.max(dx, -bx), SLIDE_W - bw - bx);
+        dy = Math.min(Math.max(dy, -by), SLIDE_H - bh - by);
         setGuides(g);
         api.setLive(api.mapElements((els) => els.map((x) => {
           const s = starts.get(x.id);
@@ -107,26 +127,42 @@ export function EditorCanvas({ api, theme, zoom }: { api: EditorApi; theme: Slid
     e.stopPropagation();
     const base = api.snapshot();
     const origin = toLogical(e);
-    const s = { x: el.x, y: el.y, w: el.width, h: el.height };
-    const ratio = s.w / s.h;
+    const s0 = { x: el.x, y: el.y, w: el.width, h: el.height };
+    const ratio = s0.w / s0.h;
     const keepRatio = el.type === "image" || el.type === "icon";
+    const rad = (el.rotation * Math.PI) / 180;
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+    const MIN_W = 8;
+    const MIN_H = 4;
     track(
       (ev) => {
         const p = toLogical(ev);
-        const dx = p.x - origin.x;
-        const dy = p.y - origin.y;
-        let { x, y, w, h: hh } = s;
-        if (h.includes("e")) w = s.w + dx;
-        if (h.includes("w")) { w = s.w - dx; x = s.x + dx; }
-        if (h.includes("s")) hh = s.h + dy;
-        if (h.includes("n")) { hh = s.h - dy; y = s.y + dy; }
-        if ((keepRatio !== ev.shiftKey) && h.length === 2) {
-          hh = w / ratio;
-          if (h.includes("n")) y = s.y + s.h - hh;
+        const wx = p.x - origin.x;
+        const wy = p.y - origin.y;
+        // Pointer delta in the element's own (unrotated) frame.
+        const dx = wx * cos + wy * sin;
+        const dy = -wx * sin + wy * cos;
+        let left = -s0.w / 2;
+        let right = s0.w / 2;
+        let top = -s0.h / 2;
+        let bottom = s0.h / 2;
+        if (h.includes("e")) right = Math.max(left + MIN_W, right + dx);
+        if (h.includes("w")) left = Math.min(right - MIN_W, left + dx);
+        if (h.includes("s")) bottom = Math.max(top + MIN_H, bottom + dy);
+        if (h.includes("n")) top = Math.min(bottom - MIN_H, top + dy);
+        if (keepRatio !== ev.shiftKey && h.length === 2) {
+          const nh = (right - left) / ratio;
+          if (h.includes("n")) top = bottom - nh;
+          else bottom = top + nh;
         }
-        w = Math.max(8, w);
-        hh = Math.max(4, hh);
-        api.setLive(api.mapElements((els) => els.map((x2) => (x2.id === el.id ? { ...x2, x: Math.round(x), y: Math.round(y), width: Math.round(w), height: Math.round(hh) } : x2)), base));
+        const w = right - left;
+        const hh = bottom - top;
+        const lcx = (left + right) / 2;
+        const lcy = (top + bottom) / 2;
+        const cx = s0.x + s0.w / 2 + lcx * cos - lcy * sin;
+        const cy = s0.y + s0.h / 2 + lcx * sin + lcy * cos;
+        api.setLive(api.mapElements((els) => els.map((x2) => (x2.id === el.id ? { ...x2, x: Math.round(cx - w / 2), y: Math.round(cy - hh / 2), width: Math.round(w), height: Math.round(hh) } : x2)), base));
       },
       () => api.commit(api.snapshot(), base),
     );
@@ -180,9 +216,9 @@ export function EditorCanvas({ api, theme, zoom }: { api: EditorApi; theme: Slid
           dir="ltr"
           className="relative shrink-0 shadow-xl"
           style={{ width: SLIDE_W * scale, height: SLIDE_H * scale }}
-          onPointerDown={startMarquee}
+          onPointerDown={(e) => { e.stopPropagation(); startMarquee(e); }}
         >
-          <div style={{ position: "absolute", top: 0, left: 0, width: SLIDE_W, height: SLIDE_H, transform: `scale(${scale})`, transformOrigin: "top left", background: theme.colors.background, overflow: "hidden" }}>
+          <div style={{ position: "absolute", top: 0, left: 0, width: SLIDE_W, height: SLIDE_H, transform: `scale(${scale})`, transformOrigin: "top left", background: slideBackground(slide, theme), overflow: "hidden" }}>
             {[...slide.elements].sort((a, b) => a.zIndex - b.zIndex).filter((x) => x.visible).map((el) => (
               <div
                 key={el.id}

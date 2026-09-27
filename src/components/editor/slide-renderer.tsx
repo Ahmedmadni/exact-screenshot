@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { memo, useEffect, useRef, useState, type CSSProperties } from "react";
 import { BarChart3, Network, Table2, ImageIcon } from "lucide-react";
 import type { Slide } from "@/lib/types";
 import { SLIDE_H, SLIDE_W, type SlideElement } from "@/lib/editor/model";
@@ -23,6 +23,7 @@ export function ElementBody({ el, theme }: { el: SlideElement; theme: SlideTheme
           }}
         >
           <div
+            data-text-content={el.id}
             style={{
               fontFamily: resolveFont(p.fontFamily, theme),
               fontSize: p.fontSize,
@@ -121,11 +122,16 @@ export function elementBoxStyle(el: SlideElement): CSSProperties {
   };
 }
 
+export function slideBackground(slide: Slide, theme: SlideTheme) {
+  return resolveColor(slide.background ?? "theme:background", theme);
+}
+
 /** Static full-slide render at logical 1600x900. */
 export function SlideStage({ slide, theme, hideIds }: { slide: Slide; theme: SlideTheme; hideIds?: Set<string> }) {
   return (
-    <div style={{ position: "absolute", inset: 0, width: SLIDE_W, height: SLIDE_H, background: theme.colors.background, overflow: "hidden" }}>
-      {slide.elements
+    <div style={{ position: "absolute", inset: 0, width: SLIDE_W, height: SLIDE_H, background: slideBackground(slide, theme), overflow: "hidden" }}>
+      {[...slide.elements]
+        .sort((a, b) => a.zIndex - b.zIndex)
         .filter((e) => e.visible && !hideIds?.has(e.id))
         .map((el) => (
           <div key={el.id} style={elementBoxStyle(el)}>
@@ -156,7 +162,7 @@ export function useFitScale(padding = 0) {
   return { ref, scale };
 }
 
-export function SlideThumb({ slide, themeId }: { slide: Slide; themeId?: string | undefined }) {
+export const SlideThumb = memo(function SlideThumb({ slide, themeId }: { slide: Slide; themeId?: string | undefined }) {
   const { ref, scale } = useFitScale();
   const theme = getTheme(themeId);
   return (
@@ -166,4 +172,4 @@ export function SlideThumb({ slide, themeId }: { slide: Slide; themeId?: string 
       </div>
     </div>
   );
-}
+});

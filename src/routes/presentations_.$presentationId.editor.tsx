@@ -14,7 +14,7 @@ import { IconPicker } from "@/components/editor/icon-picker";
 import { readImage } from "@/components/editor/image-upload";
 import { SlideStage, SlideThumb, useFitScale } from "@/components/editor/slide-renderer";
 import { useEditor, type EditorApi } from "@/components/editor/use-editor";
-import { presentationRepository, usePresentation } from "@/lib/data/store";
+import { usePresentation } from "@/lib/data/store";
 import { SHAPE_LABELS, TEXT_PRESETS, cloneElement, iconEl, imageEl, instantiate, shapeEl, textEl } from "@/lib/editor/elements";
 import { SLIDE_H, SLIDE_W, type DraftElement, type ShapeKind, type SlideElement } from "@/lib/editor/model";
 import { getTheme } from "@/lib/editor/themes";
@@ -56,7 +56,7 @@ const SHAPE_ICONS: Record<ShapeKind, typeof Square> = { rect: Square, roundRect:
 
 function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | undefined }) {
   const api = useEditor(p, initialSlide);
-  const theme = getTheme(p.themeId);
+  const theme = getTheme(api.themeId);
   const [zoom, setZoom] = useState(1);
   const [previewing, setPreviewing] = useState(false);
   const clipboard = useRef<SlideElement[]>([]);
@@ -152,7 +152,7 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
           <Button size="sm" onClick={() => setPreviewing(true)}><Play className="size-4" /> Present</Button>
         </div>
         <p className="rounded-md border border-border bg-card p-3 text-sm text-muted-foreground">The visual editor works best on a larger screen. You can review and present your slides here.</p>
-        {api.slides.map((s) => <div key={s.id} className="overflow-hidden rounded-md border border-border"><SlideThumb slide={s} themeId={p.themeId} /></div>)}
+        {api.slides.map((s) => <div key={s.id} className="overflow-hidden rounded-md border border-border"><SlideThumb slide={s} themeId={api.themeId} /></div>)}
       </div>
 
       <header className="hidden h-14 shrink-0 items-center gap-2 border-b border-border bg-card px-3 lg:flex">
@@ -205,19 +205,25 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
 
         <div className="flex items-center gap-1">
           <Button size="icon" variant="ghost" aria-label="Zoom out" onClick={() => setZoom((z) => Math.max(0.25, +(z - 0.25).toFixed(2)))}><ZoomOut className="size-4" /></Button>
-          <button className="w-12 text-center text-xs text-muted-foreground" onClick={() => setZoom(1)} title="Fit">{Math.round(zoom * 100)}%</button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild><button className="w-14 rounded px-1 py-1 text-center text-xs text-muted-foreground hover:bg-muted" title="Zoom">{zoom === 1 ? "Fit" : `${Math.round(zoom * 100)}%`}</button></DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setZoom(1)}>Fit to screen</DropdownMenuItem>
+              {[0.25, 0.5, 0.75, 1.25, 1.5, 2].map((z) => <DropdownMenuItem key={z} onClick={() => setZoom(z)}>{z * 100}% of fit</DropdownMenuItem>)}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button size="icon" variant="ghost" aria-label="Zoom in" onClick={() => setZoom((z) => Math.min(3, +(z + 0.25).toFixed(2)))}><ZoomIn className="size-4" /></Button>
           <Button size="sm" className="ms-2" onClick={() => setPreviewing(true)}><Play className="size-4" /> Preview</Button>
         </div>
       </header>
 
       <div className="hidden min-h-0 flex-1 lg:flex">
-        <SlideRail api={api} themeId={p.themeId} presentationId={p.id} />
+        <SlideRail api={api} themeId={api.themeId} presentationId={p.id} />
         <EditorCanvas api={api} theme={theme} zoom={zoom} />
-        <PropertiesPanel api={api} theme={theme} onTheme={(id) => presentationRepository.update(p.id, { themeId: id })} />
+        <PropertiesPanel api={api} theme={theme} onTheme={api.setTheme} />
       </div>
 
-      {previewing && <Preview api={api} themeId={p.themeId} onClose={() => setPreviewing(false)} />}
+      {previewing && <Preview api={api} themeId={api.themeId} onClose={() => setPreviewing(false)} />}
     </div>
   );
 }

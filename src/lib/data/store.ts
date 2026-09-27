@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { toast } from "sonner";
 import type { AssetRecord, BrandKit, Presentation, Slide, ThemeRecord } from "@/lib/types";
 import { SEED_ASSETS, SEED_BRAND_KITS, SEED_PRESENTATIONS, SEED_THEMES } from "./seed";
 
@@ -26,12 +27,27 @@ function emit() {
   listeners.forEach((l) => l());
 }
 
+/** Soft ceiling for browser storage (most browsers allow ~5 MB per site). */
+const STORAGE_BUDGET = 5 * 1024 * 1024;
+let warnedNearFull = false;
+let warnedFull = false;
+
 function persist() {
   if (typeof window === "undefined") return;
+  const payload = JSON.stringify(db);
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+    window.localStorage.setItem(STORAGE_KEY, payload);
+    warnedFull = false;
+    // UTF-16 storage: ~2 bytes per char.
+    if (payload.length * 2 > STORAGE_BUDGET * 0.85 && !warnedNearFull) {
+      warnedNearFull = true;
+      toast.warning("Browser storage is nearly full. Large images may not be saved.");
+    }
   } catch {
-    /* storage unavailable — the session stays in memory */
+    if (!warnedFull) {
+      warnedFull = true;
+      toast.error("Your latest changes could not be saved — browser storage is full. Remove large images or unused presentations.", { duration: 8000 });
+    }
   }
 }
 
@@ -40,7 +56,16 @@ function hydrate() {
   hydrated = true;
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (raw) db = { ...initial(), ...(JSON.parse(raw) as Database) };
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<Database>;
+      db = {
+        ...initial(),
+        ...parsed,
+        presentations: Array.isArray(parsed.presentations)
+          ? parsed.presentations.filter((p) => p && typeof p.id === "string").map((p) => ({ ...p, slides: Array.isArray(p.slides) ? p.slides.filter((s) => s && typeof s.id === "string").map((s) => ({ ...s, elements: Array.isArray(s.elements) ? s.elements : [] })) : [] }))
+          : initial().presentations,
+      };
+    }
   } catch {
     /* corrupt payload — fall back to seed data */
   }

@@ -156,7 +156,7 @@ export function useFitScale(padding = 0) {
   return { ref, scale };
 }
 
-export function SlideThumb({ slide, themeId }: { slide: Slide; themeId?: string }) {
+export function SlideThumb({ slide, themeId }: { slide: Slide; themeId?: string | undefined }) {
   const { ref, scale } = useFitScale();
   const theme = getTheme(themeId);
   return (

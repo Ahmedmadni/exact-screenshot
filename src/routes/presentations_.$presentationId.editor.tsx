@@ -21,7 +21,7 @@ import { getTheme } from "@/lib/editor/themes";
 import type { Presentation } from "@/lib/types";
 
 export const Route = createFileRoute("/presentations_/$presentationId/editor")({
-  validateSearch: (s: Record<string, unknown>): { slide?: string } => (typeof s.slide === "string" ? { slide: s.slide } : {}),
+  validateSearch: (s: Record<string, unknown>): { slide?: string } => (typeof s["slide"] === "string" ? { slide: s["slide"] } : {}),
   head: () => ({
     meta: [
       { title: "Slide Editor — Presentation Studio" },
@@ -54,7 +54,7 @@ function EditorPage() {
 
 const SHAPE_ICONS: Record<ShapeKind, typeof Square> = { rect: Square, roundRect: RectangleHorizontal, ellipse: Circle, line: Minus, arrow: MoveRight, triangle: Triangle };
 
-function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string }) {
+function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | undefined }) {
   const api = useEditor(p, initialSlide);
   const theme = getTheme(p.themeId);
   const [zoom, setZoom] = useState(1);
@@ -226,7 +226,7 @@ function box([x, y, width, height]: [number, number, number, number]) {
   return { x, y, width, height };
 }
 
-function Preview({ api, themeId, onClose }: { api: EditorApi; themeId?: string; onClose: () => void }) {
+function Preview({ api, themeId, onClose }: { api: EditorApi; themeId?: string | undefined; onClose: () => void }) {
   const [index, setIndex] = useState(() => Math.max(0, api.slides.findIndex((s) => s.id === api.activeId)));
   const { ref, scale } = useFitScale();
   const theme = getTheme(themeId);

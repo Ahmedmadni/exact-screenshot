@@ -31,7 +31,7 @@ export const Route = createFileRoute("/presentations/$presentationId")({
 
 function useAutosave() {
   const [state, setState] = useState<SaveState>("idle");
-  const timer = useRef<ReturnType<typeof setTimeout>>();
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const save = (fn: () => void) => {
     setState("saving");
     clearTimeout(timer.current);
@@ -144,7 +144,9 @@ function Blueprint({ p, update, save }: { p: Presentation; update: (patch: Parti
     const next = [...p.slides];
     const j = i + d;
     if (j < 0 || j >= next.length) return;
-    [next[i], next[j]] = [next[j], next[i]];
+    const tmp = next[i]!;
+    next[i] = next[j]!;
+    next[j] = tmp;
     presentationRepository.replaceSlides(p.id, next);
   };
   const add = () => {

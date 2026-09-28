@@ -155,6 +155,21 @@ export interface Slide {
   updatedAt: string;
 }
 
+export interface PresentationThemeOverrides {
+  colors?: Partial<{
+    background: string;
+    surface: string;
+    primary: string;
+    secondary: string;
+    accent: string;
+    accentSoft: string;
+    onAccent: string;
+    line: string;
+  }>;
+  fonts?: Partial<{ heading: string; body: string }>;
+  shape?: Partial<{ radius: number }>;
+}
+
 export interface Presentation {
   id: string;
   userId: string;
@@ -176,6 +191,9 @@ export interface Presentation {
   storyArc: StoryBeat[];
   /** Slide visual theme id (see editor/themes). */
   themeId?: string;
+  /** Brand kit applied to this deck, plus a snapshot so old decks stay visually stable. */
+  brandKitId?: string;
+  themeOverrides?: PresentationThemeOverrides;
   slides: Slide[];
   createdAt: string;
   updatedAt: string;
@@ -201,9 +219,18 @@ export interface AssetRecord {
 export interface BrandKit {
   id: string;
   name: string;
+  /** Legacy/general palette retained for backwards compatibility and quick previews. */
   colors: string[];
+  backgroundColor?: string;
+  surfaceColor?: string;
+  textColor?: string;
+  secondaryTextColor?: string;
+  accentColor?: string;
   headingFont: string;
   bodyFont: string;
+  logoDataUrl?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface ThemeRecord {

@@ -91,6 +91,25 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405, headers: corsHeaders });
 
+  const authHeader = req.headers.get("Authorization");
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  if (!authHeader || !supabaseUrl || !supabaseAnonKey) {
+    return new Response(JSON.stringify({ error: "Authentication required." }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  const userResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: { Authorization: authHeader, apikey: supabaseAnonKey },
+  });
+  if (!userResponse.ok) {
+    return new Response(JSON.stringify({ error: "Sign in before using AI generation." }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   const apiKey = Deno.env.get("OPENAI_API_KEY");
   if (!apiKey) {
     return new Response(JSON.stringify({ error: "OPENAI_API_KEY is not configured." }), {
@@ -110,11 +129,7 @@ Deno.serve(async (req) => {
         "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        model,
-        input,
-        text: { format: { type: "json_object" } },
-      }),
+      body: JSON.stringify({ model, input }),
     });
 
     const payload = await response.json();

@@ -1,11 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, FileText, Loader2, Minimize2, Plus, RefreshCw, Trash2, Maximize2, Upload, ArrowLeft } from "lucide-react";
+import { ArrowDown, ArrowUp, Download, FileText, Loader2, Minimize2, Plus, RefreshCw, Trash2, Maximize2, Upload, ArrowLeft } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { EmptyState } from "@/components/empty-state";
 import { SaveIndicator, type SaveState } from "@/components/save-indicator";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,6 +19,7 @@ import { SlideThumb } from "@/components/editor/slide-renderer";
 import { materializeSlide } from "@/lib/editor/layouts";
 import { composeDeck } from "@/lib/editor/composer";
 import { SLIDE_THEMES, getTheme } from "@/lib/editor/themes";
+import { exportPresentationToPdf, exportPresentationToPptx, validatePresentationForExport } from "@/lib/export";
 import { VISUAL_TYPES, type AssetRecord, type Presentation, type Slide, type VisualType } from "@/lib/types";
 
 export const Route = createFileRoute("/presentations/$presentationId")({
@@ -70,6 +73,7 @@ function Detail() {
   const p = usePresentation(presentationId);
   const { t } = useI18n();
   const { state, save } = useAutosave();
+  const [exporting, setExporting] = useState<"pptx" | "pdf" | null>(null);
 
   if (!p) {
     return (
@@ -86,6 +90,32 @@ function Detail() {
 
   const update = (patch: Partial<Presentation>) => save(() => presentationRepository.update(p.id, patch));
 
+  const runExport = async (format: "pptx" | "pdf") => {
+    if (exporting) return;
+    const deck = { ...p, slides: p.slides.map(materializeSlide) };
+    const issues = validatePresentationForExport(deck);
+    const error = issues.find((issue) => issue.level === "error");
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    const warnings = issues.filter((issue) => issue.level === "warning");
+    if (warnings.length) {
+      toast.warning(`${warnings.length} export note${warnings.length === 1 ? "" : "s"} — placeholders or missing media will remain visible.`);
+    }
+    setExporting(format);
+    try {
+      if (format === "pptx") await exportPresentationToPptx(deck);
+      else await exportPresentationToPdf(deck);
+      toast.success(format === "pptx" ? "PowerPoint exported." : "PDF exported.");
+    } catch (error) {
+      console.error(error);
+      toast.error(`Could not export ${format.toUpperCase()}.`);
+    } finally {
+      setExporting(null);
+    }
+  };
+
   return (
     <AppShell>
       <Link to="/presentations" className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
@@ -99,7 +129,25 @@ function Detail() {
           </div>
           <h1 className="text-3xl text-foreground">{p.title}</h1>
         </div>
-        <SaveIndicator state={state} />
+        <div className="flex items-center gap-2">
+          <SaveIndicator state={state} />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" disabled={!!exporting}>
+                {exporting ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => void runExport("pptx")}>
+                <Download className="size-4" /> PowerPoint (.pptx)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => void runExport("pdf")}>
+                <Download className="size-4" /> PDF (.pdf)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </header>
 
       <Tabs defaultValue="blueprint">

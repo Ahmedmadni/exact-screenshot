@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, FileText, Loader2, Minimize2, Palette, Plus, RefreshCw, Trash2, Maximize2, Upload, ArrowLeft } from "lucide-react";
+import { ArrowDown, ArrowUp, FileText, Loader2, Minimize2, Plus, RefreshCw, Trash2, Maximize2, Upload, ArrowLeft } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { EmptyState } from "@/components/empty-state";
 import { SaveIndicator, type SaveState } from "@/components/save-indicator";

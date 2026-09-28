@@ -180,11 +180,11 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
 
         <div className="flex flex-1 items-center justify-center gap-1">
           <DropdownMenu>
-            <DropdownMenuTrigger asChild><Button variant="ghost" size="sm"><Type className="size-4" /> Text</Button></DropdownMenuTrigger>
+            <DropdownMenuTrigger asChild><Button data-testid="add-text" variant="ghost" size="sm"><Type className="size-4" /> Text</Button></DropdownMenuTrigger>
             <DropdownMenuContent>
               {(Object.keys(TEXT_PRESETS) as (keyof typeof TEXT_PRESETS)[]).map((k) => {
                 const { h, ...props } = TEXT_PRESETS[k];
-                return <DropdownMenuItem key={k} onClick={() => add([textEl(k, k === "Body" ? "Add body text" : k, center(k === "Heading" ? 900 : 700, h), props)])}>{k}</DropdownMenuItem>;
+                return <DropdownMenuItem key={k} data-testid={`add-text-${k.toLowerCase()}`} onClick={() => add([textEl(k, k === "Body" ? "Add body text" : k, center(k === "Heading" ? 900 : 700, h), props)])}>{k}</DropdownMenuItem>;
               })}
             </DropdownMenuContent>
           </DropdownMenu>
@@ -218,11 +218,11 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
         <div className="flex items-center gap-1">
           <Button size="icon" variant="ghost" aria-label="Zoom out" onClick={() => setZoom(Math.max(0.25, +(zoomNum - 0.25).toFixed(2)))}><ZoomOut className="size-4" /></Button>
           <DropdownMenu>
-            <DropdownMenuTrigger asChild><button className="w-14 rounded px-1 py-1 text-center text-xs text-muted-foreground hover:bg-muted" title="Zoom">{zoom === "fill" ? "Fill" : zoom === 1 ? "Fit" : `${Math.round(zoom * 100)}%`}</button></DropdownMenuTrigger>
+            <DropdownMenuTrigger asChild><button data-testid="zoom-trigger" className="w-14 rounded px-1 py-1 text-center text-xs text-muted-foreground hover:bg-muted" title="Zoom">{zoom === "fill" ? "Fill" : zoom === 1 ? "Fit" : `${Math.round(zoom * 100)}%`}</button></DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setZoom(1)}>Fit — whole slide</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setZoom("fill")}>Fill — use all space</DropdownMenuItem>
-              {[0.25, 0.5, 0.75, 1.25, 1.5, 2].map((z) => <DropdownMenuItem key={z} onClick={() => setZoom(z)}>{z * 100}% of fit</DropdownMenuItem>)}
+              <DropdownMenuItem data-testid="zoom-fit" onClick={() => setZoom(1)}>Fit — whole slide</DropdownMenuItem>
+              <DropdownMenuItem data-testid="zoom-fill" onClick={() => setZoom("fill")}>Fill — use all space</DropdownMenuItem>
+              {[0.25, 0.5, 0.75, 1.25, 1.5, 2].map((z) => <DropdownMenuItem key={z} data-testid={`zoom-${Math.round(z * 100)}`} onClick={() => setZoom(z)}>{z * 100}% of fit</DropdownMenuItem>)}
             </DropdownMenuContent>
           </DropdownMenu>
           <Button size="icon" variant="ghost" aria-label="Zoom in" onClick={() => setZoom(Math.min(3, +(zoomNum + 0.25).toFixed(2)))}><ZoomIn className="size-4" /></Button>

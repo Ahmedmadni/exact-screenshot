@@ -57,3 +57,29 @@ Deletes are queued locally and propagated to Supabase on the next successful syn
 Cloud sync includes structured presentation data, compressed image data embedded in slides/brand kits, brand kits, saved templates and asset metadata.
 
 A future phase can move large image/video assets to Supabase Storage rather than JSON snapshots.
+
+
+## 6. Enable real AI generation
+
+The browser never receives the model API key. AI requests go through the authenticated Supabase Edge Function:
+
+`supabase/functions/presentation-ai/index.ts`
+
+Set the server-side secrets:
+
+```bash
+supabase secrets set OPENAI_API_KEY=YOUR_OPENAI_API_KEY
+supabase secrets set OPENAI_MODEL=gpt-5.6-luna
+```
+
+`OPENAI_MODEL` is optional. If it is omitted, the function uses `gpt-5.6-luna` as the default cost-efficient model.
+
+Deploy the function:
+
+```bash
+supabase functions deploy presentation-ai
+```
+
+The function verifies that the caller has a valid Supabase user session before calling the model.
+
+If Supabase, authentication, the Edge Function, or the model provider is unavailable, the frontend automatically falls back to the deterministic local Smart planner so presentation creation stays usable.

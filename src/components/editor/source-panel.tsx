@@ -1,8 +1,8 @@
-import { BookOpen, Calculator, FileSearch, Pin, Plus, Search, Trash2 } from "lucide-react";
+import { BookOpen, Calculator, FileSearch, ListPlus, Pin, Plus, Search, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { AssetRecord, Slide } from "@/lib/types";
-import type { SourceSegment } from "@/lib/evidence";
-import { searchEvidence, topNumericEvidence } from "@/lib/evidence";
+import type { NumericEvidenceFact, SourceSegment } from "@/lib/evidence";
+import { numericEvidenceFacts, searchEvidence } from "@/lib/evidence";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -15,20 +15,30 @@ export function SourcePanel({
   onPin,
   onRemove,
   onCreateSlide,
+  onCreateKpi,
+  onAddSourcesAppendix,
+  totalEvidenceCount,
 }: {
   assets: AssetRecord[];
   activeSlide?: Slide;
-  onPin: (segment: SourceSegment) => void;
+  onPin: (segment: SourceSegment, quote?: string) => void;
   onRemove: (evidenceId: string) => void;
   onCreateSlide: (segment: SourceSegment) => void;
+  onCreateKpi: (fact: NumericEvidenceFact) => void;
+  onAddSourcesAppendix: () => void;
+  totalEvidenceCount: number;
 }) {
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<"search" | "numbers">("search");
 
   const ready = assets.filter((asset) => asset.extractionStatus === "ready" && asset.extractedText);
   const results = useMemo(
-    () => mode === "numbers" ? topNumericEvidence(ready, 18) : searchEvidence(ready, query, 18),
+    () => mode === "search" ? searchEvidence(ready, query, 18) : [],
     [mode, query, ready],
+  );
+  const numberFacts = useMemo(
+    () => mode === "numbers" ? numericEvidenceFacts(ready, 20) : [],
+    [mode, ready],
   );
   const pinned = activeSlide?.evidenceRefs ?? [];
 
@@ -63,8 +73,13 @@ export function SourcePanel({
               <Calculator className="size-4" /> Top numbers
             </Button>
           </div>
-          <div className="mt-2 text-[11px] text-muted-foreground">
-            {ready.length} analyzed source{ready.length === 1 ? "" : "s"} · results are extracted from the files, not invented.
+          <div className="mt-2 flex items-center justify-between gap-3">
+            <div className="text-[11px] text-muted-foreground">
+              {ready.length} analyzed source{ready.length === 1 ? "" : "s"} · results are extracted from the files, not invented.
+            </div>
+            <Button size="sm" variant="ghost" disabled={totalEvidenceCount === 0} onClick={onAddSourcesAppendix}>
+              <ListPlus className="size-3.5" /> Sources appendix ({totalEvidenceCount})
+            </Button>
           </div>
         </div>
 
@@ -99,6 +114,38 @@ export function SourcePanel({
                 <div className="mt-1 max-w-xs text-xs text-muted-foreground">Upload PDF, Word, Excel or PowerPoint files from the presentation Files tab first.</div>
               </div>
             </div>
+          ) : mode === "numbers" ? (
+            numberFacts.length === 0 ? (
+              <div className="grid place-items-center gap-2 py-10 text-center">
+                <Calculator className="size-6 text-muted-foreground" />
+                <div className="text-sm text-foreground">No numeric facts found</div>
+                <div className="text-xs text-muted-foreground">The analyzed sources do not contain recognizable numeric values.</div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {numberFacts.map((fact) => {
+                  const alreadyPinned = pinned.some((ref) => ref.assetId === fact.segment.assetId && ref.locator === fact.segment.locator && ref.quote.includes(fact.value));
+                  return (
+                    <article key={fact.id} className="rounded-lg border border-border p-3">
+                      <div className="text-2xl font-semibold tabular-nums text-foreground">{fact.value}</div>
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                        <span className="max-w-[250px] truncate text-xs font-medium text-foreground">{fact.segment.assetName}</span>
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">{fact.segment.locator}</span>
+                      </div>
+                      <p className="mt-2 line-clamp-4 text-xs leading-relaxed text-muted-foreground">{fact.context}</p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <Button size="sm" variant={alreadyPinned ? "secondary" : "outline"} disabled={alreadyPinned} onClick={() => onPin(fact.segment, fact.context)}>
+                          <Pin className="size-3.5" /> {alreadyPinned ? "Pinned" : "Pin citation"}
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => onCreateKpi(fact)}>
+                          <Plus className="size-3.5" /> Create KPI slide
+                        </Button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )
           ) : results.length === 0 ? (
             <div className="grid place-items-center gap-2 py-10 text-center">
               <FileSearch className="size-6 text-muted-foreground" />

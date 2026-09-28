@@ -48,6 +48,23 @@ function SettingsPage() {
         </div>
       </section>
 
+      <section className="panel mt-5 max-w-2xl space-y-2 p-6">
+        <h2 className="text-base text-foreground">Presentation intelligence</h2>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="text-sm font-medium text-foreground">{cloudConfigured ? "Cloud AI + Smart fallback" : "Local Smart planner"}</div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {cloudConfigured
+                ? "The app tries the authenticated Edge Function first and automatically falls back to the deterministic local planner if cloud AI is unavailable."
+                : "No cloud AI endpoint is configured, so planning and slide rewrites use the deterministic local engine."}
+            </p>
+          </div>
+          <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${cloudConfigured ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "bg-muted text-muted-foreground"}`}>
+            {cloudConfigured ? "Hybrid" : "Local"}
+          </span>
+        </div>
+      </section>
+
       <CloudAccount />
     </AppShell>
   );

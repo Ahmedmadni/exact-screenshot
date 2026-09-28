@@ -164,7 +164,7 @@ function Blueprint({ p, update, save }: { p: Presentation; update: (patch: Parti
     const req: PlanRequest = { topic: p.topic, objective: p.objective, purpose: p.purpose, audience: p.audience, presentationType: p.presentationType, language: p.language, tone: p.tone, lengthPreset: p.lengthPreset, slideCount: p.recommendedSlideCount };
     const planned = await aiProvider().reflowOutline(req, p.slides, action);
     const stamp = new Date().toISOString();
-    presentationRepository.replaceSlides(p.id, planned.map((s) => ({ ...s, id: uid(), presentationId: p.id, elements: [], createdAt: stamp, updatedAt: stamp })));
+    presentationRepository.replaceSlides(p.id, planned.map((s) => materializeSlide({ ...s, id: uid(), presentationId: p.id, elements: [], createdAt: stamp, updatedAt: stamp })));
     setBusy(null);
   };
 

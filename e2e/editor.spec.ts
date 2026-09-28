@@ -16,12 +16,12 @@ test("editor core flow persists and remains undoable", async ({ page }) => {
   const freeText = page.locator('[data-element-type="text"][data-element-role="free"]').last();
   await expect(freeText).toBeVisible();
 
-  await freeText.dblclick();
+  await freeText.dispatchEvent("dblclick");
   const textEditor = page.getByTestId("text-editor");
   await expect(textEditor).toBeVisible();
-  await textEditor.press("Control+A");
-  await textEditor.fill("استراتيجية النمو 2027 — EBITDA +15%");
-  await textEditor.press("Escape");
+  await page.keyboard.press("Control+A");
+  await page.keyboard.insertText("استراتيجية النمو 2027 — EBITDA +15%");
+  await page.keyboard.press("Escape");
 
   await expect(freeText).toContainText("استراتيجية النمو 2027");
 
@@ -77,6 +77,8 @@ test("theme, zoom and slide background controls stay stable", async ({ page }) =
   await page.getByTestId("zoom-fill").click();
   await expect(page.getByTestId("zoom-trigger")).toHaveText("Fill");
 
+  // Close any lingering Radix menu/focus state before reopening the zoom menu.
+  await page.keyboard.press("Escape");
   await page.getByTestId("zoom-trigger").click();
   await page.getByTestId("zoom-50").click();
   await expect(page.getByTestId("zoom-trigger")).toHaveText("50%");

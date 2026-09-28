@@ -220,10 +220,6 @@ export function removeEvidenceFromSlide(slide: Slide, evidenceId: string): Slide
     ], slide.id, maxZ + 1);
     elements = [...elements, footer!].map((el, zIndex) => ({ ...el, zIndex }));
   }
-  const usedAssets = new Set(refs.map((ref) => ref.assetId));
-  for (const el of elements) {
-    if ((slide.sourceAssetIds ?? []).includes(el.id)) usedAssets.add(el.id);
-  }
   return {
     ...slide,
     evidenceRefs: refs,

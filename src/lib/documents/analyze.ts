@@ -14,6 +14,7 @@ export interface FileAnalysis {
   sheetNames?: string[];
   slideCount?: number;
   dataTables?: AssetDataTable[];
+  imageDataUrl?: string;
   warnings?: string[];
 }
 
@@ -56,6 +57,33 @@ function xmlRuns(xml: string, selector: string) {
     .map((node) => node.textContent?.trim() ?? "")
     .filter(Boolean)
     .join("\n");
+}
+
+async function compressImage(file: File) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const element = new Image();
+      element.onload = () => resolve(element);
+      element.onerror = reject;
+      element.src = url;
+    });
+    const max = 1600;
+    const scale = Math.min(1, max / Math.max(img.width, img.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(img.width * scale));
+    canvas.height = Math.max(1, Math.round(img.height * scale));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas is unavailable.");
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    return {
+      dataUrl: canvas.toDataURL(file.type === "image/png" ? "image/png" : "image/jpeg", 0.82),
+      width: img.width,
+      height: img.height,
+    };
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
 
 async function analyzePdf(file: File): Promise<FileAnalysis> {
@@ -212,11 +240,13 @@ export async function analyzeSourceFile(file: File): Promise<FileAnalysis> {
     if (kind === "excel") return await analyzeExcel(file);
     if (kind === "powerpoint") return await analyzePptx(file);
     if (kind === "image") {
+      const image = await compressImage(file);
       return {
         kind,
-        extractionStatus: "unsupported",
-        extractionSummary: "Image added as a visual source. Text extraction is not enabled for images yet.",
-        warnings: ["Image OCR/vision analysis is not part of local document intelligence yet."],
+        extractionStatus: "ready",
+        extractionSummary: `Visual source ready · ${image.width}×${image.height}px`,
+        imageDataUrl: image.dataUrl,
+        warnings: ["The image is available for slide design. OCR/vision text extraction is not enabled locally."],
       };
     }
     return {

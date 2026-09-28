@@ -167,23 +167,185 @@ function addIcon(pptxSlide: any, el: Extract<SlideElement, { type: "icon" }>, th
   });
 }
 
-function addPlaceholder(pptx: any, pptxSlide: any, el: Extract<SlideElement, { type: "chart" | "table" | "diagram" }>, theme: SlideTheme) {
+function addChart(pptx: any, pptxSlide: any, el: Extract<SlideElement, { type: "chart" }>, theme: SlideTheme) {
+  const p = el.properties;
   const box = pos(el);
-  pptxSlide.addShape(pptx.ShapeType.roundRect, {
+  const chartType =
+    p.chartType === "line" ? pptx.ChartType.line :
+    p.chartType === "area" ? pptx.ChartType.area :
+    p.chartType === "pie" ? pptx.ChartType.pie :
+    p.chartType === "doughnut" ? pptx.ChartType.doughnut :
+    pptx.ChartType.bar;
+  const data = p.series.map((series) => ({
+    name: series.name,
+    labels: p.categories,
+    values: p.categories.map((_, i) => Number(series.values[i] ?? 0)),
+  }));
+  if (!data.length || !p.categories.length) return;
+
+  const first = resolved(p.accent, theme) ?? cleanHex(theme.colors.accent);
+  const chartColors = [
+    first,
+    cleanHex(theme.colors.primary),
+    cleanHex(theme.colors.secondary),
+    cleanHex(theme.colors.accentSoft),
+  ];
+
+  pptxSlide.addChart(chartType, data, {
     ...box,
-    fill: { color: cleanHex(theme.colors.surface), transparency: 5 },
-    line: { color: cleanHex(theme.colors.line), width: 1, dash: "dash" },
-    rotate: Math.round(el.rotation),
+    showTitle: !!p.label,
+    title: p.label,
+    titleFontFace: theme.fonts.heading,
+    titleFontSize: 13,
+    titleColor: cleanHex(theme.colors.primary),
+    showLegend: p.showLegend,
+    legendPos: "b",
+    legendFontFace: theme.fonts.body,
+    legendFontSize: 9,
+    legendColor: cleanHex(theme.colors.secondary),
+    showValue: p.showValues,
+    showCatName: p.chartType === "pie" || p.chartType === "doughnut",
+    showPercent: false,
+    chartColors,
+    showBorder: false,
+    showSerName: false,
+    catAxisLabelFontFace: theme.fonts.body,
+    catAxisLabelFontSize: 9,
+    catAxisLabelColor: cleanHex(theme.colors.secondary),
+    valAxisLabelFontFace: theme.fonts.body,
+    valAxisLabelFontSize: 9,
+    valAxisLabelColor: cleanHex(theme.colors.secondary),
+    valGridLine: p.showGrid ? { color: cleanHex(theme.colors.line), width: 1 } : { color: cleanHex(theme.colors.background), transparency: 100 },
+    showCatAxisTitle: false,
+    showValAxisTitle: false,
+    showCategoryName: false,
+    dataLabelColor: cleanHex(theme.colors.secondary),
+    dataLabelFontFace: theme.fonts.body,
+    dataLabelFontSize: 9,
+    showLeaderLines: true,
+    holeSize: p.chartType === "doughnut" ? 55 : undefined,
+    barDir: p.chartType === "bar" ? "bar" : "col",
+    barGrouping: "clustered",
   });
-  pptxSlide.addText(el.properties.label, {
+}
+
+function addTable(pptxSlide: any, el: Extract<SlideElement, { type: "table" }>, theme: SlideTheme) {
+  const p = el.properties;
+  if (!p.rows.length) return;
+  const box = pos(el);
+  const headerFill = resolved(p.headerFill, theme) ?? cleanHex(theme.colors.accent);
+  const border = { type: "solid", pt: 0.6, color: cleanHex(theme.colors.line) };
+  const rows = p.rows.map((row, ri) =>
+    row.map((text) => ({
+      text: String(text ?? ""),
+      options: ri === 0 && p.headerRow
+        ? {
+            bold: true,
+            color: cleanHex(theme.colors.onAccent),
+            fill: headerFill,
+            align: "left",
+            valign: "middle",
+          }
+        : {
+            color: cleanHex(theme.colors.primary),
+            fill: p.bandedRows && ri % 2 === 0 ? cleanHex(theme.colors.surface) : cleanHex(theme.colors.background),
+            align: "left",
+            valign: "middle",
+          },
+    })),
+  );
+
+  pptxSlide.addTable(rows, {
     ...box,
+    border,
     fontFace: theme.fonts.body,
-    fontSize: 16,
-    color: cleanHex(theme.colors.secondary),
-    align: "center",
+    fontSize: 11,
+    color: cleanHex(theme.colors.primary),
+    margin: 4,
     valign: "middle",
-    margin: 0,
-    rotate: Math.round(el.rotation),
+    autoFit: false,
+  });
+}
+
+function addDiagram(pptx: any, pptxSlide: any, el: Extract<SlideElement, { type: "diagram" }>, theme: SlideTheme) {
+  const p = el.properties;
+  const box = pos(el);
+  const nodes = p.nodes.slice(0, p.diagramType === "matrix" ? 4 : 6);
+  if (!nodes.length) return;
+  const accent = resolved(p.accent, theme) ?? cleanHex(theme.colors.accent);
+  const surface = cleanHex(theme.colors.surface);
+  const line = cleanHex(theme.colors.line);
+  const primary = cleanHex(theme.colors.primary);
+  const secondary = cleanHex(theme.colors.secondary);
+
+  if (p.diagramType === "matrix") {
+    const gap = 0.08;
+    const cellW = (box.w - gap) / 2;
+    const cellH = (box.h - gap) / 2;
+    for (let i = 0; i < 4; i++) {
+      const node = nodes[i] ?? { title: `Quadrant ${i + 1}`, text: "" };
+      const x = box.x + (i % 2) * (cellW + gap);
+      const y = box.y + Math.floor(i / 2) * (cellH + gap);
+      pptxSlide.addShape(pptx.ShapeType.roundRect, {
+        x, y, w: cellW, h: cellH,
+        rectRadius: 0.08,
+        fill: { color: i === 0 ? cleanHex(theme.colors.accentSoft) : surface },
+        line: { color: line, width: 0.8 },
+      });
+      pptxSlide.addText(node.title, {
+        x: x + 0.14, y: y + 0.12, w: cellW - 0.28, h: 0.28,
+        fontFace: theme.fonts.heading, fontSize: 15, bold: true, color: primary, margin: 0,
+      });
+      pptxSlide.addText(node.text, {
+        x: x + 0.14, y: y + 0.45, w: cellW - 0.28, h: Math.max(0.25, cellH - 0.58),
+        fontFace: theme.fonts.body, fontSize: 10, color: secondary, margin: 0, valign: "top",
+      });
+    }
+    return;
+  }
+
+  const gap = 0.12;
+  const count = nodes.length;
+  const arrowW = count > 1 ? 0.22 : 0;
+  const nodeW = (box.w - gap * (count - 1) - arrowW * (count - 1)) / count;
+  nodes.forEach((node, i) => {
+    const x = box.x + i * (nodeW + gap + arrowW);
+    pptxSlide.addShape(pptx.ShapeType.roundRect, {
+      x, y: box.y, w: nodeW, h: box.h,
+      fill: { color: surface },
+      line: { color: line, width: 0.8 },
+    });
+    pptxSlide.addShape(pptx.ShapeType.ellipse, {
+      x: x + 0.12, y: box.y + 0.12, w: 0.3, h: 0.3,
+      fill: { color: accent },
+      line: { color: accent, transparency: 100 },
+    });
+    pptxSlide.addText(String(i + 1), {
+      x: x + 0.12, y: box.y + 0.13, w: 0.3, h: 0.25,
+      fontFace: theme.fonts.body, fontSize: 10, bold: true,
+      color: cleanHex(theme.colors.onAccent), align: "center", margin: 0,
+    });
+    pptxSlide.addText(node.title, {
+      x: x + 0.12, y: box.y + 0.55, w: nodeW - 0.24, h: 0.35,
+      fontFace: theme.fonts.heading, fontSize: 13, bold: true, color: primary, margin: 0,
+    });
+    pptxSlide.addText(node.text, {
+      x: x + 0.12, y: box.y + 0.95, w: nodeW - 0.24, h: Math.max(0.25, box.h - 1.08),
+      fontFace: theme.fonts.body, fontSize: 9.5, color: secondary, margin: 0, valign: "top",
+    });
+    if (i < count - 1) {
+      pptxSlide.addShape(pptx.ShapeType.line, {
+        x: x + nodeW + 0.02,
+        y: box.y + box.h / 2,
+        w: gap + arrowW - 0.04,
+        h: 0,
+        line: {
+          color: p.diagramType === "timeline" ? line : accent,
+          width: 1.4,
+          endArrowType: "triangle",
+        },
+      });
+    }
   });
 }
 
@@ -193,7 +355,9 @@ function addElement(pptx: any, pptxSlide: any, el: SlideElement, theme: SlideThe
   else if (el.type === "shape") addShape(pptx, pptxSlide, el, theme);
   else if (el.type === "image") addImage(pptxSlide, el);
   else if (el.type === "icon") addIcon(pptxSlide, el, theme);
-  else addPlaceholder(pptx, pptxSlide, el, theme);
+  else if (el.type === "chart") addChart(pptx, pptxSlide, el, theme);
+  else if (el.type === "table") addTable(pptxSlide, el, theme);
+  else addDiagram(pptx, pptxSlide, el, theme);
 }
 
 export async function exportPresentationToPptx(presentation: Presentation) {

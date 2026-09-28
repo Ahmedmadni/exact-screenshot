@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { CheckCircle2, FolderOpen, Loader2, Upload, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
@@ -74,9 +74,16 @@ function AssetsPage() {
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">{asset.extractionSummary ?? `${Math.max(1, Math.round(asset.size / 1024))} KB`}</p>
                 </div>
-                <Button variant="ghost" size="icon" aria-label="Remove" onClick={() => assetRepository.remove(asset.id)}>
-                  <Trash2 className="size-4" />
-                </Button>
+                <div className="flex items-center gap-1">
+                  {asset.extractionStatus === "ready" && (
+                    <Button asChild size="sm" variant="outline">
+                      <Link to="/new" search={{ source: asset.id }}>Create deck</Link>
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="icon" aria-label="Remove" onClick={() => assetRepository.remove(asset.id)}>
+                    <Trash2 className="size-4" />
+                  </Button>
+                </div>
               </div>
               {asset.warnings?.length ? (
                 <div className="mt-3 space-y-1 rounded-md border border-amber-500/20 bg-amber-500/5 p-3 text-xs text-muted-foreground">

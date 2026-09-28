@@ -207,6 +207,8 @@ export interface PresentationVersion {
   snapshot: Pick<Presentation, "title" | "coreMessage" | "storyArc" | "slides">;
 }
 
+export type AssetExtractionStatus = "pending" | "ready" | "failed" | "unsupported";
+
 export interface AssetRecord {
   id: string;
   presentationId: string | null;
@@ -214,6 +216,14 @@ export interface AssetRecord {
   kind: "pdf" | "word" | "excel" | "powerpoint" | "image" | "other";
   size: number;
   createdAt: string;
+  updatedAt?: string;
+  extractionStatus?: AssetExtractionStatus;
+  extractedText?: string;
+  extractionSummary?: string;
+  pageCount?: number;
+  sheetNames?: string[];
+  slideCount?: number;
+  warnings?: string[];
 }
 
 export interface BrandKit {

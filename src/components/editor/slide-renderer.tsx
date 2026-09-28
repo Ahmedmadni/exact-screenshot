@@ -94,7 +94,7 @@ function ShapeBody({ el, theme }: { el: Extract<SlideElement, { type: "shape" }>
     );
   }
   const lineColor = sw ? stroke : fill;
-  const lw = Math.max(sw, 3);
+  const lw = sw > 0 ? sw : 3;
   return (
     <svg width="100%" height="100%" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" style={{ overflow: "visible" }}>
       {p.shape === "triangle" && <polygon points={`${w / 2},0 ${w},${h} 0,${h}`} fill={fill} stroke={stroke} strokeWidth={sw} />}

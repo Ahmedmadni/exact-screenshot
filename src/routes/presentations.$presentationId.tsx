@@ -13,12 +13,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { aiProvider, type PlanRequest } from "@/lib/ai";
-import { assetRepository, presentationRepository, uid, useDatabase, usePresentation } from "@/lib/data/store";
+import { assetRepository, brandKitRepository, presentationRepository, uid, useDatabase, usePresentation } from "@/lib/data/store";
 import { useI18n } from "@/lib/i18n";
 import { SlideThumb } from "@/components/editor/slide-renderer";
 import { materializeSlide } from "@/lib/editor/layouts";
 import { composeDeck } from "@/lib/editor/composer";
 import { SLIDE_THEMES, getTheme } from "@/lib/editor/themes";
+import { applyBrandKit, clearBrandKit } from "@/lib/brand";
 import { exportPresentationToPdf, exportPresentationToPptx, validatePresentationForExport } from "@/lib/export";
 import { VISUAL_TYPES, type AssetRecord, type Presentation, type Slide, type VisualType } from "@/lib/types";
 
@@ -168,7 +169,7 @@ function Detail() {
             {p.slides.map((s) => (
               <Link key={s.id} to="/presentations/$presentationId/editor" params={{ presentationId: p.id }} search={{ slide: s.id }} className="group block">
                 <div className="overflow-hidden rounded-md border border-border transition-shadow group-hover:shadow-md">
-                  <SlideThumb slide={materializeSlide(s)} themeId={p.themeId} />
+                  <SlideThumb slide={materializeSlide(s)} themeId={p.themeId} themeOverrides={p.themeOverrides} />
                 </div>
                 <p className="mt-2 truncate text-xs text-muted-foreground">{String(s.slideNumber).padStart(2, "0")} · {s.title}</p>
               </Link>
@@ -293,36 +294,106 @@ function Blueprint({ p, update, save }: { p: Presentation; update: (patch: Parti
 }
 
 function DesignOverview({ p }: { p: Presentation }) {
-  const active = getTheme(p.themeId);
+  const { brandKits } = useDatabase();
+  const active = getTheme(p.themeId, p.themeOverrides);
+  const activeKit = p.brandKitId ? brandKitRepository.get(p.brandKitId) : undefined;
+
+  const applyKit = (kitId: string) => {
+    const kit = brandKitRepository.get(kitId);
+    if (!kit) return;
+    presentationRepository.update(p.id, applyBrandKit(p, kit));
+    toast.success(`${kit.name} applied to the presentation.`);
+  };
+
+  const removeKit = () => {
+    presentationRepository.update(p.id, clearBrandKit(p));
+    toast.success("Brand kit removed.");
+  };
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <div className="panel flex flex-wrap items-center justify-between gap-4 p-5">
         <div>
           <span className="eyebrow">Active design system</span>
           <h2 className="mt-1 text-xl text-foreground">{active.name}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Theme changes apply across the presentation while explicit element overrides remain intact.</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {activeKit ? `${activeKit.name} is overriding the selected theme with your brand colours and typography.` : "Theme changes apply across the presentation while explicit element overrides remain intact."}
+          </p>
         </div>
         <Button asChild>
           <Link to="/presentations/$presentationId/editor" params={{ presentationId: p.id }}>Open visual editor</Link>
         </Button>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {SLIDE_THEMES.map((theme) => (
-          <button
-            key={theme.id}
-            onClick={() => presentationRepository.update(p.id, { themeId: theme.id })}
-            className={`panel p-4 text-start transition-all hover:-translate-y-0.5 hover:shadow-sm ${active.id === theme.id ? "ring-2 ring-primary" : ""}`}
-          >
-            <div className="mb-4 flex h-20 overflow-hidden rounded-md border border-border">
-              <div className="flex-1" style={{ background: theme.colors.background }} />
-              <div className="w-1/4" style={{ background: theme.colors.surface }} />
-              <div className="w-1/5" style={{ background: theme.colors.accent }} />
-            </div>
-            <div className="text-sm font-medium text-foreground">{theme.name}</div>
-            <div className="mt-1 text-xs text-muted-foreground">{theme.fonts.heading} · {theme.fonts.body}</div>
-          </button>
-        ))}
-      </div>
+
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h3 className="text-base text-foreground">Brand kit</h3>
+            <p className="text-sm text-muted-foreground">Apply a stable snapshot of logo, palette and typography to this deck.</p>
+          </div>
+          <Button asChild variant="outline" size="sm"><Link to="/brand-kits">Manage brand kits</Link></Button>
+        </div>
+
+        {brandKits.length === 0 ? (
+          <div className="panel flex flex-wrap items-center justify-between gap-3 border-dashed p-4">
+            <p className="text-sm text-muted-foreground">No brand kits yet. Create one to apply your company identity.</p>
+            <Button asChild size="sm"><Link to="/brand-kits">Create brand kit</Link></Button>
+          </div>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {brandKits.map((kit) => {
+              const selected = p.brandKitId === kit.id;
+              const preview = getTheme(p.themeId, selected ? p.themeOverrides : undefined);
+              return (
+                <div key={kit.id} className={`panel p-4 ${selected ? "ring-2 ring-primary" : ""}`}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-medium text-foreground">{kit.name}</div>
+                      <div className="mt-1 text-xs text-muted-foreground">{kit.headingFont} · {kit.bodyFont}</div>
+                    </div>
+                    {kit.logoDataUrl ? <img src={kit.logoDataUrl} alt="" className="max-h-9 max-w-20 object-contain" /> : null}
+                  </div>
+                  <div className="mt-3 flex gap-1.5">
+                    {(kit.colors ?? []).slice(0, 4).map((color) => <span key={color} className="size-6 rounded border border-border" style={{ background: color }} />)}
+                    {selected && <span className="ms-auto rounded-full bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary">Applied</span>}
+                  </div>
+                  <div className="mt-3 flex gap-2">
+                    <Button size="sm" className="flex-1" variant={selected ? "secondary" : "outline"} onClick={() => applyKit(kit.id)}>
+                      {selected ? "Reapply" : "Apply"}
+                    </Button>
+                    {selected && <Button size="sm" variant="ghost" onClick={removeKit}>Remove</Button>}
+                  </div>
+                  {selected && <div className="mt-3 h-1 rounded" style={{ background: preview.colors.accent }} />}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      <section className="space-y-3">
+        <div>
+          <h3 className="text-base text-foreground">Base theme</h3>
+          <p className="text-sm text-muted-foreground">The brand kit sits above this visual system, so you can change layout mood without losing company identity.</p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {SLIDE_THEMES.map((theme) => (
+            <button
+              key={theme.id}
+              onClick={() => presentationRepository.update(p.id, { themeId: theme.id })}
+              className={`panel p-4 text-start transition-all hover:-translate-y-0.5 hover:shadow-sm ${(p.themeId ?? "executive-light") === theme.id ? "ring-2 ring-primary" : ""}`}
+            >
+              <div className="mb-4 flex h-20 overflow-hidden rounded-md border border-border">
+                <div className="flex-1" style={{ background: theme.colors.background }} />
+                <div className="w-1/4" style={{ background: theme.colors.surface }} />
+                <div className="w-1/5" style={{ background: theme.colors.accent }} />
+              </div>
+              <div className="text-sm font-medium text-foreground">{theme.name}</div>
+              <div className="mt-1 text-xs text-muted-foreground">{theme.fonts.heading} · {theme.fonts.body}</div>
+            </button>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

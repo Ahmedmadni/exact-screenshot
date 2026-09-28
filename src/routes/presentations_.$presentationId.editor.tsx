@@ -60,7 +60,7 @@ const SHAPE_ICONS: Record<ShapeKind, typeof Square> = { rect: Square, roundRect:
 
 function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | undefined }) {
   const api = useEditor(p, initialSlide);
-  const theme = getTheme(api.themeId);
+  const theme = getTheme(api.themeId, p.themeOverrides);
   const [zoom, setZoom] = useState<Zoom>(1);
   const zoomNum = zoom === "fill" ? 1 : zoom;
   const [previewing, setPreviewing] = useState(false);
@@ -217,7 +217,7 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
           <Button size="sm" onClick={() => setPreviewing(true)}><Play className="size-4" /> Present</Button>
         </div>
         <p className="rounded-md border border-border bg-card p-3 text-sm text-muted-foreground">The visual editor works best on a larger screen. You can review and present your slides here.</p>
-        {api.slides.map((s) => <div key={s.id} className="overflow-hidden rounded-md border border-border"><SlideThumb slide={s} themeId={api.themeId} /></div>)}
+        {api.slides.map((s) => <div key={s.id} className="overflow-hidden rounded-md border border-border"><SlideThumb slide={s} themeId={api.themeId} themeOverrides={p.themeOverrides} /></div>)}
       </div>
 
       <header className="hidden h-14 shrink-0 items-center gap-2 border-b border-border bg-card px-3 lg:flex">
@@ -330,12 +330,12 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
       </header>
 
       <div className="hidden min-h-0 flex-1 lg:flex">
-        <SlideRail api={api} themeId={api.themeId} presentationId={p.id} />
+        <SlideRail api={api} themeId={api.themeId} themeOverrides={p.themeOverrides} presentationId={p.id} />
         <EditorCanvas api={api} theme={theme} zoom={zoom} />
         <PropertiesPanel api={api} theme={theme} onTheme={api.setTheme} />
       </div>
 
-      {previewing && <Preview api={api} themeId={api.themeId} onClose={() => setPreviewing(false)} />}
+      {previewing && <Preview api={api} themeId={api.themeId} themeOverrides={p.themeOverrides} onClose={() => setPreviewing(false)} />}
     </div>
   );
 }
@@ -344,10 +344,10 @@ function box([x, y, width, height]: [number, number, number, number]) {
   return { x, y, width, height };
 }
 
-function Preview({ api, themeId, onClose }: { api: EditorApi; themeId?: string | undefined; onClose: () => void }) {
+function Preview({ api, themeId, themeOverrides, onClose }: { api: EditorApi; themeId?: string | undefined; themeOverrides?: Presentation["themeOverrides"]; onClose: () => void }) {
   const [index, setIndex] = useState(() => Math.max(0, api.slides.findIndex((s) => s.id === api.activeId)));
   const { ref, scale } = useFitScale();
-  const theme = getTheme(themeId);
+  const theme = getTheme(themeId, themeOverrides);
   const slide = api.slides[index];
 
   useEffect(() => {

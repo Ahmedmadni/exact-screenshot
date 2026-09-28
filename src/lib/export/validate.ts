@@ -19,12 +19,14 @@ export function validatePresentationForExport(presentation: Presentation): Expor
       if (el.type === "image" && !el.properties.src) {
         issues.push({ level: "warning", slideNumber: index + 1, message: `${el.name} has no image assigned.` });
       }
-      if (el.type === "chart" || el.type === "table" || el.type === "diagram") {
-        issues.push({
-          level: "warning",
-          slideNumber: index + 1,
-          message: `${el.name} is still a placeholder and will export as a placeholder.`,
-        });
+      if (el.type === "chart" && (!el.properties.categories.length || !el.properties.series.length)) {
+        issues.push({ level: "warning", slideNumber: index + 1, message: `${el.name} has no chart data.` });
+      }
+      if (el.type === "table" && !el.properties.rows.length) {
+        issues.push({ level: "warning", slideNumber: index + 1, message: `${el.name} has no table rows.` });
+      }
+      if (el.type === "diagram" && !el.properties.nodes.length) {
+        issues.push({ level: "warning", slideNumber: index + 1, message: `${el.name} has no diagram items.` });
       }
     });
   });

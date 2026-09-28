@@ -15,12 +15,12 @@ export function ChartBody({ el, theme }: { el: ChartElement; theme: SlideTheme }
   const series = p.series.length ? p.series : [{ name: "Series", values: [1, 2, 3] }];
   const width = Math.max(10, el.width);
   const height = Math.max(10, el.height);
-  const pad = { l: 72, r: 28, t: p.showLegend ? 58 : 30, b: 58 };
+  const pad = { l: p.chartType === "bar" ? 110 : 72, r: 28, t: p.label ? (p.showLegend ? 88 : 58) : (p.showLegend ? 58 : 30), b: 58 };
   const cw = Math.max(10, width - pad.l - pad.r);
   const ch = Math.max(10, height - pad.t - pad.b);
   const values = series.flatMap((s) => s.values).filter(Number.isFinite);
   const max = Math.max(1, ...values.map((v) => Math.abs(v)));
-  const colors = chartColors(theme, p.accent, series.length);
+  const colors = chartColors(theme, p.accent, p.chartType === "pie" || p.chartType === "doughnut" ? cats.length : series.length);
   const font = resolveFont("theme:body", theme);
   const axis = theme.colors.line;
   const text = theme.colors.secondary;
@@ -72,7 +72,27 @@ export function ChartBody({ el, theme }: { el: ChartElement; theme: SlideTheme }
       <line x1={pad.l} x2={pad.l} y1={pad.t} y2={pad.t + ch} stroke={axis} strokeWidth={1.5} />
       <line x1={pad.l} x2={width - pad.r} y1={pad.t + ch} y2={pad.t + ch} stroke={axis} strokeWidth={1.5} />
 
-      {p.chartType === "line" || p.chartType === "area" ? series.map((s, si) => {
+      {p.chartType === "bar" ? cats.map((cat, ci) => {
+        const rowH = ch / Math.max(1, cats.length);
+        const groupH = rowH * 0.68;
+        const barH = groupH / Math.max(1, series.length);
+        return (
+          <g key={cat}>
+            <text x={pad.l - 12} y={pad.t + ci * rowH + rowH / 2 + 5} textAnchor="end" fontFamily={font} fontSize={16} fill={text}>{cat}</text>
+            {series.map((ser, si) => {
+              const value = Math.max(0, ser.values[ci] ?? 0);
+              const bw = (value / max) * cw;
+              const by = pad.t + ci * rowH + (rowH - groupH) / 2 + si * barH;
+              return (
+                <g key={ser.name}>
+                  <rect x={pad.l} y={by} width={bw} height={Math.max(3, barH - 4)} rx={4} fill={colors[si % colors.length]} />
+                  {p.showValues && <text x={pad.l + bw + 8} y={by + barH / 2 + 5} fontFamily={font} fontSize={15} fill={text}>{value}</text>}
+                </g>
+              );
+            })}
+          </g>
+        );
+      }) : p.chartType === "line" || p.chartType === "area" ? series.map((s, si) => {
         const pts = cats.map((_, i) => [pad.l + xStep * (i + 0.5), y(s.values[i] ?? 0)] as const);
         const points = pts.map(([xv, yv]) => `${xv},${yv}`).join(" ");
         return (
@@ -104,12 +124,13 @@ export function ChartBody({ el, theme }: { el: ChartElement; theme: SlideTheme }
         });
       })}
 
-      {cats.map((c, i) => (
+      {p.chartType !== "bar" && cats.map((c, i) => (
         <text key={c} x={pad.l + xStep * (i + 0.5)} y={height - 20} textAnchor="middle" fontFamily={font} fontSize={17} fill={text}>{c}</text>
       ))}
 
+      {p.label && <text x={pad.l} y={26} fontFamily={font} fontSize={22} fontWeight={650} fill={theme.colors.primary}>{p.label}</text>}
       {p.showLegend && series.map((ser, i) => (
-        <g key={ser.name} transform={`translate(${pad.l + i * 180} 25)`}>
+        <g key={ser.name} transform={`translate(${pad.l + i * 180} ${p.label ? 50 : 25})`}>
           <rect width={18} height={18} rx={4} fill={colors[i % colors.length]} />
           <text x={28} y={15} fontFamily={font} fontSize={17} fill={text}>{ser.name}</text>
         </g>

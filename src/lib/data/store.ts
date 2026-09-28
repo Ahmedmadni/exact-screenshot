@@ -180,6 +180,7 @@ export const presentationRepository: PresentationRepository = {
 export const assetRepository = {
   list: (presentationId?: string) =>
     presentationId ? db.assets.filter((a) => a.presentationId === presentationId) : db.assets,
+  get: (id: string) => db.assets.find((a) => a.id === id),
   add(record: Omit<AssetRecord, "id" | "createdAt">) {
     const stamp = new Date().toISOString();
     const asset: AssetRecord = { ...record, id: uid(), createdAt: stamp, updatedAt: stamp };

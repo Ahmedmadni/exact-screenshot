@@ -1,6 +1,6 @@
 import { memo, useEffect, useRef, useState, type CSSProperties } from "react";
 import { ImageIcon } from "lucide-react";
-import type { Slide } from "@/lib/types";
+import type { PresentationThemeOverrides, Slide } from "@/lib/types";
 import { SLIDE_H, SLIDE_W, type SlideElement } from "@/lib/editor/model";
 import { getTheme, resolveColor, resolveFont, type SlideTheme } from "@/lib/editor/themes";
 import { getIcon } from "@/lib/editor/icons";
@@ -162,9 +162,9 @@ export function useFitScale(padding = 0) {
   return { ref, scale, fillScale };
 }
 
-export const SlideThumb = memo(function SlideThumb({ slide, themeId }: { slide: Slide; themeId?: string | undefined }) {
+export const SlideThumb = memo(function SlideThumb({ slide, themeId, themeOverrides }: { slide: Slide; themeId?: string | undefined; themeOverrides?: PresentationThemeOverrides | undefined }) {
   const { ref, scale } = useFitScale();
-  const theme = getTheme(themeId);
+  const theme = getTheme(themeId, themeOverrides);
   return (
     <div ref={ref} className="relative aspect-video w-full overflow-hidden">
       <div style={{ position: "absolute", top: 0, left: 0, width: SLIDE_W, height: SLIDE_H, transform: `scale(${scale})`, transformOrigin: "top left" }} dir="ltr">

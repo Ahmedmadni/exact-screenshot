@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Copy, Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { uid } from "@/lib/data/store";
 import { buildLayout, contentFromSlide } from "@/lib/editor/layouts";
@@ -68,7 +69,7 @@ export function SlideRail({ api, themeId, presentationId }: { api: EditorApi; th
                   <Copy className="size-3" />
                 </button>
                 {slides.length > 1 && (
-                  <button className="rounded bg-background/90 p-1 text-muted-foreground shadow hover:text-destructive" aria-label="Delete slide" onClick={(e) => { e.stopPropagation(); const next = slides.filter((x) => x.id !== s.id); api.commit(next); if (s.id === api.activeId) api.setActiveId(next[Math.max(0, i - 1)]!.id); }}>
+                  <button className="rounded bg-background/90 p-1 text-muted-foreground shadow hover:text-destructive" aria-label="Delete slide" onClick={(e) => { e.stopPropagation(); const before = slides; const wasActive = api.activeId; const next = slides.filter((x) => x.id !== s.id); api.commit(next); if (s.id === api.activeId) api.setActiveId(next[Math.max(0, i - 1)]!.id); toast("Slide deleted", { action: { label: "Undo", onClick: () => { api.commit(before); api.setActiveId(s.id === wasActive ? s.id : wasActive); } } }); }}>
                     <Trash2 className="size-3" />
                   </button>
                 )}

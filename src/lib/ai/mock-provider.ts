@@ -1,5 +1,6 @@
 import type { AIProvider, PlanRequest, PlannedSlide, PresentationPlan } from "./types";
-import type { SlideIntent, StoryBeat, VisualType } from "@/lib/types";
+import type { SlideIntent, VisualType } from "@/lib/types";
+import { briefCopy, designPlannedSlides, storyArcFor } from "./slide-designer";
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -20,17 +21,6 @@ function titleCase(topic: string) {
   const words = clipped.split(/\s+/).slice(0, 8).join(" ");
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
-
-const STORY_ARC: StoryBeat[] = [
-  { id: "context", label: "Context", question: "Where are we today?" },
-  { id: "problem", label: "Problem", question: "What is holding us back?" },
-  { id: "opportunity", label: "Opportunity", question: "What can change?" },
-  { id: "strategy", label: "Strategy", question: "What should we do?" },
-  { id: "roadmap", label: "Roadmap", question: "How will we execute?" },
-  { id: "investment", label: "Investment", question: "What resources are required?" },
-  { id: "impact", label: "Business Impact", question: "What value will be created?" },
-  { id: "decision", label: "Decision", question: "What approval or action is required?" },
-];
 
 function blueprints(subject: string): Blueprint[] {
   return [
@@ -204,17 +194,20 @@ function selectSlides(request: PlanRequest, count: number): PlannedSlide[] {
   const pool = blueprints(subject);
   const ordered = [...pool].sort((a, b) => b.priority - a.priority).slice(0, count);
   const chosen = pool.filter((b) => ordered.includes(b));
-  return chosen.map((b, index) => ({
-    slideNumber: index + 1,
-    sortOrder: index,
-    title: b.title,
-    purpose: b.purpose,
-    slideIntent: b.intent,
-    keyMessage: b.keyMessage,
-    contentSummary: b.contentSummary,
-    visualType: b.visualType,
-    isOptional: b.priority <= 3,
-  }));
+  return designPlannedSlides(
+    chosen.map((b, index) => ({
+      slideNumber: index + 1,
+      sortOrder: index,
+      title: b.title,
+      purpose: b.purpose,
+      slideIntent: b.intent,
+      keyMessage: b.keyMessage,
+      contentSummary: b.contentSummary,
+      visualType: b.visualType,
+      isOptional: b.priority <= 3,
+    })),
+    request,
+  );
 }
 
 export function renumber(slides: PlannedSlide[]): PlannedSlide[] {
@@ -233,25 +226,21 @@ export class MockAIProvider implements AIProvider {
     await delay(1400);
     const count = Math.min(Math.max(request.slideCount, 4), 18);
     const slides = selectSlides(request, count);
-    const subject = titleCase(request.topic) || "Untitled Presentation";
+    const subject = request.language === "Arabic"
+      ? request.topic.trim().split(/[.\n]/)[0]?.trim() || "عرض تقديمي"
+      : titleCase(request.topic) || "Untitled Presentation";
+    const copy = briefCopy(request, subject);
 
     return {
       brief: {
         title: subject,
-        objective:
-          request.objective?.trim() ||
-          `Give the ${request.audience.toLowerCase()} a clear ${request.purpose.toLowerCase()} on ${subject.toLowerCase()} and secure a decision.`,
-        coreMessage: `${subject} is achievable within the proposed horizon, and the decision required today is a clear, funded commitment.`,
+        objective: copy.objective,
+        coreMessage: copy.coreMessage,
         recommendedSlideCount: slides.length,
         estimatedDuration: Math.max(5, Math.round(slides.length * 1.5)),
-        visualDirection:
-          request.tone === "Data-driven"
-            ? "Chart-led, restrained palette, dense but legible figures."
-            : request.tone === "Creative"
-              ? "Image-led with generous space and expressive typography."
-              : "Editorial and spacious: one idea per slide, quiet palette, strong hierarchy.",
+        visualDirection: copy.visualDirection,
       },
-      storyArc: STORY_ARC,
+      storyArc: storyArcFor(request),
       slides,
     };
   }

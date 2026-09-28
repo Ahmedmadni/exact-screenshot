@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/empty-state";
 import { SaveIndicator } from "@/components/save-indicator";
-import { EditorCanvas } from "@/components/editor/editor-canvas";
+import { EditorCanvas, type Zoom } from "@/components/editor/editor-canvas";
 import { PropertiesPanel } from "@/components/editor/properties-panel";
 import { SlideRail } from "@/components/editor/slide-rail";
 import { IconPicker } from "@/components/editor/icon-picker";
@@ -57,7 +57,8 @@ const SHAPE_ICONS: Record<ShapeKind, typeof Square> = { rect: Square, roundRect:
 function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | undefined }) {
   const api = useEditor(p, initialSlide);
   const theme = getTheme(api.themeId);
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState<Zoom>(1);
+  const zoomNum = zoom === "fill" ? 1 : zoom;
   const [previewing, setPreviewing] = useState(false);
   const clipboard = useRef<SlideElement[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -204,15 +205,16 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
         </div>
 
         <div className="flex items-center gap-1">
-          <Button size="icon" variant="ghost" aria-label="Zoom out" onClick={() => setZoom((z) => Math.max(0.25, +(z - 0.25).toFixed(2)))}><ZoomOut className="size-4" /></Button>
+          <Button size="icon" variant="ghost" aria-label="Zoom out" onClick={() => setZoom(Math.max(0.25, +(zoomNum - 0.25).toFixed(2)))}><ZoomOut className="size-4" /></Button>
           <DropdownMenu>
-            <DropdownMenuTrigger asChild><button className="w-14 rounded px-1 py-1 text-center text-xs text-muted-foreground hover:bg-muted" title="Zoom">{zoom === 1 ? "Fit" : `${Math.round(zoom * 100)}%`}</button></DropdownMenuTrigger>
+            <DropdownMenuTrigger asChild><button className="w-14 rounded px-1 py-1 text-center text-xs text-muted-foreground hover:bg-muted" title="Zoom">{zoom === "fill" ? "Fill" : zoom === 1 ? "Fit" : `${Math.round(zoom * 100)}%`}</button></DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setZoom(1)}>Fit to screen</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setZoom(1)}>Fit — whole slide</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setZoom("fill")}>Fill — use all space</DropdownMenuItem>
               {[0.25, 0.5, 0.75, 1.25, 1.5, 2].map((z) => <DropdownMenuItem key={z} onClick={() => setZoom(z)}>{z * 100}% of fit</DropdownMenuItem>)}
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button size="icon" variant="ghost" aria-label="Zoom in" onClick={() => setZoom((z) => Math.min(3, +(z + 0.25).toFixed(2)))}><ZoomIn className="size-4" /></Button>
+          <Button size="icon" variant="ghost" aria-label="Zoom in" onClick={() => setZoom(Math.min(3, +(zoomNum + 0.25).toFixed(2)))}><ZoomIn className="size-4" /></Button>
           <Button size="sm" className="ms-2" onClick={() => setPreviewing(true)}><Play className="size-4" /> Preview</Button>
         </div>
       </header>

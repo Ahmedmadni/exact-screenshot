@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
   AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignStartHorizontal, AlignStartVertical,
   ArrowDownToLine, ArrowUpToLine, Bold, ChevronDown, ChevronUp, Copy, Eye, EyeOff, Italic, Lock, Trash2, Underline, Unlock,
@@ -133,6 +133,12 @@ export function PropertiesPanel({ api, theme, onTheme }: { api: EditorApi; theme
           </div>
           <p className="text-[11px] text-muted-foreground">Switching layouts keeps your text, images and added elements.</p>
         </Section>
+        <Section title="Slide background">
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant={slide.background ? "outline" : "secondary"} className="h-7 text-xs" onClick={() => api.updateActiveSlide({ background: undefined })}>Theme default</Button>
+          </div>
+          <ColorField value={slide.background ?? "theme:background"} theme={theme} onChange={(v) => api.updateActiveSlide({ background: v === "theme:background" ? undefined : v })} />
+        </Section>
         <Section title="Theme">
           <div className="space-y-1.5">
             {SLIDE_THEMES.map((t) => (
@@ -147,7 +153,7 @@ export function PropertiesPanel({ api, theme, onTheme }: { api: EditorApi; theme
           <div className="space-y-0.5">
             {[...slide.elements].sort((a, b) => b.zIndex - a.zIndex).map((e) => (
               <div key={e.id} className="flex items-center gap-1 rounded px-1.5 py-1 text-xs hover:bg-muted">
-                <button className="flex-1 truncate text-start text-foreground" onClick={() => api.setSelected([e.id])}>{e.name}</button>
+                <LayerName name={e.name} onSelect={() => api.setSelected([e.id])} onRename={(name) => api.updateElements([e.id], (x) => ({ ...x, name: name || defaultName(x) }))} />
                 <button aria-label="Toggle visibility" className="text-muted-foreground" onClick={() => api.updateElements([e.id], (x) => ({ ...x, visible: !x.visible }))}>{e.visible ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}</button>
                 <button aria-label="Toggle lock" className="text-muted-foreground" onClick={() => api.updateElements([e.id], (x) => ({ ...x, locked: !x.locked }))}>{e.locked ? <Lock className="size-3.5" /> : <Unlock className="size-3.5" />}</button>
               </div>
@@ -161,7 +167,7 @@ export function PropertiesPanel({ api, theme, onTheme }: { api: EditorApi; theme
   return (
     <aside className="w-72 shrink-0 overflow-y-auto border-s border-border bg-card">
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
-        <span className="truncate text-sm text-foreground">{el ? el.name : `${sel.length} elements`}</span>
+        {el ? <LayerName name={el.name} onRename={(name) => api.updateElements([el.id], (x) => ({ ...x, name: name || defaultName(x) }))} className="text-sm" /> : <span className="text-sm text-foreground">{sel.length} elements</span>}
         <div className="flex gap-0.5">
           <Button size="icon" variant="ghost" className="size-7" aria-label="Duplicate" onClick={duplicate}><Copy className="size-3.5" /></Button>
           <Button size="icon" variant="ghost" className="size-7" aria-label="Delete" onClick={remove}><Trash2 className="size-3.5" /></Button>
@@ -296,5 +302,43 @@ function TextSection({ p, theme, setProps }: { p: TextProps; theme: SlideTheme; 
       <Label className="text-xs text-muted-foreground">Color</Label>
       <ColorField value={p.color} theme={theme} onChange={(v) => setProps({ color: v })} />
     </Section>
+  );
+}
+
+function defaultName(el: SlideElement) {
+  return el.type === "shape" ? "Shape" : el.type.charAt(0).toUpperCase() + el.type.slice(1);
+}
+
+/** Double-click to rename. Enter confirms, Escape cancels, blank reverts to a default name. */
+function LayerName({ name, onRename, onSelect, className }: { name: string; onRename: (n: string) => void; onSelect?: () => void; className?: string }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(name);
+  if (editing)
+    return (
+      <input
+        autoFocus
+        dir="auto"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onFocus={(e) => e.target.select()}
+        onKeyDown={(e) => {
+          e.stopPropagation();
+          if (e.key === "Enter") { setEditing(false); if (draft.trim() !== name) onRename(draft.trim()); }
+          if (e.key === "Escape") { setEditing(false); setDraft(name); }
+        }}
+        onBlur={() => { setEditing(false); if (draft.trim() !== name) onRename(draft.trim()); }}
+        className={cn("min-w-0 flex-1 rounded border border-primary bg-background px-1 text-xs outline-none", className)}
+        aria-label="Layer name"
+      />
+    );
+  return (
+    <button
+      className={cn("min-w-0 flex-1 truncate text-start text-foreground", className)}
+      title="Double-click to rename"
+      onClick={onSelect}
+      onDoubleClick={() => { setDraft(name); setEditing(true); }}
+    >
+      {name}
+    </button>
   );
 }

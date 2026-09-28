@@ -15,9 +15,11 @@ const CURSOR: Record<Handle, string> = { n: "ns-resize", s: "ns-resize", e: "ew-
 
 interface Guide { axis: "x" | "y"; pos: number }
 
-export function EditorCanvas({ api, theme, zoom }: { api: EditorApi; theme: SlideTheme; zoom: number }) {
-  const { ref, scale: fit } = useFitScale(40);
-  const scale = fit * zoom;
+export type Zoom = number | "fill";
+
+export function EditorCanvas({ api, theme, zoom }: { api: EditorApi; theme: SlideTheme; zoom: Zoom }) {
+  const { ref, scale: fit, fillScale } = useFitScale(40);
+  const scale = zoom === "fill" ? fillScale : fit * zoom;
   const stageRef = useRef<HTMLDivElement>(null);
   const [guides, setGuides] = useState<Guide[]>([]);
   const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null);

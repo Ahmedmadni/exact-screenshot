@@ -146,6 +146,7 @@ export function SlideStage({ slide, theme, hideIds }: { slide: Slide; theme: Sli
 export function useFitScale(padding = 0) {
   const ref = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.1);
+  const [fillScale, setFillScale] = useState(0.1);
   useEffect(() => {
     const node = ref.current;
     if (!node) return;
@@ -153,13 +154,14 @@ export function useFitScale(padding = 0) {
       const w = node.clientWidth - padding * 2;
       const h = node.clientHeight - padding * 2;
       setScale(Math.max(0.05, h > 0 ? Math.min(w / SLIDE_W, h / SLIDE_H) : w / SLIDE_W));
+      setFillScale(Math.max(0.05, h > 0 ? Math.max(w / SLIDE_W, h / SLIDE_H) : w / SLIDE_W));
     };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(node);
     return () => ro.disconnect();
   }, [padding]);
-  return { ref, scale };
+  return { ref, scale, fillScale };
 }
 
 export const SlideThumb = memo(function SlideThumb({ slide, themeId }: { slide: Slide; themeId?: string | undefined }) {

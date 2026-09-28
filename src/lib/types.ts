@@ -232,6 +232,7 @@ export interface AssetRecord {
   sheetNames?: string[];
   slideCount?: number;
   dataTables?: AssetDataTable[];
+  imageDataUrl?: string;
   warnings?: string[];
 }
 

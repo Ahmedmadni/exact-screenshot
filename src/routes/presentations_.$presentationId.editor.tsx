@@ -17,13 +17,14 @@ import { IconPicker } from "@/components/editor/icon-picker";
 import { readImage } from "@/components/editor/image-upload";
 import { SlideStage, SlideThumb, useFitScale } from "@/components/editor/slide-renderer";
 import { useEditor, type EditorApi } from "@/components/editor/use-editor";
-import { usePresentation } from "@/lib/data/store";
+import { assetRepository, usePresentation } from "@/lib/data/store";
 import { SHAPE_LABELS, TEXT_PRESETS, chartEl, cloneElement, diagramEl, iconEl, imageEl, instantiate, shapeEl, tableEl, textEl } from "@/lib/editor/elements";
 import { SLIDE_H, SLIDE_W, type DraftElement, type ShapeKind, type SlideElement } from "@/lib/editor/model";
 import { getTheme } from "@/lib/editor/themes";
 import { rebuildGeneratedContent, smartComposeSlide, tryAnotherDesign } from "@/lib/editor/composer";
 import { exportPresentationToPdf, exportPresentationToPptx, validatePresentationForExport } from "@/lib/export";
-import type { Presentation } from "@/lib/types";
+import type { AssetRecord, Presentation } from "@/lib/types";
+import { sourceContextFromAssets } from "@/lib/documents/analyze";
 
 export const Route = createFileRoute("/presentations_/$presentationId/editor")({
   validateSearch: (s: Record<string, unknown>): { slide?: string } => (typeof s["slide"] === "string" ? { slide: s["slide"] } : {}),
@@ -82,6 +83,9 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
 
   const center = (w: number, h: number): [number, number, number, number] => [Math.round((SLIDE_W - w) / 2), Math.round((SLIDE_H - h) / 2), w, h];
 
+  const sourceAssets = (p.sourceAssetIds ?? [])
+    .map((id) => assetRepository.get(id))
+    .filter((asset): asset is AssetRecord => !!asset);
   const planRequest: PlanRequest = {
     topic: p.topic,
     objective: p.objective,
@@ -92,6 +96,8 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
     tone: p.tone,
     lengthPreset: p.lengthPreset,
     slideCount: p.slides.length,
+    sourceContext: sourceContextFromAssets(sourceAssets) || undefined,
+    sourceNames: sourceAssets.filter((asset) => asset.extractionStatus === "ready").map((asset) => asset.name),
   };
 
   const replaceActive = useCallback((nextSlide: typeof api.active) => {

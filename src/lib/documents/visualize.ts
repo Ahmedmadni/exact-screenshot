@@ -116,3 +116,56 @@ export function applySourceDataVisuals(slides: Slide[], assets: AssetRecord[]): 
 
   return next;
 }
+
+
+function applySourceImages(slides: Slide[], assets: AssetRecord[]): Slide[] {
+  const images = assets.filter((asset) => asset.kind === "image" && asset.extractionStatus === "ready" && asset.imageDataUrl);
+  if (!images.length) return slides;
+
+  const next = [...slides];
+  let cursor = 0;
+
+  for (const asset of images) {
+    let index = next.findIndex((slide, i) =>
+      i >= cursor &&
+      slide.elements.some((el) => el.type === "image" && el.role === "media" && !el.properties.src),
+    );
+
+    if (index < 0) {
+      index = next.findIndex((slide, i) =>
+        i >= cursor &&
+        (slide.slideIntent === "Cover" || ["Hero Image", "Image + Text", "Full Bleed Image"].includes(slide.visualType)),
+      );
+    }
+    if (index < 0) break;
+
+    const original = next[index]!;
+    let base = original;
+    let media = base.elements.find((el) => el.type === "image" && el.role === "media");
+
+    if (!media) {
+      const layoutId = original.slideIntent === "Cover" ? "cover-split" : "image-text";
+      base = applyLayout(original, layoutId);
+      media = base.elements.find((el) => el.type === "image" && el.role === "media");
+    }
+
+    if (!media || media.type !== "image") continue;
+    next[index] = {
+      ...base,
+      visualType: original.slideIntent === "Cover" ? "Hero Image" : "Image + Text",
+      elements: base.elements.map((el) =>
+        el.id === media!.id && el.type === "image"
+          ? { ...el, properties: { ...el.properties, src: asset.imageDataUrl! } }
+          : el,
+      ),
+      updatedAt: new Date().toISOString(),
+    };
+    cursor = index + 1;
+  }
+
+  return next;
+}
+
+export function applySourceVisuals(slides: Slide[], assets: AssetRecord[]): Slide[] {
+  return applySourceImages(applySourceDataVisuals(slides, assets), assets);
+}

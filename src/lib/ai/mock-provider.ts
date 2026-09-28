@@ -210,6 +210,42 @@ function selectSlides(request: PlanRequest, count: number): PlannedSlide[] {
   );
 }
 
+function sourceEvidence(request: PlanRequest) {
+  const context = request.sourceContext?.trim();
+  if (!context) return [] as string[];
+  return context
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^\[[^\]]+\]\s*/, "").trim())
+    .filter((line) => line.length >= 18 && line.length <= 180 && !/^SOURCE:/i.test(line))
+    .filter((line, index, all) => all.indexOf(line) === index)
+    .slice(0, 8);
+}
+
+function enrichWithSources(slides: PlannedSlide[], request: PlanRequest): PlannedSlide[] {
+  const evidence = sourceEvidence(request);
+  if (!evidence.length) return slides;
+  let cursor = 0;
+  return slides.map((slide) => {
+    if (slide.slideIntent === "Executive Summary") {
+      return {
+        ...slide,
+        contentSummary: "Key messages grounded in the attached source material.",
+        bullets: evidence.slice(0, 4),
+      };
+    }
+    if (["Data Story", "Financial", "Problem", "Opportunity"].includes(slide.slideIntent) && cursor < evidence.length) {
+      const items = evidence.slice(cursor, cursor + 3);
+      cursor += items.length;
+      return {
+        ...slide,
+        contentSummary: items.join(" "),
+        bullets: items,
+      };
+    }
+    return slide;
+  });
+}
+
 export function renumber(slides: PlannedSlide[]): PlannedSlide[] {
   return slides.map((slide, index) => ({ ...slide, slideNumber: index + 1, sortOrder: index }));
 }
@@ -225,7 +261,7 @@ export class MockAIProvider implements AIProvider {
   async createPlan(request: PlanRequest): Promise<PresentationPlan> {
     await delay(1400);
     const count = Math.min(Math.max(request.slideCount, 4), 18);
-    const slides = selectSlides(request, count);
+    const slides = enrichWithSources(selectSlides(request, count), request);
     const subject = request.language === "Arabic"
       ? request.topic.trim().split(/[.\n]/)[0]?.trim() || "عرض تقديمي"
       : titleCase(request.topic) || "Untitled Presentation";
@@ -261,7 +297,7 @@ export class MockAIProvider implements AIProvider {
   ): Promise<PlannedSlide[]> {
     await delay(900);
     if (action === "regenerate") {
-      return selectSlides(request, current.length || request.slideCount);
+      return enrichWithSources(selectSlides(request, current.length || request.slideCount), request);
     }
     if (action === "shorten") {
       const target = Math.max(4, Math.round(current.length * 0.7));
@@ -271,7 +307,7 @@ export class MockAIProvider implements AIProvider {
       return renumber(kept);
     }
     const target = Math.min(18, current.length + 3);
-    const expanded = selectSlides(request, target);
+    const expanded = enrichWithSources(selectSlides(request, target), request);
     const existingTitles = new Set(current.map((s) => s.title));
     const additions = expanded.filter((s) => !existingTitles.has(s.title));
     return renumber([...current, ...additions].slice(0, target));

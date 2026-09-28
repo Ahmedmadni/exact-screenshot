@@ -78,6 +78,9 @@ function hydrate() {
         savedTemplates: Array.isArray(parsed.savedTemplates)
           ? parsed.savedTemplates.filter((t) => t && typeof t.id === "string" && typeof t.name === "string" && t.snapshot)
           : [],
+        assets: Array.isArray(parsed.assets)
+          ? parsed.assets.filter((a) => a && typeof a.id === "string" && typeof a.name === "string")
+          : initial().assets,
       };
     }
   } catch {
@@ -178,9 +181,16 @@ export const assetRepository = {
   list: (presentationId?: string) =>
     presentationId ? db.assets.filter((a) => a.presentationId === presentationId) : db.assets,
   add(record: Omit<AssetRecord, "id" | "createdAt">) {
-    const asset: AssetRecord = { ...record, id: uid(), createdAt: new Date().toISOString() };
+    const stamp = new Date().toISOString();
+    const asset: AssetRecord = { ...record, id: uid(), createdAt: stamp, updatedAt: stamp };
     mutate((d) => ({ ...d, assets: [asset, ...d.assets] }));
     return asset;
+  },
+  update(id: string, patch: Partial<AssetRecord>) {
+    mutate((d) => ({
+      ...d,
+      assets: d.assets.map((a) => a.id === id ? { ...a, ...patch, updatedAt: new Date().toISOString() } : a),
+    }));
   },
   remove(id: string) {
     queueCloudDelete("asset", id);

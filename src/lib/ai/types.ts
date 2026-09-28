@@ -24,6 +24,9 @@ export interface PlanRequest {
   tone: Tone;
   lengthPreset: LengthPreset;
   slideCount: number;
+  /** Extracted source material from attached PDF/Word/Excel/PowerPoint files. */
+  sourceContext?: string;
+  sourceNames?: string[];
 }
 
 export interface PresentationBrief {

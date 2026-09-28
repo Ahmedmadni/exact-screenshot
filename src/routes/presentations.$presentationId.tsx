@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, Download, FileText, Loader2, Minimize2, Plus, RefreshCw, Trash2, Maximize2, Upload, ArrowLeft } from "lucide-react";
+import { ArrowDown, ArrowUp, BookmarkPlus, Download, FileText, Loader2, Minimize2, Plus, RefreshCw, Trash2, Maximize2, Upload, ArrowLeft } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { EmptyState } from "@/components/empty-state";
 import { SaveIndicator, type SaveState } from "@/components/save-indicator";
@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { aiProvider, type PlanRequest } from "@/lib/ai";
-import { assetRepository, brandKitRepository, presentationRepository, uid, useDatabase, usePresentation } from "@/lib/data/store";
+import { assetRepository, brandKitRepository, presentationRepository, savedTemplateRepository, uid, useDatabase, usePresentation } from "@/lib/data/store";
 import { useI18n } from "@/lib/i18n";
 import { SlideThumb } from "@/components/editor/slide-renderer";
 import { materializeSlide } from "@/lib/editor/layouts";
@@ -133,6 +133,15 @@ function Detail() {
         </div>
         <div className="flex items-center gap-2">
           <SaveIndicator state={state} />
+          <Button
+            variant="outline"
+            onClick={() => {
+              savedTemplateRepository.saveFromPresentation({ ...p, slides: p.slides.map(materializeSlide) });
+              toast.success("Saved to My Templates.");
+            }}
+          >
+            <BookmarkPlus className="size-4" /> Save as template
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" disabled={!!exporting}>

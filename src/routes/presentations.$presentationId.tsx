@@ -552,38 +552,4 @@ function Files({ p }: { p: Presentation }) {
       )}
     </div>
   );
-}: { presentationId: string }) {
-  useDatabase();
-  const assets = assetRepository.list(presentationId);
-  const input = useRef<HTMLInputElement>(null);
-  return (
-    <div className="space-y-4">
-      <input
-        ref={input}
-        type="file"
-        multiple
-        hidden
-        onChange={(e) => {
-          Array.from(e.target.files ?? []).forEach((f) => assetRepository.add({ presentationId, name: f.name, kind: kindOf(f.name), size: f.size }));
-          e.target.value = "";
-        }}
-      />
-      <Button variant="outline" onClick={() => input.current?.click()}><Upload className="size-4" /> Upload files</Button>
-      {assets.length === 0 ? (
-        <EmptyState icon={FileText} title="No reference files yet" description="Attach reports, spreadsheets or decks — they will inform generation in the next phase." />
-      ) : (
-        <ul className="panel divide-y divide-border">
-          {assets.map((a) => (
-            <li key={a.id} className="flex items-center justify-between gap-3 p-3 text-sm">
-              <span className="truncate text-foreground">{a.name}</span>
-              <span className="flex items-center gap-3 text-xs text-muted-foreground">
-                {a.kind} · {Math.max(1, Math.round(a.size / 1024))} KB
-                <Button variant="ghost" size="icon" aria-label="Remove" onClick={() => assetRepository.remove(a.id)}><Trash2 className="size-4" /></Button>
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
 }

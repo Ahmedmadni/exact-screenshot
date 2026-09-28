@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { uid } from "@/lib/data/store";
 import { buildLayout, contentFromSlide } from "@/lib/editor/layouts";
-import type { Slide } from "@/lib/types";
+import type { PresentationThemeOverrides, Slide } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { SlideThumb } from "./slide-renderer";
 import type { EditorApi } from "./use-editor";
@@ -14,7 +14,7 @@ export function duplicateSlide(s: Slide): Slide {
   return { ...structuredClone(s), id, title: `${s.title}`, elements: s.elements.map((e) => ({ ...structuredClone(e), id: uid(), slideId: id })) };
 }
 
-export function SlideRail({ api, themeId, presentationId }: { api: EditorApi; themeId?: string | undefined; presentationId: string }) {
+export function SlideRail({ api, themeId, themeOverrides, presentationId }: { api: EditorApi; themeId?: string | undefined; themeOverrides?: PresentationThemeOverrides | undefined; presentationId: string }) {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
   const slides = api.slides;
@@ -62,7 +62,7 @@ export function SlideRail({ api, themeId, presentationId }: { api: EditorApi; th
             >
               <span className="w-4 pt-1 text-end text-[11px] text-muted-foreground">{i + 1}</span>
               <div className={cn("flex-1 overflow-hidden rounded border", s.id === api.activeId ? "border-primary ring-1 ring-primary" : "border-border")}>
-                <SlideThumb slide={s} themeId={themeId} />
+                <SlideThumb slide={s} themeId={themeId} themeOverrides={themeOverrides} />
               </div>
               <div className="absolute end-2 top-2 hidden gap-0.5 group-hover:flex">
                 <button className="rounded bg-background/90 p-1 text-muted-foreground shadow hover:text-foreground" aria-label="Duplicate slide" onClick={(e) => { e.stopPropagation(); const copy = duplicateSlide(s); const next = [...slides]; next.splice(i + 1, 0, copy); api.commit(next); api.setActiveId(copy.id); }}>

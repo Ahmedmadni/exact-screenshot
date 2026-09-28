@@ -15,6 +15,7 @@ import { assetRepository, presentationRepository, uid, useDatabase, usePresentat
 import { useI18n } from "@/lib/i18n";
 import { SlideThumb } from "@/components/editor/slide-renderer";
 import { materializeSlide } from "@/lib/editor/layouts";
+import { composeDeck } from "@/lib/editor/composer";
 import { VISUAL_TYPES, type AssetRecord, type Presentation, type Slide, type VisualType } from "@/lib/types";
 
 export const Route = createFileRoute("/presentations/$presentationId")({
@@ -164,7 +165,10 @@ function Blueprint({ p, update, save }: { p: Presentation; update: (patch: Parti
     const req: PlanRequest = { topic: p.topic, objective: p.objective, purpose: p.purpose, audience: p.audience, presentationType: p.presentationType, language: p.language, tone: p.tone, lengthPreset: p.lengthPreset, slideCount: p.recommendedSlideCount };
     const planned = await aiProvider().reflowOutline(req, p.slides, action);
     const stamp = new Date().toISOString();
-    presentationRepository.replaceSlides(p.id, planned.map((s) => materializeSlide({ ...s, id: uid(), presentationId: p.id, elements: [], createdAt: stamp, updatedAt: stamp })));
+    const generated = planned.map((s) =>
+      materializeSlide({ ...s, id: uid(), presentationId: p.id, elements: [], createdAt: stamp, updatedAt: stamp }),
+    );
+    presentationRepository.replaceSlides(p.id, composeDeck(generated));
     setBusy(null);
   };
 

@@ -82,3 +82,19 @@ export function rebuildGeneratedContent(
   const merged: SlideElement[] = [...generated, ...manual].map((e, i) => ({ ...e, zIndex: i }));
   return { ...next, layoutId, elements: merged, updatedAt: new Date().toISOString() };
 }
+
+
+/**
+ * Compose a full deck with visual rhythm: keep the best layout for each slide
+ * while avoiding unnecessary repetition across adjacent slides.
+ */
+export function composeDeck(slides: Slide[]): Slide[] {
+  let previous = "";
+  return slides.map((slide) => {
+    const candidates = candidateLayouts(slide);
+    const chosen = candidates.find((id) => id !== previous) ?? candidates[0] ?? "title-content";
+    const composed = applyLayout(slide, chosen);
+    previous = chosen;
+    return composed;
+  });
+}

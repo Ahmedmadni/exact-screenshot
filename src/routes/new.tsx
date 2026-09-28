@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
-import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
+import { useRef, useState } from "react";
+import { ArrowLeft, CheckCircle2, FileText, Loader2, Paperclip, Sparkles, X } from "lucide-react";
 import { z } from "zod";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
@@ -13,13 +13,15 @@ import { materializeSlide } from "@/lib/editor/layouts";
 import { composeDeck } from "@/lib/editor/composer";
 import { applyTemplateFamilyToSlides, getTemplateFamily } from "@/lib/templates";
 import { applyBrandKit } from "@/lib/brand";
-import { brandKitRepository, presentationRepository, uid, useDatabase } from "@/lib/data/store";
+import { assetRepository, brandKitRepository, presentationRepository, uid, useDatabase } from "@/lib/data/store";
 import { useI18n } from "@/lib/i18n";
 import {
   AUDIENCES, LANGUAGES, LENGTHS, LENGTH_RANGES, PRESENTATION_TYPES, PURPOSES, TONES,
   type Audience, type LengthPreset, type PresentationLanguage, type PresentationType, type Purpose, type Tone,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { ingestSourceFiles } from "@/lib/documents/ingest";
+import { sourceContextFromAssets } from "@/lib/documents/analyze";
 
 export const Route = createFileRoute("/new")({
   validateSearch: z.object({ topic: z.string().optional(), template: z.string().optional() }),
@@ -74,7 +76,7 @@ function Setup() {
   const navigate = useNavigate();
   const { topic: initial = "", template: templateId } = Route.useSearch();
   const template = getTemplateFamily(templateId);
-  const { brandKits } = useDatabase();
+  const { brandKits, assets } = useDatabase();
   const guess = infer(initial);
   const [topic, setTopic] = useState(initial);
   const [objective, setObjective] = useState("");
@@ -86,14 +88,36 @@ function Setup() {
   const [length, setLength] = useState<LengthPreset>(template?.lengthPreset ?? "Standard");
   const [custom, setCustom] = useState(10);
   const [brandKitId, setBrandKitId] = useState("__none");
+  const [sourceAssetIds, setSourceAssetIds] = useState<string[]>([]);
+  const [uploadingSources, setUploadingSources] = useState(false);
+  const sourceInput = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
 
   const slideCount = length === "Custom" ? custom : Math.round((LENGTH_RANGES[length][0] + LENGTH_RANGES[length][1]) / 2);
+  const selectedSources = assets.filter((asset) => sourceAssetIds.includes(asset.id));
+  const sourcePending = selectedSources.some((asset) => asset.extractionStatus === "pending");
+
+  const uploadSources = async (files: FileList | null) => {
+    if (!files?.length) return;
+    setUploadingSources(true);
+    try {
+      const added = await ingestSourceFiles(files, null);
+      setSourceAssetIds((current) => [...new Set([...current, ...added.map((asset) => asset.id)])]);
+    } finally {
+      setUploadingSources(false);
+      if (sourceInput.current) sourceInput.current.value = "";
+    }
+  };
 
   const build = async () => {
     if (!topic.trim()) return;
     setBusy(true);
-    const request = { topic, objective, purpose, audience, presentationType: type, language, tone, lengthPreset: length, slideCount };
+    const sourceContext = sourceContextFromAssets(selectedSources);
+    const request = {
+      topic, objective, purpose, audience, presentationType: type, language, tone, lengthPreset: length, slideCount,
+      sourceContext: sourceContext || undefined,
+      sourceNames: selectedSources.filter((asset) => asset.extractionStatus === "ready").map((asset) => asset.name),
+    };
     const plan = await aiProvider().createPlan(request);
     const stamp = new Date().toISOString();
     const created = presentationRepository.create({
@@ -110,6 +134,7 @@ function Setup() {
       visualDirection: plan.brief.visualDirection,
       storyArc: plan.storyArc,
       themeId: template?.themeId,
+      sourceAssetIds,
       slides: [],
     });
     const generatedSlides = plan.slides.map((s) =>
@@ -151,6 +176,49 @@ function Setup() {
           <Field label={t("setup.tone")}><Pick value={tone} options={TONES} onChange={setTone} /></Field>
           <Field label={t("setup.language")}><Pick value={language} options={LANGUAGES} onChange={setLanguage} /></Field>
         </div>
+        <Field label="Source files">
+          <input
+            ref={sourceInput}
+            type="file"
+            hidden
+            multiple
+            accept=".pdf,.docx,.xls,.xlsx,.csv,.pptx,.png,.jpg,.jpeg,.webp"
+            onChange={(e) => void uploadSources(e.target.files)}
+          />
+          <div className="space-y-3">
+            <Button type="button" variant="outline" onClick={() => sourceInput.current?.click()} disabled={uploadingSources}>
+              {uploadingSources ? <Loader2 className="size-4 animate-spin" /> : <Paperclip className="size-4" />}
+              Attach PDF, Word, Excel or PowerPoint
+            </Button>
+            {selectedSources.length > 0 && (
+              <div className="space-y-2">
+                {selectedSources.map((asset) => (
+                  <div key={asset.id} className="flex items-center gap-3 rounded-md border border-border p-3">
+                    {asset.extractionStatus === "pending" ? <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" /> : asset.extractionStatus === "ready" ? <CheckCircle2 className="size-4 shrink-0 text-emerald-600" /> : <FileText className="size-4 shrink-0 text-muted-foreground" />}
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm text-foreground">{asset.name}</div>
+                      <div className="mt-0.5 text-xs text-muted-foreground">{asset.extractionSummary ?? "Waiting for analysis…"}</div>
+                    </div>
+                    <Button type="button" size="icon" variant="ghost" aria-label="Remove source" onClick={() => setSourceAssetIds((ids) => ids.filter((id) => id !== asset.id))}><X className="size-4" /></Button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {assets.filter((asset) => !sourceAssetIds.includes(asset.id) && asset.extractionStatus === "ready").length > 0 && (
+              <div className="rounded-md border border-dashed border-border p-3">
+                <div className="mb-2 text-xs font-medium text-foreground">Use an existing analyzed source</div>
+                <div className="flex flex-wrap gap-2">
+                  {assets.filter((asset) => !sourceAssetIds.includes(asset.id) && asset.extractionStatus === "ready").slice(0, 8).map((asset) => (
+                    <button key={asset.id} type="button" onClick={() => setSourceAssetIds((ids) => [...ids, asset.id])} className="rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground">
+                      + {asset.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </Field>
+
         {brandKits.length > 0 && (
           <Field label="Brand kit">
             <Select value={brandKitId} onValueChange={setBrandKitId}>
@@ -185,7 +253,7 @@ function Setup() {
           )}
         </Field>
         <div className="flex justify-end">
-          <Button size="lg" onClick={build} disabled={busy || !topic.trim()}>
+          <Button size="lg" onClick={build} disabled={busy || sourcePending || !topic.trim()}>
             {busy ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
             {busy ? t("setup.building") : t("setup.build")}
           </Button>

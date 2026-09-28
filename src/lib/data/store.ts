@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { toast } from "sonner";
+import { queueCloudDelete } from "@/lib/cloud/delete-queue";
 import type { AssetRecord, BrandKit, Presentation, SavedTemplate, Slide, ThemeRecord } from "@/lib/types";
 import { SEED_ASSETS, SEED_BRAND_KITS, SEED_PRESENTATIONS, SEED_THEMES } from "./seed";
 
@@ -143,6 +144,7 @@ export const presentationRepository: PresentationRepository = {
     }));
   },
   remove(id) {
+    queueCloudDelete("presentation", id);
     mutate((d) => ({ ...d, presentations: d.presentations.filter((p) => p.id !== id) }));
   },
   duplicate(id) {
@@ -181,6 +183,7 @@ export const assetRepository = {
     return asset;
   },
   remove(id: string) {
+    queueCloudDelete("asset", id);
     mutate((d) => ({ ...d, assets: d.assets.filter((a) => a.id !== id) }));
   },
 };
@@ -204,6 +207,7 @@ export const savedTemplateRepository = {
     return template;
   },
   remove(id: string) {
+    queueCloudDelete("savedTemplate", id);
     mutate((d) => ({ ...d, savedTemplates: d.savedTemplates.filter((t) => t.id !== id) }));
   },
   createPresentation(id: string) {
@@ -256,6 +260,7 @@ export const brandKitRepository = {
     }));
   },
   remove(id: string) {
+    queueCloudDelete("brandKit", id);
     mutate((d) => ({ ...d, brandKits: d.brandKits.filter((k) => k.id !== id) }));
   },
 };

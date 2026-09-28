@@ -1,12 +1,15 @@
 import { uid } from "@/lib/data/store";
 import type {
+  ChartProps,
   ContentRole,
+  DiagramProps,
   DraftElement,
   IconProps,
   ImageProps,
   ShapeKind,
   ShapeProps,
   SlideElement,
+  TableProps,
   TextProps,
 } from "./model";
 
@@ -79,6 +82,75 @@ export function imageEl(
   role: ContentRole = "media",
 ): DraftElement {
   return { type: "image", ...base(name, ...box, role), properties: { src: "", fit: "cover", radius: 0, ...props } };
+}
+
+export function chartEl(
+  name: string,
+  box: [number, number, number, number],
+  props: Partial<ChartProps> = {},
+): DraftElement {
+  return {
+    type: "chart",
+    ...base(name, ...box),
+    properties: {
+      label: "Performance",
+      chartType: "column",
+      categories: ["Q1", "Q2", "Q3", "Q4"],
+      series: [{ name: "Actual", values: [24, 36, 42, 58] }],
+      showLegend: true,
+      showValues: false,
+      showGrid: true,
+      accent: "theme:accent",
+      ...props,
+    },
+  };
+}
+
+export function tableEl(
+  name: string,
+  box: [number, number, number, number],
+  props: Partial<TableProps> = {},
+): DraftElement {
+  return {
+    type: "table",
+    ...base(name, ...box),
+    properties: {
+      label: "Table",
+      rows: [
+        ["Metric", "Current", "Target"],
+        ["Revenue", "120", "150"],
+        ["Margin", "24%", "30%"],
+        ["Customers", "340", "420"],
+      ],
+      headerRow: true,
+      bandedRows: true,
+      headerFill: "theme:accent",
+      ...props,
+    },
+  };
+}
+
+export function diagramEl(
+  name: string,
+  box: [number, number, number, number],
+  props: Partial<DiagramProps> = {},
+): DraftElement {
+  return {
+    type: "diagram",
+    ...base(name, ...box),
+    properties: {
+      label: "Process",
+      diagramType: "process",
+      nodes: [
+        { title: "Discover", text: "Understand the current state" },
+        { title: "Design", text: "Define the target model" },
+        { title: "Deliver", text: "Execute priority changes" },
+        { title: "Improve", text: "Measure and optimize" },
+      ],
+      accent: "theme:accent",
+      ...props,
+    },
+  };
 }
 
 /** Assign ids and z-order to drafts for a concrete slide. */

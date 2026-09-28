@@ -86,6 +86,10 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
   const sourceAssets = (p.sourceAssetIds ?? [])
     .map((id) => assetRepository.get(id))
     .filter((asset): asset is AssetRecord => !!asset);
+  const activeSourceNames = (api.active?.sourceAssetIds ?? [])
+    .map((id) => assetRepository.get(id)?.name)
+    .filter((name): name is string => !!name);
+
   const planRequest: PlanRequest = {
     topic: p.topic,
     objective: p.objective,
@@ -229,9 +233,16 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
 
       <header className="hidden h-14 shrink-0 items-center gap-2 border-b border-border bg-card px-3 lg:flex">
         <Button asChild size="icon" variant="ghost" aria-label="Back to presentation"><Link to="/presentations/$presentationId" params={{ presentationId: p.id }}><ArrowLeft className="size-4 rtl:rotate-180" /></Link></Button>
-        <div className="min-w-0 max-w-64">
+        <div className="min-w-0 max-w-72">
           <p className="truncate text-sm font-medium text-foreground">{p.title}</p>
-          <SaveIndicator state={api.save} />
+          <div className="flex items-center gap-2">
+            <SaveIndicator state={api.save} />
+            {activeSourceNames.length > 0 && (
+              <span className="max-w-40 truncate rounded-full bg-accent/10 px-2 py-0.5 text-[10px] text-accent" title={activeSourceNames.join(", ")}>
+                Source · {activeSourceNames.join(", ")}
+              </span>
+            )}
+          </div>
         </div>
         <span className="mx-2 h-6 w-px bg-border" />
         <Button size="icon" variant="ghost" aria-label="Undo" disabled={!api.canUndo} onClick={api.undo}><Undo2 className="size-4" /></Button>

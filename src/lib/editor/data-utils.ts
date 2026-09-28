@@ -53,3 +53,15 @@ export function textToDiagram(value: string): DiagramNode[] {
 export function normalizeTableProps(props: TableProps): TableProps {
   return { ...props, rows: props.rows.length ? props.rows : [["Column 1", "Column 2"], ["Value", "Value"]] };
 }
+
+
+export function recommendChartType(props: ChartProps): ChartProps["chartType"] {
+  const categories = props.categories.map((c) => c.trim());
+  const timeLike = categories.length >= 3 && categories.every((c) =>
+    /^(q[1-4]|[12]\d{3}|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|يناير|فبراير|مارس|أبريل|ابريل|مايو|يونيو|يوليو|أغسطس|اغسطس|سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر)/i.test(c),
+  );
+  if (timeLike) return "line";
+  const longLabels = categories.some((c) => c.length > 16);
+  if (longLabels && categories.length <= 8) return "bar";
+  return "column";
+}

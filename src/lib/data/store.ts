@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { toast } from "sonner";
-import type { AssetRecord, BrandKit, Presentation, Slide, ThemeRecord } from "@/lib/types";
+import type { AssetRecord, BrandKit, Presentation, SavedTemplate, Slide, ThemeRecord } from "@/lib/types";
 import { SEED_ASSETS, SEED_BRAND_KITS, SEED_PRESENTATIONS, SEED_THEMES } from "./seed";
 
 const STORAGE_KEY = "aps.db.v1";
@@ -9,6 +9,7 @@ export interface Database {
   presentations: Presentation[];
   themes: ThemeRecord[];
   brandKits: BrandKit[];
+  savedTemplates: SavedTemplate[];
   assets: AssetRecord[];
 }
 
@@ -16,6 +17,7 @@ const initial = (): Database => ({
   presentations: SEED_PRESENTATIONS,
   themes: SEED_THEMES,
   brandKits: SEED_BRAND_KITS,
+  savedTemplates: [],
   assets: SEED_ASSETS,
 });
 
@@ -72,6 +74,9 @@ function hydrate() {
               bodyFont: typeof k.bodyFont === "string" ? k.bodyFont : "Manrope",
             }))
           : initial().brandKits,
+        savedTemplates: Array.isArray(parsed.savedTemplates)
+          ? parsed.savedTemplates.filter((t) => t && typeof t.id === "string" && typeof t.name === "string" && t.snapshot)
+          : [],
       };
     }
   } catch {
@@ -177,6 +182,61 @@ export const assetRepository = {
   },
   remove(id: string) {
     mutate((d) => ({ ...d, assets: d.assets.filter((a) => a.id !== id) }));
+  },
+};
+
+export const savedTemplateRepository = {
+  list: () => db.savedTemplates,
+  get: (id: string) => db.savedTemplates.find((t) => t.id === id),
+  saveFromPresentation(presentation: Presentation, name = presentation.title) {
+    const stamp = new Date().toISOString();
+    const { id: _id, userId: _userId, createdAt: _createdAt, updatedAt: _updatedAt, ...snapshot } = structuredClone(presentation);
+    const template: SavedTemplate = {
+      id: uid(),
+      name,
+      description: presentation.description,
+      sourcePresentationId: presentation.id,
+      snapshot,
+      createdAt: stamp,
+      updatedAt: stamp,
+    };
+    mutate((d) => ({ ...d, savedTemplates: [template, ...d.savedTemplates] }));
+    return template;
+  },
+  remove(id: string) {
+    mutate((d) => ({ ...d, savedTemplates: d.savedTemplates.filter((t) => t.id !== id) }));
+  },
+  createPresentation(id: string) {
+    const template = db.savedTemplates.find((t) => t.id === id);
+    if (!template) return undefined;
+    const stamp = new Date().toISOString();
+    const presentationId = uid();
+    const snapshot = structuredClone(template.snapshot);
+    const slides = snapshot.slides.map((slide, index) => {
+      const slideId = uid();
+      return {
+        ...slide,
+        id: slideId,
+        presentationId,
+        slideNumber: index + 1,
+        sortOrder: index,
+        elements: slide.elements.map((el) => ({ ...el, id: uid(), slideId })),
+        createdAt: stamp,
+        updatedAt: stamp,
+      };
+    });
+    const presentation: Presentation = {
+      ...snapshot,
+      id: presentationId,
+      userId: "local-user",
+      title: template.name,
+      status: "Draft",
+      slides,
+      createdAt: stamp,
+      updatedAt: stamp,
+    };
+    mutate((d) => ({ ...d, presentations: [presentation, ...d.presentations] }));
+    return presentation;
   },
 };
 

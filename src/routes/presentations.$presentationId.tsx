@@ -24,6 +24,7 @@ import { applyBrandKit, clearBrandKit } from "@/lib/brand";
 import { TEMPLATE_FAMILIES, applyTemplateFamilyToSlides } from "@/lib/templates";
 import { ingestSourceFiles } from "@/lib/documents/ingest";
 import { sourceContextFromAssets } from "@/lib/documents/analyze";
+import { applySourceDataVisuals } from "@/lib/documents/visualize";
 import { exportPresentationToPdf, exportPresentationToPptx, validatePresentationForExport } from "@/lib/export";
 import { VISUAL_TYPES, type AssetRecord, type Presentation, type Slide, type VisualType } from "@/lib/types";
 
@@ -245,7 +246,8 @@ function Blueprint({ p, update, save }: { p: Presentation; update: (patch: Parti
     const generated = planned.map((s) =>
       materializeSlide({ ...s, id: uid(), presentationId: p.id, elements: [], createdAt: stamp, updatedAt: stamp }),
     );
-    presentationRepository.replaceSlides(p.id, composeDeck(generated));
+    const recomposed = composeDeck(generated);
+    presentationRepository.replaceSlides(p.id, applySourceDataVisuals(recomposed, sources));
     setBusy(null);
   };
 

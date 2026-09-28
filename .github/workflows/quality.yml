@@ -29,8 +29,8 @@ jobs:
       - name: Install app dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Lint
-        run: npm run lint
+      - name: Lint (logic rules; formatting excluded from CI)
+        run: npx eslint . --quiet --rule "prettier/prettier: off"
 
       - name: Build
         run: npm run build

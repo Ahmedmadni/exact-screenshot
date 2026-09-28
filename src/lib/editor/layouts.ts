@@ -273,11 +273,11 @@ export function buildLayout(layoutId: string, content: LayoutContent, slideId: s
 export function applyLayout(slide: Slide, layoutId: string): Slide {
   const content = contentFromElements(slide.elements, contentFromSlide(slide));
   const generated = buildLayout(layoutId, content, slide.id);
-  const free = slide.elements.filter((e) => !e.role);
+  const free = slide.elements.filter((e) => !e.role || e.name === "Evidence Citation");
   const placedText = new Set(generated.flatMap((e) => (e.type === "text" ? [e.properties.text.trim()] : [])));
   const placedImages = new Set(generated.flatMap((e) => (e.type === "image" ? [e.properties.src] : [])));
   const orphans = slide.elements
-    .filter((e) => e.role && e.role !== "decor")
+    .filter((e) => e.role && e.role !== "decor" && e.name !== "Evidence Citation")
     .filter((e) =>
       e.type === "text" ? e.properties.text.trim() !== "" && !placedText.has(e.properties.text.trim())
       : e.type === "image" ? !!e.properties.src && !placedImages.has(e.properties.src)

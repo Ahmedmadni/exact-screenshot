@@ -132,6 +132,15 @@ export interface StoryBeat {
 import type { SlideElement, SlideElementType } from "@/lib/editor/model";
 export type { SlideElement, SlideElementType };
 
+export interface EvidenceRef {
+  id: string;
+  assetId: string;
+  assetName: string;
+  locator?: string;
+  quote: string;
+  createdAt: string;
+}
+
 export interface Slide {
   id: string;
   presentationId: string;
@@ -153,6 +162,8 @@ export interface Slide {
   kpis?: string[];
   /** Source assets directly materialized into this slide (chart/table/image). */
   sourceAssetIds?: string[];
+  /** Exact evidence used to support the slide, with file/page/sheet provenance. */
+  evidenceRefs?: EvidenceRef[];
   createdAt: string;
   updatedAt: string;
 }

@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { aiProvider } from "@/lib/ai";
+import { materializeSlide } from "@/lib/editor/layouts";
 import { presentationRepository, uid } from "@/lib/data/store";
 import { useI18n } from "@/lib/i18n";
 import {
@@ -95,7 +96,7 @@ function Setup() {
       topic,
       objective: plan.brief.objective,
       purpose, audience, presentationType: type, language, tone,
-      status: "Planning",
+      status: "Generated",
       lengthPreset: length,
       recommendedSlideCount: plan.brief.recommendedSlideCount,
       estimatedDuration: plan.brief.estimatedDuration,
@@ -106,7 +107,7 @@ function Setup() {
     });
     presentationRepository.replaceSlides(
       created.id,
-      plan.slides.map((s) => ({ ...s, id: uid(), presentationId: created.id, elements: [], createdAt: stamp, updatedAt: stamp })),
+      plan.slides.map((s) => materializeSlide({ ...s, id: uid(), presentationId: created.id, elements: [], createdAt: stamp, updatedAt: stamp })),
     );
     navigate({ to: "/presentations/$presentationId", params: { presentationId: created.id } });
   };

@@ -24,7 +24,7 @@ import { ingestSourceFiles } from "@/lib/documents/ingest";
 import { sourceContextFromAssets } from "@/lib/documents/analyze";
 
 export const Route = createFileRoute("/new")({
-  validateSearch: z.object({ topic: z.string().optional(), template: z.string().optional() }),
+  validateSearch: z.object({ topic: z.string().optional(), template: z.string().optional(), source: z.string().optional() }),
   head: () => ({
     meta: [
       { title: "New presentation — Meridian Studio" },
@@ -74,11 +74,13 @@ function Pick<T extends string>({ value, options, onChange }: { value: T; option
 function Setup() {
   const { t } = useI18n();
   const navigate = useNavigate();
-  const { topic: initial = "", template: templateId } = Route.useSearch();
+  const { topic: initial = "", template: templateId, source: sourceId } = Route.useSearch();
   const template = getTemplateFamily(templateId);
   const { brandKits, assets } = useDatabase();
-  const guess = infer(initial);
-  const [topic, setTopic] = useState(initial);
+  const sourceAsset = sourceId ? assets.find((asset) => asset.id === sourceId) : undefined;
+  const initialTopic = initial || sourceAsset?.name.replace(/\.[^.]+$/, "") || "";
+  const guess = infer(initialTopic);
+  const [topic, setTopic] = useState(initialTopic);
   const [objective, setObjective] = useState("");
   const [audience, setAudience] = useState(guess.audience);
   const [purpose, setPurpose] = useState(guess.purpose);
@@ -88,7 +90,7 @@ function Setup() {
   const [length, setLength] = useState<LengthPreset>(template?.lengthPreset ?? "Standard");
   const [custom, setCustom] = useState(10);
   const [brandKitId, setBrandKitId] = useState("__none");
-  const [sourceAssetIds, setSourceAssetIds] = useState<string[]>([]);
+  const [sourceAssetIds, setSourceAssetIds] = useState<string[]>(sourceAsset ? [sourceAsset.id] : []);
   const [uploadingSources, setUploadingSources] = useState(false);
   const sourceInput = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);

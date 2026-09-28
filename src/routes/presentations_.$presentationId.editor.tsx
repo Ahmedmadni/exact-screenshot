@@ -117,9 +117,19 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
       const arrows: Record<string, [number, number]> = { arrowleft: [-1, 0], arrowright: [1, 0], arrowup: [0, -1], arrowdown: [0, 1] };
       if (arrows[k] && sel.length) {
         e.preventDefault();
+        const movers = sel.filter((x) => !x.locked);
+        if (!movers.length) return;
         const step = e.shiftKey ? 10 : 1;
-        const [dx, dy] = arrows[k]!;
-        api.updateElements(sel.filter((x) => !x.locked).map((x) => x.id), (x) => ({ ...x, x: x.x + dx * step, y: x.y + dy * step }));
+        const [dirX, dirY] = arrows[k]!;
+        const minX = Math.min(...movers.map((x) => x.x));
+        const minY = Math.min(...movers.map((x) => x.y));
+        const maxX = Math.max(...movers.map((x) => x.x + x.width));
+        const maxY = Math.max(...movers.map((x) => x.y + x.height));
+        const requestedX = dirX * step;
+        const requestedY = dirY * step;
+        const dx = Math.min(Math.max(requestedX, -minX), SLIDE_W - maxX);
+        const dy = Math.min(Math.max(requestedY, -minY), SLIDE_H - maxY);
+        api.updateElements(movers.map((x) => x.id), (x) => ({ ...x, x: x.x + dx, y: x.y + dy }));
         return;
       }
       if (!sel.length && (k === "pagedown" || k === "pageup")) {
@@ -137,9 +147,10 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
     if (!src) return;
     const img = new Image();
     img.onload = () => {
-      const w = Math.min(640, img.width);
-      const h = Math.round((w * img.height) / img.width);
-      add([imageEl("Image", center(w, Math.min(h, 700)), { src }, undefined as never)].map((d) => ({ ...d, role: undefined })));
+      const fit = Math.min(1, 640 / img.width, 700 / img.height);
+      const w = Math.max(1, Math.round(img.width * fit));
+      const h = Math.max(1, Math.round(img.height * fit));
+      add([imageEl("Image", center(w, h), { src }, undefined as never)].map((d) => ({ ...d, role: undefined })));
     };
     img.src = src;
   };

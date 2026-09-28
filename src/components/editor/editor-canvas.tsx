@@ -216,6 +216,7 @@ export function EditorCanvas({ api, theme, zoom }: { api: EditorApi; theme: Slid
         <div
           ref={stageRef}
           dir="ltr"
+          data-testid="editor-stage"
           className="relative shrink-0 shadow-xl"
           style={{ width: SLIDE_W * scale, height: SLIDE_H * scale }}
           onPointerDown={(e) => { e.stopPropagation(); startMarquee(e); }}
@@ -224,6 +225,9 @@ export function EditorCanvas({ api, theme, zoom }: { api: EditorApi; theme: Slid
             {[...slide.elements].sort((a, b) => a.zIndex - b.zIndex).filter((x) => x.visible).map((el) => (
               <div
                 key={el.id}
+                data-element-id={el.id}
+                data-element-type={el.type}
+                data-element-role={el.role ?? "free"}
                 style={{ ...elementBoxStyle(el), cursor: el.locked ? "default" : "move" }}
                 onPointerDown={(e) => startMove(e, el)}
                 onDoubleClick={() => el.type === "text" && !el.locked && setEditingId(el.id)}
@@ -287,6 +291,7 @@ function TextEditor({ el, theme, onDone }: { el: Extract<SlideElement, { type: "
     <div
       dir={p.dir}
       contentEditable
+      data-testid="text-editor"
       suppressContentEditableWarning
       ref={(n) => {
         if (n && document.activeElement !== n) {

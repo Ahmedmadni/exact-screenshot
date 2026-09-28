@@ -115,6 +115,17 @@ export function topNumericEvidence(assets: AssetRecord[], limit = 12): SourceSeg
   return hits.sort((a, b) => b.count - a.count).slice(0, limit).map((hit) => hit.segment);
 }
 
+export function evidenceFromAsset(asset: AssetRecord, locator: string, quote: string): EvidenceRef {
+  return {
+    id: uid(),
+    assetId: asset.id,
+    assetName: asset.name,
+    locator,
+    quote: clean(quote).slice(0, 1200),
+    createdAt: new Date().toISOString(),
+  };
+}
+
 export function evidenceFromSegment(segment: SourceSegment, quote = segment.text): EvidenceRef {
   return {
     id: uid(),

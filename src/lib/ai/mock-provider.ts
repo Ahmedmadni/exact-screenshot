@@ -1,6 +1,6 @@
 import type { AIProvider, PlanRequest, PlannedSlide, PresentationPlan } from "./types";
 import type { SlideIntent, VisualType } from "@/lib/types";
-import { briefCopy, designPlannedSlides, storyArcFor } from "./slide-designer";
+import { briefCopy, designPlannedSlides, rewritePlannedSlide, storyArcFor } from "./slide-designer";
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -243,6 +243,15 @@ export class MockAIProvider implements AIProvider {
       storyArc: storyArcFor(request),
       slides,
     };
+  }
+
+  async rewriteSlide(
+    request: PlanRequest,
+    slide: PlannedSlide,
+    action: "regenerate" | "shorten" | "executive",
+  ): Promise<PlannedSlide> {
+    await delay(550);
+    return rewritePlannedSlide(slide, request, action);
   }
 
   async reflowOutline(

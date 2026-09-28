@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ArrowLeft, BarChart3, ChevronLeft, ChevronRight, Circle, ImagePlus, Loader2, Minus, MoveRight, Network, Play, Redo2, Shapes, Smile, Sparkles, Square, Table2, Triangle, Type, Undo2, WandSparkles, X, ZoomIn, ZoomOut, RectangleHorizontal,
+  ArrowLeft, BarChart3, ChevronLeft, ChevronRight, Circle, Download, ImagePlus, Loader2, Minus, MoveRight, Network, Play, Redo2, Shapes, Smile, Sparkles, Square, Table2, Triangle, Type, Undo2, WandSparkles, X, ZoomIn, ZoomOut, RectangleHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import { aiProvider, type PlanRequest, type SlideRewriteAction } from "@/lib/ai";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/empty-state";
@@ -20,6 +21,7 @@ import { SHAPE_LABELS, TEXT_PRESETS, cloneElement, iconEl, imageEl, instantiate,
 import { SLIDE_H, SLIDE_W, type DraftElement, type ShapeKind, type SlideElement } from "@/lib/editor/model";
 import { getTheme } from "@/lib/editor/themes";
 import { rebuildGeneratedContent, smartComposeSlide, tryAnotherDesign } from "@/lib/editor/composer";
+import { exportPresentationToPdf, exportPresentationToPptx, validatePresentationForExport } from "@/lib/export";
 import type { Presentation } from "@/lib/types";
 
 export const Route = createFileRoute("/presentations_/$presentationId/editor")({
@@ -63,6 +65,7 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
   const zoomNum = zoom === "fill" ? 1 : zoom;
   const [previewing, setPreviewing] = useState(false);
   const [aiBusy, setAiBusy] = useState<SlideRewriteAction | null>(null);
+  const [exporting, setExporting] = useState<"pptx" | "pdf" | null>(null);
   const smartLabel = aiProvider().name === "mock-planner" ? "Smart" : "AI";
   const clipboard = useRef<SlideElement[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -107,6 +110,33 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
       setAiBusy(null);
     }
   }, [api.active, aiBusy, planRequest, replaceActive]);
+
+  const exportDeck = useCallback(async (format: "pptx" | "pdf") => {
+    if (exporting) return;
+    const deck: Presentation = { ...p, slides: api.snapshot(), themeId: api.themeId };
+    const issues = validatePresentationForExport(deck);
+    const errors = issues.filter((issue) => issue.level === "error");
+    if (errors.length) {
+      toast.error(errors[0]!.message);
+      return;
+    }
+    const warnings = issues.filter((issue) => issue.level === "warning");
+    if (warnings.length) {
+      toast.warning(`${warnings.length} export note${warnings.length === 1 ? "" : "s"} — placeholders or missing media will be kept visibly.`);
+    }
+
+    setExporting(format);
+    try {
+      if (format === "pptx") await exportPresentationToPptx(deck);
+      else await exportPresentationToPdf(deck);
+      toast.success(format === "pptx" ? "PowerPoint exported." : "PDF exported.");
+    } catch (error) {
+      console.error(error);
+      toast.error(`Could not export ${format.toUpperCase()}. Please try again.`);
+    } finally {
+      setExporting(null);
+    }
+  }, [api, exporting, p]);
 
   // Keep the URL pointing at the active slide without adding history entries.
   useEffect(() => {
@@ -276,6 +306,22 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
           </DropdownMenu>
           <Button size="icon" variant="ghost" aria-label="Zoom in" onClick={() => setZoom(Math.min(3, +(zoomNum + 0.25).toFixed(2)))}><ZoomIn className="size-4" /></Button>
           <Button size="sm" className="ms-2" onClick={() => setPreviewing(true)}><Play className="size-4" /> Preview</Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" disabled={!!exporting}>
+                {exporting ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={() => void exportDeck("pptx")}>
+                <Download className="size-4" /> PowerPoint (.pptx)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => void exportDeck("pdf")}>
+                <Download className="size-4" /> PDF (.pdf)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
 

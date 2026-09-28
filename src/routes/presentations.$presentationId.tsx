@@ -5,6 +5,7 @@ import { AppShell } from "@/components/app-shell";
 import { EmptyState } from "@/components/empty-state";
 import { SaveIndicator, type SaveState } from "@/components/save-indicator";
 import { StatusBadge } from "@/components/status-badge";
+import { QualityChecker } from "@/components/quality-checker";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
@@ -133,6 +134,7 @@ function Detail() {
         </div>
         <div className="flex items-center gap-2">
           <SaveIndicator state={state} />
+          <QualityChecker presentation={{ ...p, slides: p.slides.map(materializeSlide) }} />
           <Button
             variant="outline"
             onClick={() => {

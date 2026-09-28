@@ -1,9 +1,10 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { LayoutTemplate } from "lucide-react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { Copy, LayoutTemplate, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { TEMPLATE_FAMILIES } from "@/lib/templates";
+import { savedTemplateRepository, useDatabase } from "@/lib/data/store";
 import { getTheme } from "@/lib/editor/themes";
 
 export const Route = createFileRoute("/templates")({
@@ -21,6 +22,8 @@ export const Route = createFileRoute("/templates")({
 });
 
 function TemplatesPage() {
+  const navigate = useNavigate();
+  const { savedTemplates } = useDatabase();
   const categories = ["All", ...Array.from(new Set(TEMPLATE_FAMILIES.map((t) => t.category)))] as const;
   const [category, setCategory] = useState<string>("All");
   const visible = category === "All" ? TEMPLATE_FAMILIES : TEMPLATE_FAMILIES.filter((t) => t.category === category);
@@ -34,6 +37,47 @@ function TemplatesPage() {
           Each family combines presentation purpose, default tone, visual theme and intent-aware layout choices. Content remains fully editable.
         </p>
       </header>
+
+      {savedTemplates.length > 0 && (
+        <section className="mb-8 space-y-3">
+          <div>
+            <span className="eyebrow">My Templates</span>
+            <h2 className="mt-1 text-xl text-foreground">Reusable decks</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Create a clean copy with the same slides, identity, layouts and editable elements.</p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {savedTemplates.map((template) => {
+              const theme = getTheme(template.snapshot.themeId, template.snapshot.themeOverrides);
+              return (
+                <article key={template.id} className="panel overflow-hidden">
+                  <div className="h-32 p-4" style={{ background: theme.colors.background }}>
+                    <div className="h-1 w-12 rounded" style={{ background: theme.colors.accent }} />
+                    <div className="mt-3 text-lg font-semibold" style={{ color: theme.colors.primary, fontFamily: theme.fonts.heading }}>{template.name}</div>
+                    <div className="mt-2 line-clamp-2 text-xs" style={{ color: theme.colors.secondary, fontFamily: theme.fonts.body }}>{template.description}</div>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 p-4">
+                    <div className="text-xs text-muted-foreground">{template.snapshot.slides.length} slides</div>
+                    <div className="flex gap-1">
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          const deck = savedTemplateRepository.createPresentation(template.id);
+                          if (deck) navigate({ to: "/presentations/$presentationId", params: { presentationId: deck.id } });
+                        }}
+                      >
+                        <Copy className="size-4" /> Create deck
+                      </Button>
+                      <Button size="icon" variant="ghost" aria-label="Delete template" onClick={() => savedTemplateRepository.remove(template.id)}>
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       <div className="mb-5 flex flex-wrap gap-2">
         {categories.map((item) => (

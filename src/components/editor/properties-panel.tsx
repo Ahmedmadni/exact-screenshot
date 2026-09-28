@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Pencil } from "lucide-react";
 import {
   AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignStartHorizontal, AlignStartVertical,
@@ -11,12 +11,13 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import type { SlideElement, TextProps } from "@/lib/editor/model";
+import type { ChartProps, DiagramProps, SlideElement, TableProps, TextProps } from "@/lib/editor/model";
 import { SLIDE_H, SLIDE_W } from "@/lib/editor/model";
 import { FONT_CHOICES, SLIDE_THEMES, THEME_COLOR_KEYS, resolveColor, type SlideTheme } from "@/lib/editor/themes";
 import { LAYOUTS, applyLayout, layoutsForIntent } from "@/lib/editor/layouts";
 import { cloneElement } from "@/lib/editor/elements";
 import { cn } from "@/lib/utils";
+import { chartToText, diagramToText, tableToText, textToChart, textToDiagram, textToTable } from "@/lib/editor/data-utils";
 import type { EditorApi } from "./use-editor";
 import { IconPicker } from "./icon-picker";
 import { readImage } from "./image-upload";
@@ -27,6 +28,20 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
       <h3 className="eyebrow">{title}</h3>
       {children}
     </div>
+  );
+}
+
+function DataTextarea({ value, onCommit, rows = 6 }: { value: string; onCommit: (v: string) => void; rows?: number }) {
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
+  return (
+    <Textarea
+      value={draft}
+      rows={rows}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => onCommit(draft)}
+      className="font-mono text-xs"
+    />
   );
 }
 
@@ -236,11 +251,16 @@ export function PropertiesPanel({ api, theme, onTheme }: { api: EditorApi; theme
         </Section>
       )}
 
-      {el && (el.type === "chart" || el.type === "table" || el.type === "diagram") && (
-        <Section title={el.type}>
-          <Input value={el.properties.label} onChange={(e) => setProps({ label: e.target.value })} />
-          <p className="text-[11px] text-muted-foreground">Placeholder — data editing for {el.type}s arrives in a later phase.</p>
-        </Section>
+      {el?.type === "chart" && (
+        <ChartSection p={el.properties} theme={theme} setProps={(patch) => setProps(patch)} />
+      )}
+
+      {el?.type === "table" && (
+        <TableSection p={el.properties} theme={theme} setProps={(patch) => setProps(patch)} />
+      )}
+
+      {el?.type === "diagram" && (
+        <DiagramSection p={el.properties} theme={theme} setProps={(patch) => setProps(patch)} />
       )}
 
       <Section title="Arrange">
@@ -256,6 +276,93 @@ export function PropertiesPanel({ api, theme, onTheme }: { api: EditorApi; theme
         </div>
       </Section>
     </aside>
+  );
+}
+
+function ToggleRow({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label className="flex cursor-pointer items-center justify-between gap-3 text-xs text-muted-foreground">
+      <span>{label}</span>
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="size-4 accent-primary" />
+    </label>
+  );
+}
+
+function ChartSection({ p, theme, setProps }: { p: ChartProps; theme: SlideTheme; setProps: (p: Partial<ChartProps>) => void }) {
+  return (
+    <Section title="Chart">
+      <Input value={p.label} onChange={(e) => setProps({ label: e.target.value })} placeholder="Chart title" />
+      <Select value={p.chartType} onValueChange={(v) => setProps({ chartType: v as ChartProps["chartType"] })}>
+        <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="column">Column</SelectItem>
+          <SelectItem value="bar">Bar</SelectItem>
+          <SelectItem value="line">Line</SelectItem>
+          <SelectItem value="area">Area</SelectItem>
+          <SelectItem value="pie">Pie</SelectItem>
+          <SelectItem value="doughnut">Doughnut</SelectItem>
+        </SelectContent>
+      </Select>
+      <div className="space-y-1.5">
+        <Label className="text-xs text-muted-foreground">Paste data — first row contains series names</Label>
+        <DataTextarea
+          value={chartToText(p)}
+          onCommit={(value) => setProps(textToChart(value, p))}
+          rows={7}
+        />
+        <p className="text-[11px] text-muted-foreground">Paste from Excel or use tab/comma-separated data.</p>
+      </div>
+      <ToggleRow label="Show legend" checked={p.showLegend} onChange={(showLegend) => setProps({ showLegend })} />
+      <ToggleRow label="Show values" checked={p.showValues} onChange={(showValues) => setProps({ showValues })} />
+      <ToggleRow label="Show grid" checked={p.showGrid} onChange={(showGrid) => setProps({ showGrid })} />
+      <div className="space-y-1.5">
+        <Label className="text-xs text-muted-foreground">Primary colour</Label>
+        <ColorField value={p.accent} theme={theme} onChange={(accent) => setProps({ accent })} />
+      </div>
+    </Section>
+  );
+}
+
+function TableSection({ p, theme, setProps }: { p: TableProps; theme: SlideTheme; setProps: (p: Partial<TableProps>) => void }) {
+  return (
+    <Section title="Table">
+      <Input value={p.label} onChange={(e) => setProps({ label: e.target.value })} placeholder="Table title" />
+      <div className="space-y-1.5">
+        <Label className="text-xs text-muted-foreground">Paste cells</Label>
+        <DataTextarea value={tableToText(p.rows)} onCommit={(value) => setProps({ rows: textToTable(value) })} rows={8} />
+        <p className="text-[11px] text-muted-foreground">Tabs and commas are both supported.</p>
+      </div>
+      <ToggleRow label="Header row" checked={p.headerRow} onChange={(headerRow) => setProps({ headerRow })} />
+      <ToggleRow label="Banded rows" checked={p.bandedRows} onChange={(bandedRows) => setProps({ bandedRows })} />
+      <div className="space-y-1.5">
+        <Label className="text-xs text-muted-foreground">Header colour</Label>
+        <ColorField value={p.headerFill} theme={theme} onChange={(headerFill) => setProps({ headerFill })} />
+      </div>
+    </Section>
+  );
+}
+
+function DiagramSection({ p, theme, setProps }: { p: DiagramProps; theme: SlideTheme; setProps: (p: Partial<DiagramProps>) => void }) {
+  return (
+    <Section title="Diagram">
+      <Input value={p.label} onChange={(e) => setProps({ label: e.target.value })} placeholder="Diagram title" />
+      <Select value={p.diagramType} onValueChange={(v) => setProps({ diagramType: v as DiagramProps["diagramType"] })}>
+        <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="process">Process</SelectItem>
+          <SelectItem value="timeline">Timeline</SelectItem>
+          <SelectItem value="matrix">Matrix</SelectItem>
+        </SelectContent>
+      </Select>
+      <div className="space-y-1.5">
+        <Label className="text-xs text-muted-foreground">Items — title then description</Label>
+        <DataTextarea value={diagramToText(p.nodes)} onCommit={(value) => setProps({ nodes: textToDiagram(value) })} rows={7} />
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-xs text-muted-foreground">Accent colour</Label>
+        <ColorField value={p.accent} theme={theme} onChange={(accent) => setProps({ accent })} />
+      </div>
+    </Section>
   );
 }
 

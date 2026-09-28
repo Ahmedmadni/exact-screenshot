@@ -12,7 +12,8 @@ import { aiProvider } from "@/lib/ai";
 import { materializeSlide } from "@/lib/editor/layouts";
 import { composeDeck } from "@/lib/editor/composer";
 import { applyTemplateFamilyToSlides, getTemplateFamily } from "@/lib/templates";
-import { presentationRepository, uid } from "@/lib/data/store";
+import { applyBrandKit } from "@/lib/brand";
+import { brandKitRepository, presentationRepository, uid, useDatabase } from "@/lib/data/store";
 import { useI18n } from "@/lib/i18n";
 import {
   AUDIENCES, LANGUAGES, LENGTHS, LENGTH_RANGES, PRESENTATION_TYPES, PURPOSES, TONES,
@@ -73,6 +74,7 @@ function Setup() {
   const navigate = useNavigate();
   const { topic: initial = "", template: templateId } = Route.useSearch();
   const template = getTemplateFamily(templateId);
+  const { brandKits } = useDatabase();
   const guess = infer(initial);
   const [topic, setTopic] = useState(initial);
   const [objective, setObjective] = useState("");
@@ -83,6 +85,7 @@ function Setup() {
   const [tone, setTone] = useState<Tone>(template?.tone ?? guess.tone);
   const [length, setLength] = useState<LengthPreset>(template?.lengthPreset ?? "Standard");
   const [custom, setCustom] = useState(10);
+  const [brandKitId, setBrandKitId] = useState("__none");
   const [busy, setBusy] = useState(false);
 
   const slideCount = length === "Custom" ? custom : Math.round((LENGTH_RANGES[length][0] + LENGTH_RANGES[length][1]) / 2);
@@ -113,7 +116,12 @@ function Setup() {
       materializeSlide({ ...s, id: uid(), presentationId: created.id, elements: [], createdAt: stamp, updatedAt: stamp }),
     );
     const composed = composeDeck(generatedSlides);
-    presentationRepository.replaceSlides(created.id, template ? applyTemplateFamilyToSlides(composed, template) : composed);
+    const finalSlides = template ? applyTemplateFamilyToSlides(composed, template) : composed;
+    presentationRepository.replaceSlides(created.id, finalSlides);
+    if (brandKitId !== "__none") {
+      const kit = brandKitRepository.get(brandKitId);
+      if (kit) presentationRepository.update(created.id, applyBrandKit({ ...created, slides: finalSlides }, kit));
+    }
     navigate({ to: "/presentations/$presentationId", params: { presentationId: created.id } });
   };
 
@@ -143,6 +151,17 @@ function Setup() {
           <Field label={t("setup.tone")}><Pick value={tone} options={TONES} onChange={setTone} /></Field>
           <Field label={t("setup.language")}><Pick value={language} options={LANGUAGES} onChange={setLanguage} /></Field>
         </div>
+        {brandKits.length > 0 && (
+          <Field label="Brand kit">
+            <Select value={brandKitId} onValueChange={setBrandKitId}>
+              <SelectTrigger><SelectValue placeholder="No brand kit" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none">No brand kit</SelectItem>
+                {brandKits.map((kit) => <SelectItem key={kit.id} value={kit.id}>{kit.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </Field>
+        )}
         <Field label={t("setup.length")}>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {LENGTHS.map((l) => (

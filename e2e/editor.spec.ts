@@ -49,10 +49,13 @@ test("editor core flow persists and remains undoable", async ({ page }) => {
   await expect.poll(async () => freeText.evaluate((node) => (node as HTMLElement).style.left)).toBe(lockedLeft);
   await page.getByRole("button", { name: "Unlock" }).click();
 
-  await page.getByLabel("Duplicate slide").first().click({ force: true });
+  const firstSlideThumb = page.locator("aside").locator(".group").first();
+  await firstSlideThumb.hover();
+  await page.getByLabel("Duplicate slide").first().click();
   await expect(page.getByText("13 slides", { exact: true })).toBeVisible();
 
-  await page.getByLabel("Delete slide").first().click({ force: true });
+  await firstSlideThumb.hover();
+  await page.getByLabel("Delete slide").first().click();
   await expect(page.getByText("Slide deleted", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Undo" }).last().click();
   await expect(page.getByText("13 slides", { exact: true })).toBeVisible();

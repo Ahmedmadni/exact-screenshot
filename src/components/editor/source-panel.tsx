@@ -2,7 +2,7 @@ import { BookOpen, Calculator, FileSearch, Pin, Plus, Search, Trash2 } from "luc
 import { useMemo, useState } from "react";
 import type { AssetRecord, Slide } from "@/lib/types";
 import type { SourceSegment } from "@/lib/evidence";
-import { evidenceFromSegment, searchEvidence, topNumericEvidence } from "@/lib/evidence";
+import { searchEvidence, topNumericEvidence } from "@/lib/evidence";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {

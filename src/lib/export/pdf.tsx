@@ -9,7 +9,7 @@ import { safeExportFilename } from "./validate";
 const frame = () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
 
 function ExportSurface({ presentation }: { presentation: Presentation }) {
-  const theme = getTheme(presentation.themeId);
+  const theme = getTheme(presentation.themeId, presentation.themeOverrides);
   return createElement(
     "div",
     { style: { width: SLIDE_W, background: "transparent" } },

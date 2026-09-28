@@ -194,6 +194,8 @@ export interface Presentation {
   /** Brand kit applied to this deck, plus a snapshot so old decks stay visually stable. */
   brandKitId?: string;
   themeOverrides?: PresentationThemeOverrides;
+  /** Source assets that informed planning or later regeneration. */
+  sourceAssetIds?: string[];
   slides: Slide[];
   createdAt: string;
   updatedAt: string;

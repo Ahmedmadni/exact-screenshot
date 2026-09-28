@@ -372,7 +372,7 @@ export async function exportPresentationToPptx(presentation: Presentation) {
   pptx.title = presentation.title;
   pptx.lang = presentation.language === "Arabic" ? "ar-SA" : "en-US";
 
-  const theme = getTheme(presentation.themeId);
+  const theme = getTheme(presentation.themeId, presentation.themeOverrides);
 
   presentation.slides.forEach((slide) => {
     const out = pptx.addSlide();

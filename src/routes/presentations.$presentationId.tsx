@@ -22,6 +22,8 @@ import { composeDeck } from "@/lib/editor/composer";
 import { SLIDE_THEMES, getTheme } from "@/lib/editor/themes";
 import { applyBrandKit, clearBrandKit } from "@/lib/brand";
 import { TEMPLATE_FAMILIES, applyTemplateFamilyToSlides } from "@/lib/templates";
+import { ingestSourceFiles } from "@/lib/documents/ingest";
+import { sourceContextFromAssets } from "@/lib/documents/analyze";
 import { exportPresentationToPdf, exportPresentationToPptx, validatePresentationForExport } from "@/lib/export";
 import { VISUAL_TYPES, type AssetRecord, type Presentation, type Slide, type VisualType } from "@/lib/types";
 
@@ -192,7 +194,7 @@ function Detail() {
           <DesignOverview p={p} />
         </TabsContent>
         <TabsContent value="files" className="mt-6">
-          <Files presentationId={p.id} />
+          <Files p={p} />
         </TabsContent>
       </Tabs>
     </AppShell>
@@ -224,7 +226,20 @@ function Blueprint({ p, update, save }: { p: Presentation; update: (patch: Parti
   };
   const reflow = async (action: "regenerate" | "shorten" | "expand") => {
     setBusy(action);
-    const req: PlanRequest = { topic: p.topic, objective: p.objective, purpose: p.purpose, audience: p.audience, presentationType: p.presentationType, language: p.language, tone: p.tone, lengthPreset: p.lengthPreset, slideCount: p.recommendedSlideCount };
+    const sources = (p.sourceAssetIds ?? []).map((id) => assetRepository.get(id)).filter((asset): asset is AssetRecord => !!asset);
+    const req: PlanRequest = {
+      topic: p.topic,
+      objective: p.objective,
+      purpose: p.purpose,
+      audience: p.audience,
+      presentationType: p.presentationType,
+      language: p.language,
+      tone: p.tone,
+      lengthPreset: p.lengthPreset,
+      slideCount: p.recommendedSlideCount,
+      sourceContext: sourceContextFromAssets(sources) || undefined,
+      sourceNames: sources.filter((asset) => asset.extractionStatus === "ready").map((asset) => asset.name),
+    };
     const planned = await aiProvider().reflowOutline(req, p.slides, action);
     const stamp = new Date().toISOString();
     const generated = planned.map((s) =>
@@ -457,17 +472,87 @@ function BriefField({ label, wide, children }: { label: string; wide?: boolean; 
   );
 }
 
-function kindOf(name: string): AssetRecord["kind"] {
-  const ext = name.split(".").pop()?.toLowerCase() ?? "";
-  if (ext === "pdf") return "pdf";
-  if (["doc", "docx"].includes(ext)) return "word";
-  if (["xls", "xlsx", "csv"].includes(ext)) return "excel";
-  if (["ppt", "pptx"].includes(ext)) return "powerpoint";
-  if (["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(ext)) return "image";
-  return "other";
-}
+function Files({ p }: { p: Presentation }) {
+  useDatabase();
+  const ids = new Set(p.sourceAssetIds ?? []);
+  const assets = assetRepository.list().filter((asset) => asset.presentationId === p.id || ids.has(asset.id));
+  const input = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
 
-function Files({ presentationId }: { presentationId: string }) {
+  const upload = async (files: FileList | null) => {
+    if (!files?.length) return;
+    setUploading(true);
+    try {
+      const added = await ingestSourceFiles(files, p.id);
+      const sourceAssetIds = [...new Set([...(p.sourceAssetIds ?? []), ...added.map((asset) => asset.id)])];
+      presentationRepository.update(p.id, { sourceAssetIds });
+    } finally {
+      setUploading(false);
+      if (input.current) input.current.value = "";
+    }
+  };
+
+  const remove = (id: string) => {
+    presentationRepository.update(p.id, { sourceAssetIds: (p.sourceAssetIds ?? []).filter((assetId) => assetId !== id) });
+    assetRepository.remove(id);
+  };
+
+  return (
+    <div className="space-y-4">
+      <input
+        ref={input}
+        type="file"
+        multiple
+        accept=".pdf,.docx,.xls,.xlsx,.csv,.pptx,.png,.jpg,.jpeg,.webp"
+        hidden
+        onChange={(e) => void upload(e.target.files)}
+      />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-base text-foreground">Source intelligence</h2>
+          <p className="text-sm text-muted-foreground">Analyzed content is used during outline regeneration and AI slide rewrites.</p>
+        </div>
+        <Button variant="outline" onClick={() => input.current?.click()} disabled={uploading}>
+          {uploading ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />} Upload source files
+        </Button>
+      </div>
+      {assets.length === 0 ? (
+        <EmptyState icon={FileText} title="No reference files yet" description="Attach PDF, Word, Excel, CSV or PowerPoint files and the app will extract their content for planning." />
+      ) : (
+        <div className="space-y-3">
+          {assets.map((asset) => (
+            <article key={asset.id} className="panel p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="truncate text-sm font-medium text-foreground">{asset.name}</span>
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">{asset.kind}</span>
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${asset.extractionStatus === "ready" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : asset.extractionStatus === "failed" ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground"}`}>
+                      {asset.extractionStatus ?? "metadata"}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">{asset.extractionSummary ?? `${Math.max(1, Math.round(asset.size / 1024))} KB`}</p>
+                </div>
+                <Button variant="ghost" size="icon" aria-label="Remove" onClick={() => remove(asset.id)}><Trash2 className="size-4" /></Button>
+              </div>
+              {asset.warnings?.length ? (
+                <div className="mt-3 space-y-1 rounded-md border border-amber-500/20 bg-amber-500/5 p-3 text-xs text-muted-foreground">
+                  {asset.warnings.map((warning) => <div key={warning}>• {warning}</div>)}
+                </div>
+              ) : null}
+              {asset.extractedText && (
+                <details className="mt-3">
+                  <summary className="cursor-pointer text-xs font-medium text-foreground">Preview extracted content</summary>
+                  <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap rounded-md bg-muted/40 p-3 text-xs leading-relaxed text-muted-foreground">{asset.extractedText.slice(0, 7000)}</pre>
+                </details>
+              )}
+            </article>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}: { presentationId: string }) {
   useDatabase();
   const assets = assetRepository.list(presentationId);
   const input = useRef<HTMLInputElement>(null);

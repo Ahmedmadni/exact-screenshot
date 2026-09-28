@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { aiProvider } from "@/lib/ai";
 import { materializeSlide } from "@/lib/editor/layouts";
 import { composeDeck } from "@/lib/editor/composer";
+import { applyTemplateFamilyToSlides, getTemplateFamily } from "@/lib/templates";
 import { presentationRepository, uid } from "@/lib/data/store";
 import { useI18n } from "@/lib/i18n";
 import {
@@ -20,7 +21,7 @@ import {
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/new")({
-  validateSearch: z.object({ topic: z.string().optional() }),
+  validateSearch: z.object({ topic: z.string().optional(), template: z.string().optional() }),
   head: () => ({
     meta: [
       { title: "New presentation — Meridian Studio" },
@@ -70,16 +71,17 @@ function Pick<T extends string>({ value, options, onChange }: { value: T; option
 function Setup() {
   const { t } = useI18n();
   const navigate = useNavigate();
-  const { topic: initial = "" } = Route.useSearch();
+  const { topic: initial = "", template: templateId } = Route.useSearch();
+  const template = getTemplateFamily(templateId);
   const guess = infer(initial);
   const [topic, setTopic] = useState(initial);
   const [objective, setObjective] = useState("");
   const [audience, setAudience] = useState(guess.audience);
   const [purpose, setPurpose] = useState(guess.purpose);
-  const [type, setType] = useState(guess.type);
+  const [type, setType] = useState<PresentationType>(template?.presentationType ?? guess.type);
   const [language, setLanguage] = useState(guess.language);
-  const [tone, setTone] = useState(guess.tone);
-  const [length, setLength] = useState<LengthPreset>("Standard");
+  const [tone, setTone] = useState<Tone>(template?.tone ?? guess.tone);
+  const [length, setLength] = useState<LengthPreset>(template?.lengthPreset ?? "Standard");
   const [custom, setCustom] = useState(10);
   const [busy, setBusy] = useState(false);
 
@@ -104,12 +106,14 @@ function Setup() {
       coreMessage: plan.brief.coreMessage,
       visualDirection: plan.brief.visualDirection,
       storyArc: plan.storyArc,
+      themeId: template?.themeId,
       slides: [],
     });
     const generatedSlides = plan.slides.map((s) =>
       materializeSlide({ ...s, id: uid(), presentationId: created.id, elements: [], createdAt: stamp, updatedAt: stamp }),
     );
-    presentationRepository.replaceSlides(created.id, composeDeck(generatedSlides));
+    const composed = composeDeck(generatedSlides);
+    presentationRepository.replaceSlides(created.id, template ? applyTemplateFamilyToSlides(composed, template) : composed);
     navigate({ to: "/presentations/$presentationId", params: { presentationId: created.id } });
   };
 
@@ -120,6 +124,7 @@ function Setup() {
       </button>
       <header className="mb-8 space-y-2">
         <span className="eyebrow">Step 1 of 2</span>
+        {template && <div className="inline-flex w-fit rounded-full border border-accent/30 bg-accent/10 px-2.5 py-1 text-xs text-accent">Template · {template.name}</div>}
         <h1 className="text-3xl text-foreground">{t("setup.title")}</h1>
         <p className="text-sm text-muted-foreground">{t("setup.subtitle")}</p>
       </header>

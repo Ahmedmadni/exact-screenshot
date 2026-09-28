@@ -26,24 +26,29 @@ jobs:
         with:
           node-version: 22
 
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
       - name: Install app dependencies
-        run: npm install --no-audit --no-fund
+        run: bun install --frozen-lockfile
 
       - name: Lint (logic rules; formatting excluded from CI)
         run: |
-          npx eslint . --quiet --rule 'prettier/prettier: off'
+          bunx eslint . --quiet --rule 'prettier/prettier: off'
 
       - name: Build
-        run: npm run build
+        run: bun run build
 
       - name: Install Playwright test runner
-        run: npm install --no-save --no-audit --no-fund @playwright/test
+        run: bun add --no-save @playwright/test
 
       - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+        run: bunx playwright install --with-deps chromium
 
       - name: Browser QA
-        run: npx playwright test
+        run: bunx playwright test
 
       - name: Upload Playwright artifacts
         if: failure()

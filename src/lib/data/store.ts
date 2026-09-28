@@ -137,6 +137,24 @@ export const presentationRepository: PresentationRepository = {
     if (!source) return undefined;
     const stamp = new Date().toISOString();
     const newId = uid();
+    const slides = source.slides.map((slide, index) => {
+      const slideId = uid();
+      return {
+        ...structuredClone(slide),
+        id: slideId,
+        presentationId: newId,
+        slideNumber: index + 1,
+        sortOrder: index,
+        createdAt: stamp,
+        updatedAt: stamp,
+        elements: slide.elements.map((element, zIndex) => ({
+          ...structuredClone(element),
+          id: uid(),
+          slideId,
+          zIndex,
+        })),
+      };
+    });
     const copy: Presentation = {
       ...source,
       id: newId,
@@ -144,7 +162,7 @@ export const presentationRepository: PresentationRepository = {
       status: "Draft",
       createdAt: stamp,
       updatedAt: stamp,
-      slides: source.slides.map((s) => ({ ...s, id: uid(), presentationId: newId })),
+      slides,
     };
     mutate((d) => ({ ...d, presentations: [copy, ...d.presentations] }));
     return copy;

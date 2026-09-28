@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { Pencil } from "lucide-react";
 import {
   AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignStartHorizontal, AlignStartVertical,
   ArrowDownToLine, ArrowUpToLine, Bold, ChevronDown, ChevronUp, Copy, Eye, EyeOff, Italic, Lock, Trash2, Underline, Unlock,
@@ -312,6 +313,7 @@ function defaultName(el: SlideElement) {
 /** Double-click to rename. Enter confirms, Escape cancels, blank reverts to a default name. */
 function LayerName({ name, onRename, onSelect, className }: { name: string; onRename: (n: string) => void; onSelect?: () => void; className?: string }) {
   const [editing, setEditing] = useState(false);
+  const start = () => { setDraft(name); setEditing(true); };
   const [draft, setDraft] = useState(name);
   if (editing)
     return (
@@ -332,13 +334,18 @@ function LayerName({ name, onRename, onSelect, className }: { name: string; onRe
       />
     );
   return (
-    <button
-      className={cn("min-w-0 flex-1 truncate text-start text-foreground", className)}
-      title="Double-click to rename"
-      onClick={onSelect}
-      onDoubleClick={() => { setDraft(name); setEditing(true); }}
-    >
-      {name}
-    </button>
+    <span className="group/name flex min-w-0 flex-1 items-center gap-1">
+      <button
+        className={cn("min-w-0 truncate text-start text-foreground", className)}
+        title="Double-click to rename"
+        onClick={(e) => { if (e.detail === 1) onSelect?.(); }}
+        onDoubleClick={start}
+      >
+        {name}
+      </button>
+      <button aria-label="Rename layer" title="Rename" onClick={start} className="shrink-0 text-muted-foreground opacity-0 hover:text-foreground focus:opacity-100 group-hover/name:opacity-100">
+        <Pencil className="size-3" />
+      </button>
+    </span>
   );
 }

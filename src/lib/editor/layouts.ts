@@ -288,6 +288,13 @@ export function applyLayout(slide: Slide, layoutId: string): Slide {
   return { ...slide, layoutId, elements };
 }
 
+/** Key-order-independent serialization for equality checks. */
+function stable(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(stable).join(",")}]`;
+  if (v && typeof v === "object") return `{${Object.keys(v).sort().map((k) => `${k}:${stable((v as Record<string, unknown>)[k])}`).join(",")}}`;
+  return JSON.stringify(v) ?? "u";
+}
+
 const KNOWN_TYPES = new Set(["text", "image", "shape", "icon", "chart", "table", "diagram"]);
 const num = (v: unknown, d: number) => (typeof v === "number" && Number.isFinite(v) ? v : d);
 
@@ -316,8 +323,8 @@ export function sanitizeElement(raw: unknown, slideId: string, index: number): S
     name: typeof e.name === "string" ? e.name : String(e.type),
     x: num(e.x, 100),
     y: num(e.y, 100),
-    width: Math.max(4, num(e.width, 300)),
-    height: Math.max(4, num(e.height, 100)),
+    width: Math.max(1, num(e.width, 300)),
+    height: Math.max(1, num(e.height, 100)),
     rotation: num(e.rotation, 0),
     opacity: Math.min(1, Math.max(0, num(e.opacity, 1))),
     zIndex: num(e.zIndex, index),
@@ -334,7 +341,7 @@ export function materializeSlide(slide: Slide): Slide {
   const modern = list.length > 0 && list.some((e) => e && typeof (e as { x?: number }).x === "number");
   if (modern) {
     const clean = list.map((e, i) => sanitizeElement(e, slide.id, i)).filter((e): e is SlideElement => !!e);
-    const same = clean.length === list.length && clean.every((c, i) => JSON.stringify(c) === JSON.stringify(list[i]));
+    const same = clean.length === list.length && clean.every((c, i) => stable(c) === stable(list[i]));
     return same ? slide : { ...slide, elements: clean };
   }
   const layoutId = slide.layoutId && getLayout(slide.layoutId) ? slide.layoutId : layoutsForIntent(slide.slideIntent)[0]!.id;

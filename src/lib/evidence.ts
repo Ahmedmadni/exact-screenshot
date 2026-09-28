@@ -198,3 +198,36 @@ export function createSlideFromEvidence(presentation: Presentation, segment: Sou
   };
   return addEvidenceToSlide(materializeSlide(base), evidenceFromSegment(segment), true);
 }
+
+
+export function removeEvidenceFromSlide(slide: Slide, evidenceId: string): Slide {
+  const refs = (slide.evidenceRefs ?? []).filter((ref) => ref.id !== evidenceId);
+  let elements = slide.elements.filter((el) => el.name !== "Evidence Citation");
+  if (refs.length) {
+    const maxZ = Math.max(-1, ...elements.map((el) => el.zIndex));
+    const [footer] = instantiate([
+      {
+        ...textEl("Evidence Citation", citationLabel(refs), [70, 838, 1460, 28], {
+          fontFamily: "theme:body",
+          fontSize: 15,
+          fontWeight: 400,
+          color: "theme:secondary",
+          align: "start",
+          vAlign: "middle",
+        }),
+        role: "decor",
+      },
+    ], slide.id, maxZ + 1);
+    elements = [...elements, footer!].map((el, zIndex) => ({ ...el, zIndex }));
+  }
+  const usedAssets = new Set(refs.map((ref) => ref.assetId));
+  for (const el of elements) {
+    if ((slide.sourceAssetIds ?? []).includes(el.id)) usedAssets.add(el.id);
+  }
+  return {
+    ...slide,
+    evidenceRefs: refs,
+    elements,
+    updatedAt: new Date().toISOString(),
+  };
+}

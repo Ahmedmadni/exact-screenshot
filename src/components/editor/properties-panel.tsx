@@ -17,7 +17,7 @@ import { FONT_CHOICES, SLIDE_THEMES, THEME_COLOR_KEYS, resolveColor, type SlideT
 import { LAYOUTS, applyLayout, layoutsForIntent } from "@/lib/editor/layouts";
 import { cloneElement } from "@/lib/editor/elements";
 import { cn } from "@/lib/utils";
-import { chartToText, diagramToText, tableToText, textToChart, textToDiagram, textToTable } from "@/lib/editor/data-utils";
+import { chartToText, diagramToText, recommendChartType, tableToText, textToChart, textToDiagram, textToTable } from "@/lib/editor/data-utils";
 import type { EditorApi } from "./use-editor";
 import { IconPicker } from "./icon-picker";
 import { readImage } from "./image-upload";
@@ -292,17 +292,20 @@ function ChartSection({ p, theme, setProps }: { p: ChartProps; theme: SlideTheme
   return (
     <Section title="Chart">
       <Input value={p.label} onChange={(e) => setProps({ label: e.target.value })} placeholder="Chart title" />
-      <Select value={p.chartType} onValueChange={(v) => setProps({ chartType: v as ChartProps["chartType"] })}>
-        <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-        <SelectContent>
-          <SelectItem value="column">Column</SelectItem>
-          <SelectItem value="bar">Bar</SelectItem>
-          <SelectItem value="line">Line</SelectItem>
-          <SelectItem value="area">Area</SelectItem>
-          <SelectItem value="pie">Pie</SelectItem>
-          <SelectItem value="doughnut">Doughnut</SelectItem>
-        </SelectContent>
-      </Select>
+      <div className="flex gap-2">
+        <Select value={p.chartType} onValueChange={(v) => setProps({ chartType: v as ChartProps["chartType"] })}>
+          <SelectTrigger className="h-8 flex-1"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="column">Column</SelectItem>
+            <SelectItem value="bar">Bar</SelectItem>
+            <SelectItem value="line">Line</SelectItem>
+            <SelectItem value="area">Area</SelectItem>
+            <SelectItem value="pie">Pie</SelectItem>
+            <SelectItem value="doughnut">Doughnut</SelectItem>
+          </SelectContent>
+        </Select>
+        <Button size="sm" variant="outline" className="h-8 px-2 text-xs" onClick={() => setProps({ chartType: recommendChartType(p) })}>Recommend</Button>
+      </div>
       <div className="space-y-1.5">
         <Label className="text-xs text-muted-foreground">Paste data — first row contains series names</Label>
         <DataTextarea

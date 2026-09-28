@@ -11,7 +11,7 @@ test("editor core flow persists and remains undoable", async ({ page }) => {
   await expect(page.getByText("12 slides", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Text", exact: true }).click();
-  await page.getByRole("menuitem", { name: "Heading" }).click();
+  await page.getByRole("menuitem", { name: "Heading", exact: true }).click();
 
   const freeText = page.locator('[data-element-type="text"][data-element-role="free"]').last();
   await expect(freeText).toBeVisible();
@@ -78,7 +78,7 @@ test("theme, zoom and slide background controls stay stable", async ({ page }) =
   await expect(page.getByTitle("Zoom")).toHaveText("Fill");
 
   await page.getByTitle("Zoom").click();
-  await page.getByRole("menuitem", { name: "50% of fit", exact: true }).click();
+  await page.locator('[role="menuitem"]').filter({ hasText: /^50% of fit$/ }).click();
   await expect(page.getByTitle("Zoom")).toHaveText("50%");
 
   await page.getByRole("button", { name: "Undo" }).click();

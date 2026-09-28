@@ -46,6 +46,8 @@ export interface PresentationPlan {
   slides: PlannedSlide[];
 }
 
+export type SlideRewriteAction = "regenerate" | "shorten" | "executive";
+
 export interface AIProvider {
   readonly name: string;
   createPlan(request: PlanRequest): Promise<PresentationPlan>;
@@ -54,4 +56,9 @@ export interface AIProvider {
     current: PlannedSlide[],
     action: "regenerate" | "shorten" | "expand",
   ): Promise<PlannedSlide[]>;
+  rewriteSlide(
+    request: PlanRequest,
+    slide: PlannedSlide,
+    action: SlideRewriteAction,
+  ): Promise<PlannedSlide>;
 }

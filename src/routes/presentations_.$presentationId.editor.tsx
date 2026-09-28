@@ -26,7 +26,16 @@ import { rebuildGeneratedContent, smartComposeSlide, tryAnotherDesign } from "@/
 import { exportPresentationToPdf, exportPresentationToPptx, validatePresentationForExport } from "@/lib/export";
 import type { AssetRecord, Presentation } from "@/lib/types";
 import { sourceContextFromAssets } from "@/lib/documents/analyze";
-import { addEvidenceToSlide, createSlideFromEvidence, evidenceFromSegment, removeEvidenceFromSlide, type SourceSegment } from "@/lib/evidence";
+import {
+  addEvidenceToSlide,
+  createKpiSlideFromEvidence,
+  createSlideFromEvidence,
+  createSourcesAppendixSlides,
+  evidenceFromSegment,
+  removeEvidenceFromSlide,
+  type NumericEvidenceFact,
+  type SourceSegment,
+} from "@/lib/evidence";
 
 export const Route = createFileRoute("/presentations_/$presentationId/editor")({
   validateSearch: (s: Record<string, unknown>): { slide?: string } => (typeof s["slide"] === "string" ? { slide: s["slide"] } : {}),
@@ -124,10 +133,10 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
     }
   }, [api.active, aiBusy, planRequest, replaceActive]);
 
-  const pinEvidence = useCallback((segment: SourceSegment) => {
+  const pinEvidence = useCallback((segment: SourceSegment, quote?: string) => {
     const slide = api.active;
     if (!slide) return;
-    replaceActive(addEvidenceToSlide(slide, evidenceFromSegment(segment), true));
+    replaceActive(addEvidenceToSlide(slide, evidenceFromSegment(segment, quote ?? segment.text), true));
     toast.success(`Evidence pinned from ${segment.assetName} · ${segment.locator}`);
   }, [api.active, replaceActive]);
 
@@ -145,6 +154,29 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
     api.commit([...snapshot.slice(0, insertAt), created, ...snapshot.slice(insertAt)]);
     api.setActiveId(created.id);
     toast.success(`Created a sourced slide from ${segment.locator}.`);
+  }, [api, p]);
+
+  const createKpiEvidenceSlide = useCallback((fact: NumericEvidenceFact) => {
+    const snapshot = api.snapshot();
+    const created = createKpiSlideFromEvidence({ ...p, slides: snapshot }, fact.segment, fact.value, fact.context);
+    const index = snapshot.findIndex((slide) => slide.id === api.activeId);
+    const insertAt = index < 0 ? snapshot.length : index + 1;
+    api.commit([...snapshot.slice(0, insertAt), created, ...snapshot.slice(insertAt)]);
+    api.setActiveId(created.id);
+    toast.success(`Created KPI slide from ${fact.segment.locator}.`);
+  }, [api, p]);
+
+  const addSourcesAppendix = useCallback(() => {
+    const snapshot = api.snapshot();
+    const base = snapshot.filter((slide) => slide.purpose !== "References");
+    const appendix = createSourcesAppendixSlides({ ...p, slides: base });
+    if (!appendix.length) {
+      toast.info("Pin at least one evidence source before creating an appendix.");
+      return;
+    }
+    api.commit([...base, ...appendix]);
+    api.setActiveId(appendix[0]!.id);
+    toast.success(`Added ${appendix.length} sources appendix slide${appendix.length === 1 ? "" : "s"}.`);
   }, [api, p]);
 
   const exportDeck = useCallback(async (format: "pptx" | "pdf") => {
@@ -358,6 +390,9 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
             onPin={pinEvidence}
             onRemove={removeEvidence}
             onCreateSlide={createEvidenceSlide}
+            onCreateKpi={createKpiEvidenceSlide}
+            onAddSourcesAppendix={addSourcesAppendix}
+            totalEvidenceCount={api.snapshot().reduce((sum, slide) => sum + (slide.evidenceRefs?.length ?? 0), 0)}
           />
           <QualityChecker presentation={{ ...p, slides: api.snapshot(), themeId: api.themeId }} onSelectSlide={api.setActiveId} />
           <Button size="sm" className="ms-2" onClick={() => setPreviewing(true)}><Play className="size-4" /> Preview</Button>

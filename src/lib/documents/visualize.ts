@@ -3,6 +3,7 @@ import { applyLayout } from "@/lib/editor/layouts";
 import { chartEl, instantiate, tableEl } from "@/lib/editor/elements";
 import { recommendChartType } from "@/lib/editor/data-utils";
 import type { ChartProps } from "@/lib/editor/model";
+import { addEvidenceToSlide, evidenceFromAsset } from "@/lib/evidence";
 
 function numeric(value: string | number) {
   if (typeof value === "number") return Number.isFinite(value) ? value : null;
@@ -82,7 +83,7 @@ export function applySourceDataVisuals(slides: Slide[], assets: AssetRecord[]): 
       const [chart] = instantiate([
         chartEl(`Source chart · ${asset.name}`, [790, 260, 710, 500], chartData.chart),
       ], base.id, maxZ + 1);
-      next[index] = {
+      const chartSlide: Slide = {
         ...base,
         visualType: "Chart",
         sourceAssetIds: [...new Set([...(base.sourceAssetIds ?? []), asset.id])],
@@ -90,6 +91,8 @@ export function applySourceDataVisuals(slides: Slide[], assets: AssetRecord[]): 
         elements: [...withoutContentList(base), chart!].map((el, zIndex) => ({ ...el, zIndex })),
         updatedAt: new Date().toISOString(),
       };
+      const quote = [chartData.table.columns.join(" | "), ...chartData.table.rows.slice(0, 4).map((row) => row.join(" | "))].join("\n");
+      next[index] = addEvidenceToSlide(chartSlide, evidenceFromAsset(asset, `Sheet: ${chartData.table.name}`, quote), true);
     } else {
       const data = tableRows(asset);
       if (!data) continue;
@@ -103,7 +106,7 @@ export function applySourceDataVisuals(slides: Slide[], assets: AssetRecord[]): 
           headerFill: "theme:accent",
         }),
       ], base.id, maxZ + 1);
-      next[index] = {
+      const tableSlide: Slide = {
         ...base,
         visualType: "Table",
         sourceAssetIds: [...new Set([...(base.sourceAssetIds ?? []), asset.id])],
@@ -111,6 +114,8 @@ export function applySourceDataVisuals(slides: Slide[], assets: AssetRecord[]): 
         elements: [...withoutContentList(base), table!].map((el, zIndex) => ({ ...el, zIndex })),
         updatedAt: new Date().toISOString(),
       };
+      const quote = data.rows.slice(0, 5).map((row) => row.join(" | ")).join("\n");
+      next[index] = addEvidenceToSlide(tableSlide, evidenceFromAsset(asset, `Sheet: ${data.table.name}`, quote), true);
     }
 
     used = index + 1;
@@ -152,7 +157,7 @@ function applySourceImages(slides: Slide[], assets: AssetRecord[]): Slide[] {
     }
 
     if (!media || media.type !== "image") continue;
-    next[index] = {
+    const imageSlide: Slide = {
       ...base,
       visualType: original.slideIntent === "Cover" ? "Hero Image" : "Image + Text",
       sourceAssetIds: [...new Set([...(base.sourceAssetIds ?? []), asset.id])],
@@ -163,6 +168,7 @@ function applySourceImages(slides: Slide[], assets: AssetRecord[]): Slide[] {
       ),
       updatedAt: new Date().toISOString(),
     };
+    next[index] = addEvidenceToSlide(imageSlide, evidenceFromAsset(asset, "Visual source", `Image source: ${asset.name}`), true);
     cursor = index + 1;
   }
 

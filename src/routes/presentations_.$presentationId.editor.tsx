@@ -63,6 +63,7 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
   const zoomNum = zoom === "fill" ? 1 : zoom;
   const [previewing, setPreviewing] = useState(false);
   const [aiBusy, setAiBusy] = useState<SlideRewriteAction | null>(null);
+  const smartLabel = aiProvider().name === "mock-planner" ? "Smart" : "AI";
   const clipboard = useRef<SlideElement[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -204,7 +205,7 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm" disabled={!api.active || !!aiBusy}>
               {aiBusy ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-              AI
+              {smartLabel}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-52">

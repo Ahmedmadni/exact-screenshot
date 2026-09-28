@@ -260,6 +260,17 @@ export const brandKitRepository = {
   },
 };
 
+export function databaseSnapshot(): Database {
+  hydrate();
+  return structuredClone(db);
+}
+
+export function replaceDatabase(next: Database) {
+  db = structuredClone(next);
+  persist();
+  emit();
+}
+
 export function useDatabase(): Database {
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }

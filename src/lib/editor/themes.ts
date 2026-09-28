@@ -1,3 +1,4 @@
+import type { BrandKit, PresentationThemeOverrides } from "@/lib/types";
 /** Presentation-level visual systems. Slide colors are deck data, not app UI tokens. */
 export interface SlideTheme {
   id: string;
@@ -68,8 +69,64 @@ export const SLIDE_THEMES: SlideTheme[] = [
 
 export const DEFAULT_THEME_ID = "executive-light";
 
-export function getTheme(id?: string): SlideTheme {
-  return SLIDE_THEMES.find((t) => t.id === id) ?? SLIDE_THEMES[0]!;
+export function getTheme(id?: string, overrides?: PresentationThemeOverrides): SlideTheme {
+  const base = SLIDE_THEMES.find((t) => t.id === id) ?? SLIDE_THEMES[0]!;
+  if (!overrides) return base;
+  return {
+    ...base,
+    colors: { ...base.colors, ...(overrides.colors ?? {}) },
+    fonts: { ...base.fonts, ...(overrides.fonts ?? {}) },
+    shape: { ...base.shape, ...(overrides.shape ?? {}) },
+  };
+}
+
+function channel(hex: string, start: number) {
+  return parseInt(hex.slice(start, start + 2), 16);
+}
+
+function normalizeHex(value: string, fallback: string) {
+  const hex = value.trim().replace("#", "");
+  return /^[0-9a-fA-F]{6}$/.test(hex) ? `#${hex.toUpperCase()}` : fallback;
+}
+
+function mix(a: string, b: string, ratio: number) {
+  const aa = normalizeHex(a, "#FFFFFF").slice(1);
+  const bb = normalizeHex(b, "#000000").slice(1);
+  const t = Math.max(0, Math.min(1, ratio));
+  const parts = [0, 2, 4].map((i) => Math.round(channel(aa, i) * (1 - t) + channel(bb, i) * t));
+  return `#${parts.map((n) => n.toString(16).padStart(2, "0")).join("").toUpperCase()}`;
+}
+
+function luminance(hex: string) {
+  const h = normalizeHex(hex, "#FFFFFF").slice(1);
+  const rgb = [0, 2, 4].map((i) => channel(h, i) / 255).map((c) => c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  return 0.2126 * rgb[0]! + 0.7152 * rgb[1]! + 0.0722 * rgb[2]!;
+}
+
+export function themeOverridesFromBrandKit(kit: BrandKit): PresentationThemeOverrides {
+  const palette = kit.colors ?? [];
+  const background = normalizeHex(kit.backgroundColor ?? palette[0] ?? "#FFFFFF", "#FFFFFF");
+  const text = normalizeHex(kit.textColor ?? palette[1] ?? "#111827", "#111827");
+  const accent = normalizeHex(kit.accentColor ?? palette[2] ?? "#2563EB", "#2563EB");
+  const surface = normalizeHex(kit.surfaceColor ?? mix(background, text, 0.05), mix(background, text, 0.05));
+  const secondary = normalizeHex(kit.secondaryTextColor ?? mix(text, background, 0.38), mix(text, background, 0.38));
+  const darkAccent = luminance(accent) < 0.42;
+  return {
+    colors: {
+      background,
+      surface,
+      primary: text,
+      secondary,
+      accent,
+      accentSoft: mix(accent, background, 0.84),
+      onAccent: darkAccent ? "#FFFFFF" : "#111111",
+      line: mix(text, background, 0.82),
+    },
+    fonts: {
+      heading: kit.headingFont || "Manrope",
+      body: kit.bodyFont || "Manrope",
+    },
+  };
 }
 
 const ARABIC_FALLBACK = `"IBM Plex Sans Arabic", system-ui, sans-serif`;

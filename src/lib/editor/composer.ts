@@ -78,7 +78,7 @@ export function rebuildGeneratedContent(
         : e,
     );
   }
-  const manual = slide.elements.filter((e) => !e.role).map((e) => ({ ...e }));
+  const manual = slide.elements.filter((e) => !e.role || e.name === "Evidence Citation").map((e) => ({ ...e }));
   const merged: SlideElement[] = [...generated, ...manual].map((e, i) => ({ ...e, zIndex: i }));
   return { ...next, layoutId, elements: merged, updatedAt: new Date().toISOString() };
 }

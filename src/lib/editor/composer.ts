@@ -28,7 +28,7 @@ const BY_INTENT: Record<string, string[]> = {
 };
 
 function candidateLayouts(slide: Slide) {
-  const preferred = BY_INTENT[slide.slideIntent] ?? ["title-content"];
+  const preferred = [...(BY_INTENT[slide.slideIntent] ?? ["title-content"])];
   const bulletCount = slide.bullets?.length ?? 0;
   const kpiCount = slide.kpis?.length ?? 0;
 
@@ -69,7 +69,15 @@ export function rebuildGeneratedContent(
 ): Slide {
   const next: Slide = { ...slide, ...patch };
   const layoutId = recommendedLayoutId(next);
-  const generated = buildLayout(layoutId, contentFromSlide(next), next.id);
+  let generated = buildLayout(layoutId, contentFromSlide(next), next.id);
+  const existingMedia = slide.elements.find((e) => e.type === "image" && e.role === "media" && e.properties.src);
+  if (existingMedia?.type === "image") {
+    generated = generated.map((e) =>
+      e.type === "image" && e.role === "media"
+        ? { ...e, properties: { ...e.properties, src: existingMedia.properties.src } }
+        : e,
+    );
+  }
   const manual = slide.elements.filter((e) => !e.role).map((e) => ({ ...e }));
   const merged: SlideElement[] = [...generated, ...manual].map((e, i) => ({ ...e, zIndex: i }));
   return { ...next, layoutId, elements: merged, updatedAt: new Date().toISOString() };

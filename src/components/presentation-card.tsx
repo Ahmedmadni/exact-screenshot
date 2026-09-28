@@ -4,6 +4,7 @@ import type { Presentation } from "@/lib/types";
 import { StatusBadge } from "@/components/status-badge";
 import { presentationRepository } from "@/lib/data/store";
 import { useI18n } from "@/lib/i18n";
+import { getTheme } from "@/lib/editor/themes";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,6 +22,7 @@ function relative(iso: string) {
 
 export function PresentationCard({ presentation }: { presentation: Presentation }) {
   const { t } = useI18n();
+  const theme = getTheme(presentation.themeId, presentation.themeOverrides);
 
   return (
     <div className="panel group relative flex flex-col overflow-hidden transition-shadow hover:shadow-lift">
@@ -29,16 +31,14 @@ export function PresentationCard({ presentation }: { presentation: Presentation 
         params={{ presentationId: presentation.id }}
         className="focus-ring flex flex-col"
       >
-        <div className="relative flex h-32 items-end border-b border-border bg-surface p-4">
-          <div
-            aria-hidden
-            className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,var(--color-accent-soft),transparent_65%)]"
-          />
+        <div className="relative flex h-32 items-end overflow-hidden border-b border-border p-4" style={{ background: theme.colors.background }}>
+          <div aria-hidden className="absolute -start-10 -top-14 size-44 rounded-full opacity-60" style={{ background: theme.colors.accentSoft }} />
+          <div aria-hidden className="absolute end-0 top-0 h-full w-2" style={{ background: theme.colors.accent }} />
           <div className="relative space-y-1.5">
-            <span className="eyebrow">{presentation.presentationType}</span>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.18em]" style={{ color: theme.colors.secondary }}>{presentation.presentationType}</span>
             <div className="flex gap-1">
-              {presentation.slides.slice(0, 6).map((s) => (
-                <span key={s.id} className="h-6 w-4 rounded-[3px] border border-border bg-card" />
+              {presentation.slides.slice(0, 6).map((slide, i) => (
+                <span key={slide.id} className="h-6 w-4 rounded-[3px] border" style={{ background: i === 0 ? theme.colors.accent : theme.colors.surface, borderColor: theme.colors.line }} />
               ))}
             </div>
           </div>

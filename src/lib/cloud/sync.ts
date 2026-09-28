@@ -1,6 +1,7 @@
 import type { Database } from "@/lib/data/store";
 import type { AssetRecord, BrandKit, Presentation, SavedTemplate } from "@/lib/types";
 import { getCloudSession, supabase } from "./supabase";
+import { clearCloudDeletes, queuedCloudDeletes, type CloudDeleteKind } from "./delete-queue";
 
 type CloudRow<T> = { id: string; payload: T; updated_at: string };
 
@@ -54,10 +55,34 @@ export interface SyncResult {
   userEmail?: string;
 }
 
+const DELETE_TABLES: Record<CloudDeleteKind, string> = {
+  presentation: "presentation_snapshots",
+  brandKit: "brand_kit_snapshots",
+  savedTemplate: "saved_template_snapshots",
+  asset: "asset_records",
+};
+
+async function flushDeleteQueue(userId: string) {
+  if (!supabase) return;
+  const queued = queuedCloudDeletes();
+  const completed = [];
+  for (const kind of Object.keys(DELETE_TABLES) as CloudDeleteKind[]) {
+    const records = queued.filter((r) => r.kind === kind);
+    if (!records.length) continue;
+    const ids = records.map((r) => r.id);
+    const { error } = await supabase.from(DELETE_TABLES[kind]).delete().eq("user_id", userId).in("id", ids);
+    if (error) throw error;
+    completed.push(...records);
+  }
+  if (completed.length) clearCloudDeletes(completed);
+}
+
 export async function syncDatabaseWithCloud(local: Database): Promise<SyncResult> {
   if (!supabase) throw new Error("Cloud sync is not configured.");
   const session = await getCloudSession();
   if (!session?.user) throw new Error("Sign in before syncing.");
+
+  await flushDeleteQueue(session.user.id);
 
   const [remotePresentations, remoteBrandKits, remoteTemplates, remoteAssets] = await Promise.all([
     rows<Presentation>("presentation_snapshots"),

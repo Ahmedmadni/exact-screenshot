@@ -16,7 +16,13 @@ test("editor core flow persists and remains undoable", async ({ page }) => {
   const freeText = page.locator('[data-element-type="text"][data-element-role="free"]').last();
   await expect(freeText).toBeVisible();
 
-  await freeText.dispatchEvent("dblclick");
+  const textBox = await freeText.boundingBox();
+  expect(textBox).not.toBeNull();
+  await page.mouse.dblclick(
+    textBox!.x + Math.min(80, textBox!.width / 4),
+    textBox!.y + textBox!.height / 2,
+    { delay: 80 },
+  );
   const textEditor = page.getByTestId("text-editor");
   await expect(textEditor).toBeVisible();
   await page.keyboard.press("Control+A");

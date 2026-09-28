@@ -12,6 +12,7 @@ import { SaveIndicator } from "@/components/save-indicator";
 import { QualityChecker } from "@/components/quality-checker";
 import { EditorCanvas, type Zoom } from "@/components/editor/editor-canvas";
 import { PropertiesPanel } from "@/components/editor/properties-panel";
+import { SourcePanel } from "@/components/editor/source-panel";
 import { SlideRail } from "@/components/editor/slide-rail";
 import { IconPicker } from "@/components/editor/icon-picker";
 import { readImage } from "@/components/editor/image-upload";
@@ -25,6 +26,7 @@ import { rebuildGeneratedContent, smartComposeSlide, tryAnotherDesign } from "@/
 import { exportPresentationToPdf, exportPresentationToPptx, validatePresentationForExport } from "@/lib/export";
 import type { AssetRecord, Presentation } from "@/lib/types";
 import { sourceContextFromAssets } from "@/lib/documents/analyze";
+import { addEvidenceToSlide, createSlideFromEvidence, evidenceFromSegment, removeEvidenceFromSlide, type SourceSegment } from "@/lib/evidence";
 
 export const Route = createFileRoute("/presentations_/$presentationId/editor")({
   validateSearch: (s: Record<string, unknown>): { slide?: string } => (typeof s["slide"] === "string" ? { slide: s["slide"] } : {}),
@@ -121,6 +123,29 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
       setAiBusy(null);
     }
   }, [api.active, aiBusy, planRequest, replaceActive]);
+
+  const pinEvidence = useCallback((segment: SourceSegment) => {
+    const slide = api.active;
+    if (!slide) return;
+    replaceActive(addEvidenceToSlide(slide, evidenceFromSegment(segment), true));
+    toast.success(`Evidence pinned from ${segment.assetName} · ${segment.locator}`);
+  }, [api.active, replaceActive]);
+
+  const removeEvidence = useCallback((evidenceId: string) => {
+    const slide = api.active;
+    if (!slide) return;
+    replaceActive(removeEvidenceFromSlide(slide, evidenceId));
+  }, [api.active, replaceActive]);
+
+  const createEvidenceSlide = useCallback((segment: SourceSegment) => {
+    const snapshot = api.snapshot();
+    const created = createSlideFromEvidence({ ...p, slides: snapshot }, segment);
+    const index = snapshot.findIndex((slide) => slide.id === api.activeId);
+    const insertAt = index < 0 ? snapshot.length : index + 1;
+    api.commit([...snapshot.slice(0, insertAt), created, ...snapshot.slice(insertAt)]);
+    api.setActiveId(created.id);
+    toast.success(`Created a sourced slide from ${segment.locator}.`);
+  }, [api, p]);
 
   const exportDeck = useCallback(async (format: "pptx" | "pdf") => {
     if (exporting) return;
@@ -327,6 +352,13 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
             </DropdownMenuContent>
           </DropdownMenu>
           <Button size="icon" variant="ghost" aria-label="Zoom in" onClick={() => setZoom(Math.min(3, +(zoomNum + 0.25).toFixed(2)))}><ZoomIn className="size-4" /></Button>
+          <SourcePanel
+            assets={sourceAssets}
+            activeSlide={api.active}
+            onPin={pinEvidence}
+            onRemove={removeEvidence}
+            onCreateSlide={createEvidenceSlide}
+          />
           <QualityChecker presentation={{ ...p, slides: api.snapshot(), themeId: api.themeId }} onSelectSlide={api.setActiveId} />
           <Button size="sm" className="ms-2" onClick={() => setPreviewing(true)}><Play className="size-4" /> Preview</Button>
           <DropdownMenu>

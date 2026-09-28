@@ -1,6 +1,7 @@
 import { uid } from "@/lib/data/store";
 import type { BrandKit, Presentation, Slide } from "@/lib/types";
 import { themeOverridesFromBrandKit } from "@/lib/editor/themes";
+import { materializeSlide } from "@/lib/editor/layouts";
 import type { ImageElement } from "@/lib/editor/model";
 
 const BRAND_LOGO_NAME = "Brand Logo";
@@ -38,7 +39,7 @@ export function applyBrandKit(presentation: Presentation, kit: BrandKit): Partia
   return {
     brandKitId: kit.id,
     themeOverrides: themeOverridesFromBrandKit(kit),
-    slides: presentation.slides.map((slide) => withBrandLogo(slide, kit.logoDataUrl)),
+    slides: presentation.slides.map((slide) => withBrandLogo(materializeSlide(slide), kit.logoDataUrl)),
   };
 }
 

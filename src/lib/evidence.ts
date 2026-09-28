@@ -238,3 +238,42 @@ export function removeEvidenceFromSlide(slide: Slide, evidenceId: string): Slide
     updatedAt: new Date().toISOString(),
   };
 }
+
+
+function groundingTokens(value: string) {
+  const stop = new Set([
+    "the","and","for","with","from","this","that","into","will","are","our","your","you","of","to","in","on","a","an",
+    "من","في","على","إلى","الى","عن","مع","هذا","هذه","ذلك","التي","الذي","و","أو","او","هو","هي","تم","يتم",
+  ]);
+  return [...new Set(tokens(value).filter((token) => !stop.has(token)))];
+}
+
+function overlapScore(slide: Slide, segment: SourceSegment) {
+  const query = groundingTokens([
+    slide.keyMessage,
+    slide.contentSummary,
+    ...(slide.bullets ?? []),
+    ...(slide.kpis ?? []),
+  ].join(" "));
+  if (!query.length) return 0;
+  const hay = segment.text.toLowerCase();
+  const matches = query.filter((token) => hay.includes(token)).length;
+  return matches / Math.min(Math.max(query.length, 1), 12);
+}
+
+export function groundSlidesFromSources(slides: Slide[], assets: AssetRecord[]): Slide[] {
+  const segments = assets
+    .filter((asset) => asset.extractionStatus === "ready" && asset.extractedText)
+    .flatMap(sourceSegments);
+  if (!segments.length) return slides;
+
+  return slides.map((slide) => {
+    if (slide.evidenceRefs?.length) return slide;
+    const candidates = segments
+      .map((segment) => ({ segment, score: overlapScore(slide, segment) }))
+      .sort((a, b) => b.score - a.score);
+    const best = candidates[0];
+    if (!best || best.score < 0.34) return slide;
+    return addEvidenceToSlide(slide, evidenceFromSegment(best.segment), true);
+  });
+}

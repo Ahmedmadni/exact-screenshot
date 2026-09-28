@@ -151,6 +151,8 @@ export interface Slide {
   background?: string | undefined;
   bullets?: string[];
   kpis?: string[];
+  /** Source assets directly materialized into this slide (chart/table/image). */
+  sourceAssetIds?: string[];
   createdAt: string;
   updatedAt: string;
 }

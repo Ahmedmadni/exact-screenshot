@@ -294,7 +294,10 @@ const num = (v: unknown, d: number) => (typeof v === "number" && Number.isFinite
 /** Repair a stored element so one malformed record never crashes the editor. Returns null if unusable. */
 export function sanitizeElement(raw: unknown, slideId: string, index: number): SlideElement | null {
   if (!raw || typeof raw !== "object") return null;
-  const e = raw as Record<string, unknown>;
+  const e = raw as {
+    type?: unknown; properties?: unknown; id?: unknown; name?: unknown; x?: unknown; y?: unknown; width?: unknown;
+    height?: unknown; rotation?: unknown; opacity?: unknown; zIndex?: unknown; locked?: unknown; visible?: unknown;
+  };
   if (typeof e.type !== "string" || !KNOWN_TYPES.has(e.type)) return null;
   const props = (e.properties && typeof e.properties === "object" ? e.properties : {}) as Record<string, unknown>;
   const defaults: Record<string, Record<string, unknown>> = {
@@ -320,8 +323,9 @@ export function sanitizeElement(raw: unknown, slideId: string, index: number): S
     zIndex: num(e.zIndex, index),
     locked: e.locked === true,
     visible: e.visible !== false,
+    type: e.type,
     properties: { ...defaults[e.type], ...props },
-  } as SlideElement;
+  } as unknown as SlideElement;
 }
 
 /** Phase 1 slides carry planning data only; give them real elements. */

@@ -74,6 +74,13 @@ export function reviewPresentation(presentation: Presentation): QualityIssue[] {
       else seenTitles.set(titleKey, slide);
     }
 
+    if ((slide.sourceAssetIds?.length ?? 0) > 0 && !(slide.evidenceRefs?.length)) {
+      issues.push(issue("warning", "missing-citation", "This slide uses source material but has no pinned evidence citation.", slide));
+    }
+    if ((slide.evidenceRefs?.length ?? 0) > 0 && !slide.elements.some((el) => el.name === "Evidence Citation")) {
+      issues.push(issue("info", "citation-footer-missing", "Evidence is pinned, but the visible citation footer is missing.", slide));
+    }
+
     const visible = slide.elements.filter((el) => el.visible);
     if (!visible.length) issues.push(issue("error", "empty-slide", "Slide has no visible elements.", slide));
 

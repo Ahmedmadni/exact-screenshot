@@ -16,6 +16,7 @@ import { useI18n } from "@/lib/i18n";
 import { SlideThumb } from "@/components/editor/slide-renderer";
 import { materializeSlide } from "@/lib/editor/layouts";
 import { composeDeck } from "@/lib/editor/composer";
+import { SLIDE_THEMES, getTheme } from "@/lib/editor/themes";
 import { VISUAL_TYPES, type AssetRecord, type Presentation, type Slide, type VisualType } from "@/lib/types";
 
 export const Route = createFileRoute("/presentations/$presentationId")({
@@ -127,7 +128,7 @@ function Detail() {
           </div>
         </TabsContent>
         <TabsContent value="design" className="mt-6">
-          <EmptyState icon={Palette} title="Design arrives next" description="Themes, brand kits and the visual slide editor will apply directly to this blueprint." hint="Coming in the next phase" />
+          <DesignOverview p={p} />
         </TabsContent>
         <TabsContent value="files" className="mt-6">
           <Files presentationId={p.id} />
@@ -239,6 +240,41 @@ function Blueprint({ p, update, save }: { p: Presentation; update: (patch: Parti
           <Button asChild><Link to="/presentations/$presentationId/editor" params={{ presentationId: p.id }}>{t("blueprint.continue")}</Link></Button>
         </div>
       </section>
+    </div>
+  );
+}
+
+function DesignOverview({ p }: { p: Presentation }) {
+  const active = getTheme(p.themeId);
+  return (
+    <div className="space-y-5">
+      <div className="panel flex flex-wrap items-center justify-between gap-4 p-5">
+        <div>
+          <span className="eyebrow">Active design system</span>
+          <h2 className="mt-1 text-xl text-foreground">{active.name}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Theme changes apply across the presentation while explicit element overrides remain intact.</p>
+        </div>
+        <Button asChild>
+          <Link to="/presentations/$presentationId/editor" params={{ presentationId: p.id }}>Open visual editor</Link>
+        </Button>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {SLIDE_THEMES.map((theme) => (
+          <button
+            key={theme.id}
+            onClick={() => presentationRepository.update(p.id, { themeId: theme.id })}
+            className={`panel p-4 text-start transition-all hover:-translate-y-0.5 hover:shadow-sm ${active.id === theme.id ? "ring-2 ring-primary" : ""}`}
+          >
+            <div className="mb-4 flex h-20 overflow-hidden rounded-md border border-border">
+              <div className="flex-1" style={{ background: theme.colors.background }} />
+              <div className="w-1/4" style={{ background: theme.colors.surface }} />
+              <div className="w-1/5" style={{ background: theme.colors.accent }} />
+            </div>
+            <div className="text-sm font-medium text-foreground">{theme.name}</div>
+            <div className="mt-1 text-xs text-muted-foreground">{theme.fonts.heading} · {theme.fonts.body}</div>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

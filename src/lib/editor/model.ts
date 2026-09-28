@@ -85,22 +85,55 @@ export interface IconProps {
   strokeWidth: number;
 }
 
-export interface PlaceholderProps {
+export type ChartKind = "bar" | "column" | "line" | "area" | "pie" | "doughnut";
+
+export interface ChartSeries {
+  name: string;
+  values: number[];
+}
+
+export interface ChartProps {
   label: string;
-  /** Future chart/table/diagram payload. */
-  data?: unknown;
+  chartType: ChartKind;
+  categories: string[];
+  series: ChartSeries[];
+  showLegend: boolean;
+  showValues: boolean;
+  showGrid: boolean;
+  accent: string;
+}
+
+export interface TableProps {
+  label: string;
+  rows: string[][];
+  headerRow: boolean;
+  bandedRows: boolean;
+  headerFill: string;
+}
+
+export type DiagramKind = "process" | "timeline" | "matrix";
+
+export interface DiagramNode {
+  title: string;
+  text: string;
+}
+
+export interface DiagramProps {
+  label: string;
+  diagramType: DiagramKind;
+  nodes: DiagramNode[];
+  accent: string;
 }
 
 export interface TextElement extends BaseElement { type: "text"; properties: TextProps }
 export interface ImageElement extends BaseElement { type: "image"; properties: ImageProps }
 export interface ShapeElement extends BaseElement { type: "shape"; properties: ShapeProps }
 export interface IconElement extends BaseElement { type: "icon"; properties: IconProps }
-export interface PlaceholderElement extends BaseElement {
-  type: "chart" | "table" | "diagram";
-  properties: PlaceholderProps;
-}
+export interface ChartElement extends BaseElement { type: "chart"; properties: ChartProps }
+export interface TableElement extends BaseElement { type: "table"; properties: TableProps }
+export interface DiagramElement extends BaseElement { type: "diagram"; properties: DiagramProps }
 
-export type SlideElement = TextElement | ImageElement | ShapeElement | IconElement | PlaceholderElement;
+export type SlideElement = TextElement | ImageElement | ShapeElement | IconElement | ChartElement | TableElement | DiagramElement;
 
 export type DraftElement = SlideElement extends infer E
   ? E extends SlideElement

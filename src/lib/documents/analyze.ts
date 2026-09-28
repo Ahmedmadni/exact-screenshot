@@ -1,5 +1,5 @@
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
-import type { AssetRecord } from "@/lib/types";
+import type { AssetDataTable, AssetRecord } from "@/lib/types";
 
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
 const MAX_EXTRACTED_CHARS = 60_000;
@@ -13,6 +13,7 @@ export interface FileAnalysis {
   pageCount?: number;
   sheetNames?: string[];
   slideCount?: number;
+  dataTables?: AssetDataTable[];
   warnings?: string[];
 }
 
@@ -146,31 +147,42 @@ async function analyzePptx(file: File): Promise<FileAnalysis> {
 
 async function analyzeExcel(file: File): Promise<FileAnalysis> {
   const warnings: string[] = [];
-  const ext = file.name.split(".").pop()?.toLowerCase();
-  if (ext === "csv") {
-    const value = capped(await file.text(), warnings);
-    return {
-      kind: "excel",
-      extractionStatus: value ? "ready" : "failed",
-      extractedText: value,
-      extractionSummary: `CSV · ${value.length.toLocaleString()} characters extracted`,
-      sheetNames: ["CSV"],
-      warnings,
-    };
-  }
-
   const XLSX = await import("xlsx");
-  const workbook = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
+  const ext = file.name.split(".").pop()?.toLowerCase();
+  const workbook = ext === "csv"
+    ? XLSX.read(await file.text(), { type: "string", cellDates: true })
+    : XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
+
   const sections: string[] = [];
+  const dataTables: AssetDataTable[] = [];
+
   for (const name of workbook.SheetNames) {
     const sheet = workbook.Sheets[name];
     if (!sheet) continue;
+
+    const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" }) as unknown[][];
+    const nonEmpty = matrix.filter((row) => row.some((cell) => String(cell ?? "").trim() !== ""));
+    if (nonEmpty.length) {
+      const width = Math.min(12, Math.max(...nonEmpty.map((row) => row.length), 1));
+      const first = nonEmpty[0] ?? [];
+      const columns = Array.from({ length: width }, (_, i) => String(first[i] ?? `Column ${i + 1}`).trim() || `Column ${i + 1}`);
+      const rows = nonEmpty.slice(1, 31).map((row) =>
+        Array.from({ length: width }, (_, i) => {
+          const value = row[i];
+          return typeof value === "number" && Number.isFinite(value) ? value : String(value ?? "");
+        }),
+      );
+      dataTables.push({ name, columns, rows });
+      if (nonEmpty.length > 31) warnings.push(`Sheet “${name}” has more than 30 rows; the structured preview keeps the first 30.`);
+    }
+
     const csv = XLSX.utils.sheet_to_csv(sheet, { blankrows: false });
     if (!csv.trim()) continue;
     sections.push(`[Sheet: ${name}]\n${csv.slice(0, MAX_SECTION_CHARS)}`);
     if (csv.length > MAX_SECTION_CHARS) warnings.push(`Sheet “${name}” was truncated for planning.`);
     if (sections.join("\n\n").length >= MAX_EXTRACTED_CHARS) break;
   }
+
   const extractedText = capped(sections.join("\n\n"), warnings);
   return {
     kind: "excel",
@@ -178,6 +190,7 @@ async function analyzeExcel(file: File): Promise<FileAnalysis> {
     extractedText,
     extractionSummary: `${workbook.SheetNames.length} sheet workbook · ${extractedText.length.toLocaleString()} characters extracted`,
     sheetNames: workbook.SheetNames,
+    dataTables: dataTables.slice(0, 4),
     warnings,
   };
 }

@@ -58,6 +58,7 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
   const api = useEditor(p, initialSlide);
   const theme = getTheme(api.themeId);
   const [zoom, setZoom] = useState<Zoom>(1);
+  const [zoomOpen, setZoomOpen] = useState(false);
   const zoomNum = zoom === "fill" ? 1 : zoom;
   const [previewing, setPreviewing] = useState(false);
   const clipboard = useRef<SlideElement[]>([]);
@@ -217,12 +218,12 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
 
         <div className="flex items-center gap-1">
           <Button size="icon" variant="ghost" aria-label="Zoom out" onClick={() => setZoom(Math.max(0.25, +(zoomNum - 0.25).toFixed(2)))}><ZoomOut className="size-4" /></Button>
-          <DropdownMenu>
+          <DropdownMenu open={zoomOpen} onOpenChange={setZoomOpen}>
             <DropdownMenuTrigger asChild><button data-testid="zoom-trigger" className="w-14 rounded px-1 py-1 text-center text-xs text-muted-foreground hover:bg-muted" title="Zoom">{zoom === "fill" ? "Fill" : zoom === 1 ? "Fit" : `${Math.round(zoom * 100)}%`}</button></DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem data-testid="zoom-fit" onSelect={() => setZoom(1)}>Fit — whole slide</DropdownMenuItem>
-              <DropdownMenuItem data-testid="zoom-fill" onSelect={() => setZoom("fill")}>Fill — use all space</DropdownMenuItem>
-              {[0.25, 0.5, 0.75, 1.25, 1.5, 2].map((z) => <DropdownMenuItem key={z} data-testid={`zoom-${Math.round(z * 100)}`} onSelect={() => setZoom(z)}>{z * 100}% of fit</DropdownMenuItem>)}
+              <DropdownMenuItem data-testid="zoom-fit" onSelect={() => { setZoom(1); setZoomOpen(false); }}>Fit — whole slide</DropdownMenuItem>
+              <DropdownMenuItem data-testid="zoom-fill" onSelect={() => { setZoom("fill"); setZoomOpen(false); }}>Fill — use all space</DropdownMenuItem>
+              {[0.25, 0.5, 0.75, 1.25, 1.5, 2].map((z) => <DropdownMenuItem key={z} data-testid={`zoom-${Math.round(z * 100)}`} onSelect={() => { setZoom(z); setZoomOpen(false); }}>{z * 100}% of fit</DropdownMenuItem>)}
             </DropdownMenuContent>
           </DropdownMenu>
           <Button size="icon" variant="ghost" aria-label="Zoom in" onClick={() => setZoom(Math.min(3, +(zoomNum + 0.25).toFixed(2)))}><ZoomIn className="size-4" /></Button>

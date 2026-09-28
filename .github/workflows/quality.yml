@@ -30,7 +30,8 @@ jobs:
         run: npm install --no-audit --no-fund
 
       - name: Lint (logic rules; formatting excluded from CI)
-        run: npx eslint . --quiet --rule "prettier/prettier: off"
+        run: |
+          npx eslint . --quiet --rule 'prettier/prettier: off'
 
       - name: Build
         run: npm run build

@@ -211,6 +211,12 @@ export interface PresentationVersion {
 
 export type AssetExtractionStatus = "pending" | "ready" | "failed" | "unsupported";
 
+export interface AssetDataTable {
+  name: string;
+  columns: string[];
+  rows: Array<Array<string | number>>;
+}
+
 export interface AssetRecord {
   id: string;
   presentationId: string | null;
@@ -225,6 +231,7 @@ export interface AssetRecord {
   pageCount?: number;
   sheetNames?: string[];
   slideCount?: number;
+  dataTables?: AssetDataTable[];
   warnings?: string[];
 }
 

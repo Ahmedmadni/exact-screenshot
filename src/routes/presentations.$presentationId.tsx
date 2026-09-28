@@ -20,6 +20,7 @@ import { materializeSlide } from "@/lib/editor/layouts";
 import { composeDeck } from "@/lib/editor/composer";
 import { SLIDE_THEMES, getTheme } from "@/lib/editor/themes";
 import { applyBrandKit, clearBrandKit } from "@/lib/brand";
+import { TEMPLATE_FAMILIES, applyTemplateFamilyToSlides } from "@/lib/templates";
 import { exportPresentationToPdf, exportPresentationToPptx, validatePresentationForExport } from "@/lib/export";
 import { VISUAL_TYPES, type AssetRecord, type Presentation, type Slide, type VisualType } from "@/lib/types";
 
@@ -369,6 +370,44 @@ function DesignOverview({ p }: { p: Presentation }) {
             })}
           </div>
         )}
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h3 className="text-base text-foreground">Template family</h3>
+            <p className="text-sm text-muted-foreground">Recompose slide layouts as a coordinated deck while preserving slide content and free elements.</p>
+          </div>
+          <Button asChild variant="outline" size="sm"><Link to="/templates">Browse templates</Link></Button>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {TEMPLATE_FAMILIES.map((template) => (
+            <div key={template.id} className="panel p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-medium text-foreground">{template.name}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">{template.category} · {template.tone}</div>
+                </div>
+                <span className="rounded-full bg-muted px-2 py-1 text-[10px] text-muted-foreground">{template.badge}</span>
+              </div>
+              <p className="mt-3 line-clamp-2 text-xs text-muted-foreground">{template.description}</p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-3 w-full"
+                onClick={() => {
+                  presentationRepository.update(p.id, {
+                    themeId: template.themeId,
+                    slides: applyTemplateFamilyToSlides(p.slides.map(materializeSlide), template),
+                  });
+                  toast.success(`${template.name} applied.`);
+                }}
+              >
+                Apply template
+              </Button>
+            </div>
+          ))}
+        </div>
       </section>
 
       <section className="space-y-3">

@@ -29,7 +29,7 @@ export function ChartBody({ el, theme }: { el: ChartElement; theme: SlideTheme }
     const vals = series[0]?.values.slice(0, cats.length).map((v) => Math.max(0, v)) ?? [];
     const total = vals.reduce((a, b) => a + b, 0) || 1;
     const cx = width * 0.46;
-    const cy = height * 0.52;
+    const cy = height * (p.label ? 0.56 : 0.52);
     const r = Math.min(width, height) * 0.3;
     let start = -Math.PI / 2;
     const segments = vals.map((v, i) => {
@@ -48,6 +48,7 @@ export function ChartBody({ el, theme }: { el: ChartElement; theme: SlideTheme }
     });
     return (
       <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`}>
+        {p.label && <text x={28} y={30} fontFamily={font} fontSize={22} fontWeight={650} fill={theme.colors.primary}>{p.label}</text>}
         {segments}
         {p.chartType === "doughnut" && <circle cx={cx} cy={cy} r={r * 0.52} fill={theme.colors.background} />}
         {cats.slice(0, vals.length).map((c, i) => (

@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ArrowLeft, BarChart3, ChevronLeft, ChevronRight, Circle, ImagePlus, Minus, MoveRight, Network, Play, Redo2, Shapes, Smile, Square, Table2, Triangle, Type, Undo2, X, ZoomIn, ZoomOut, RectangleHorizontal,
+  ArrowLeft, BarChart3, ChevronLeft, ChevronRight, Circle, ImagePlus, Loader2, Minus, MoveRight, Network, Play, Redo2, Shapes, Smile, Sparkles, Square, Table2, Triangle, Type, Undo2, WandSparkles, X, ZoomIn, ZoomOut, RectangleHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { aiProvider, type PlanRequest, type SlideRewriteAction } from "@/lib/ai";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/empty-state";
 import { SaveIndicator } from "@/components/save-indicator";
@@ -18,6 +19,7 @@ import { usePresentation } from "@/lib/data/store";
 import { SHAPE_LABELS, TEXT_PRESETS, cloneElement, iconEl, imageEl, instantiate, shapeEl, textEl } from "@/lib/editor/elements";
 import { SLIDE_H, SLIDE_W, type DraftElement, type ShapeKind, type SlideElement } from "@/lib/editor/model";
 import { getTheme } from "@/lib/editor/themes";
+import { rebuildGeneratedContent, smartComposeSlide, tryAnotherDesign } from "@/lib/editor/composer";
 import type { Presentation } from "@/lib/types";
 
 export const Route = createFileRoute("/presentations_/$presentationId/editor")({
@@ -60,6 +62,7 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
   const [zoom, setZoom] = useState<Zoom>(1);
   const zoomNum = zoom === "fill" ? 1 : zoom;
   const [previewing, setPreviewing] = useState(false);
+  const [aiBusy, setAiBusy] = useState<SlideRewriteAction | null>(null);
   const clipboard = useRef<SlideElement[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -73,6 +76,36 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
   }, [api]);
 
   const center = (w: number, h: number): [number, number, number, number] => [Math.round((SLIDE_W - w) / 2), Math.round((SLIDE_H - h) / 2), w, h];
+
+  const planRequest: PlanRequest = {
+    topic: p.topic,
+    objective: p.objective,
+    purpose: p.purpose,
+    audience: p.audience,
+    presentationType: p.presentationType,
+    language: p.language,
+    tone: p.tone,
+    lengthPreset: p.lengthPreset,
+    slideCount: p.slides.length,
+  };
+
+  const replaceActive = useCallback((nextSlide: typeof api.active) => {
+    if (!nextSlide) return;
+    api.commit(api.snapshot().map((slide) => (slide.id === nextSlide.id ? nextSlide : slide)));
+    api.setSelected([]);
+  }, [api]);
+
+  const rewriteActive = useCallback(async (action: SlideRewriteAction) => {
+    const slide = api.active;
+    if (!slide || aiBusy) return;
+    setAiBusy(action);
+    try {
+      const rewritten = await aiProvider().rewriteSlide(planRequest, slide, action);
+      replaceActive(rebuildGeneratedContent(slide, rewritten));
+    } finally {
+      setAiBusy(null);
+    }
+  }, [api.active, aiBusy, planRequest, replaceActive]);
 
   // Keep the URL pointing at the active slide without adding history entries.
   useEffect(() => {
@@ -166,6 +199,32 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
         <Button size="icon" variant="ghost" aria-label="Undo" disabled={!api.canUndo} onClick={api.undo}><Undo2 className="size-4" /></Button>
         <Button size="icon" variant="ghost" aria-label="Redo" disabled={!api.canRedo} onClick={api.redo}><Redo2 className="size-4" /></Button>
         <span className="mx-2 h-6 w-px bg-border" />
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" disabled={!api.active || !!aiBusy}>
+              {aiBusy ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+              AI
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-52">
+            <DropdownMenuItem onClick={() => void rewriteActive("regenerate")}>
+              <Sparkles className="size-4" /> Regenerate slide content
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => void rewriteActive("shorten")}>
+              <Type className="size-4" /> Make content concise
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => void rewriteActive("executive")}>
+              <WandSparkles className="size-4" /> Executive rewrite
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => api.active && replaceActive(smartComposeSlide(api.active))}>
+              <WandSparkles className="size-4" /> Smart compose
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => api.active && replaceActive(tryAnotherDesign(api.active))}>
+              <Shapes className="size-4" /> Try another design
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <div className="flex flex-1 items-center justify-center gap-1">
           <DropdownMenu>

@@ -94,13 +94,13 @@ export async function syncDatabaseWithCloud(local: Database): Promise<SyncResult
   const presentations = mergeById(local.presentations, remotePresentations, (p) => p.updatedAt);
   const brandKits = mergeById(local.brandKits, remoteBrandKits, (k) => k.updatedAt ?? k.createdAt);
   const savedTemplates = mergeById(local.savedTemplates, remoteTemplates, (t) => t.updatedAt);
-  const assets = mergeById(local.assets, remoteAssets, (a) => a.createdAt);
+  const assets = mergeById(local.assets, remoteAssets, (a) => a.updatedAt ?? a.createdAt);
 
   await Promise.all([
     upsert("presentation_snapshots", session.user.id, presentations, (p: Presentation) => p.updatedAt),
     upsert("brand_kit_snapshots", session.user.id, brandKits, (k: BrandKit) => k.updatedAt ?? k.createdAt),
     upsert("saved_template_snapshots", session.user.id, savedTemplates, (t: SavedTemplate) => t.updatedAt),
-    upsert("asset_records", session.user.id, assets, (a: AssetRecord) => a.createdAt),
+    upsert("asset_records", session.user.id, assets, (a: AssetRecord) => a.updatedAt ?? a.createdAt),
   ]);
 
   const pulled =

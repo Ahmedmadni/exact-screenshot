@@ -85,6 +85,7 @@ export function applySourceDataVisuals(slides: Slide[], assets: AssetRecord[]): 
       next[index] = {
         ...base,
         visualType: "Chart",
+        sourceAssetIds: [...new Set([...(base.sourceAssetIds ?? []), asset.id])],
         contentSummary: `Source data from ${asset.name} · ${chartData.table.name}`,
         elements: [...withoutContentList(base), chart!].map((el, zIndex) => ({ ...el, zIndex })),
         updatedAt: new Date().toISOString(),
@@ -105,6 +106,7 @@ export function applySourceDataVisuals(slides: Slide[], assets: AssetRecord[]): 
       next[index] = {
         ...base,
         visualType: "Table",
+        sourceAssetIds: [...new Set([...(base.sourceAssetIds ?? []), asset.id])],
         contentSummary: `Source table from ${asset.name} · ${data.table.name}`,
         elements: [...withoutContentList(base), table!].map((el, zIndex) => ({ ...el, zIndex })),
         updatedAt: new Date().toISOString(),
@@ -153,6 +155,7 @@ function applySourceImages(slides: Slide[], assets: AssetRecord[]): Slide[] {
     next[index] = {
       ...base,
       visualType: original.slideIntent === "Cover" ? "Hero Image" : "Image + Text",
+      sourceAssetIds: [...new Set([...(base.sourceAssetIds ?? []), asset.id])],
       elements: base.elements.map((el) =>
         el.id === media!.id && el.type === "image"
           ? { ...el, properties: { ...el.properties, src: asset.imageDataUrl! } }

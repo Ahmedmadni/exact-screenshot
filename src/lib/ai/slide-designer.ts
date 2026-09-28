@@ -504,3 +504,44 @@ export function briefCopy(request: PlanRequest, subject: string) {
           : "Executive and spacious: one idea per slide, quiet palette and strong hierarchy.",
   };
 }
+
+
+function clipText(value: string, max: number) {
+  const clean = value.trim().replace(/\s+/g, " ");
+  return clean.length <= max ? clean : `${clean.slice(0, Math.max(0, max - 1)).trimEnd()}…`;
+}
+
+export function rewritePlannedSlide(
+  slide: PlannedSlide,
+  request: PlanRequest,
+  action: "regenerate" | "shorten" | "executive",
+): PlannedSlide {
+  if (action === "regenerate") {
+    return designPlannedSlides([{ ...slide }], request)[0]!;
+  }
+
+  const bullets = (slide.bullets ?? []).filter(Boolean);
+  if (action === "shorten") {
+    return {
+      ...slide,
+      keyMessage: clipText(slide.keyMessage, 110),
+      contentSummary: clipText(slide.contentSummary, 150),
+      bullets: bullets.slice(0, 3).map((b) => clipText(b, 105)),
+      kpis: (slide.kpis ?? []).slice(0, 3),
+    };
+  }
+
+  const arabic = request.language === "Arabic";
+  return {
+    ...slide,
+    keyMessage: clipText(
+      arabic
+        ? `الخلاصة التنفيذية: ${slide.keyMessage.replace(/^الخلاصة التنفيذية:\s*/i, "")}`
+        : `Executive takeaway: ${slide.keyMessage.replace(/^Executive takeaway:\s*/i, "")}`,
+      125,
+    ),
+    contentSummary: clipText(slide.contentSummary, 170),
+    bullets: bullets.slice(0, 4).map((b) => clipText(b, 115)),
+    kpis: (slide.kpis ?? []).slice(0, 3),
+  };
+}

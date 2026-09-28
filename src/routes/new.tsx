@@ -22,6 +22,7 @@ import {
 import { cn } from "@/lib/utils";
 import { ingestSourceFiles } from "@/lib/documents/ingest";
 import { sourceContextFromAssets } from "@/lib/documents/analyze";
+import { applySourceDataVisuals } from "@/lib/documents/visualize";
 
 export const Route = createFileRoute("/new")({
   validateSearch: z.object({ topic: z.string().optional(), template: z.string().optional(), source: z.string().optional() }),
@@ -143,7 +144,8 @@ function Setup() {
       materializeSlide({ ...s, id: uid(), presentationId: created.id, elements: [], createdAt: stamp, updatedAt: stamp }),
     );
     const composed = composeDeck(generatedSlides);
-    const finalSlides = template ? applyTemplateFamilyToSlides(composed, template) : composed;
+    const templated = template ? applyTemplateFamilyToSlides(composed, template) : composed;
+    const finalSlides = applySourceDataVisuals(templated, selectedSources);
     presentationRepository.replaceSlides(created.id, finalSlides);
     if (brandKitId !== "__none") {
       const kit = brandKitRepository.get(brandKitId);

@@ -64,6 +64,14 @@ function hydrate() {
         presentations: Array.isArray(parsed.presentations)
           ? parsed.presentations.filter((p) => p && typeof p.id === "string").map((p) => ({ ...p, slides: Array.isArray(p.slides) ? p.slides.filter((s) => s && typeof s.id === "string").map((s) => ({ ...s, elements: Array.isArray(s.elements) ? s.elements : [] })) : [] }))
           : initial().presentations,
+        brandKits: Array.isArray(parsed.brandKits)
+          ? parsed.brandKits.filter((k) => k && typeof k.id === "string" && typeof k.name === "string").map((k) => ({
+              ...k,
+              colors: Array.isArray(k.colors) ? k.colors : [],
+              headingFont: typeof k.headingFont === "string" ? k.headingFont : "Manrope",
+              bodyFont: typeof k.bodyFont === "string" ? k.bodyFont : "Manrope",
+            }))
+          : initial().brandKits,
       };
     }
   } catch {
@@ -174,10 +182,18 @@ export const assetRepository = {
 
 export const brandKitRepository = {
   list: () => db.brandKits,
+  get: (id: string) => db.brandKits.find((k) => k.id === id),
   add(kit: Omit<BrandKit, "id">) {
-    const record: BrandKit = { ...kit, id: uid() };
+    const stamp = new Date().toISOString();
+    const record: BrandKit = { ...kit, id: uid(), createdAt: kit.createdAt ?? stamp, updatedAt: stamp };
     mutate((d) => ({ ...d, brandKits: [record, ...d.brandKits] }));
     return record;
+  },
+  update(id: string, patch: Partial<BrandKit>) {
+    mutate((d) => ({
+      ...d,
+      brandKits: d.brandKits.map((k) => k.id === id ? { ...k, ...patch, updatedAt: new Date().toISOString() } : k),
+    }));
   },
   remove(id: string) {
     mutate((d) => ({ ...d, brandKits: d.brandKits.filter((k) => k.id !== id) }));

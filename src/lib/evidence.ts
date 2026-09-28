@@ -12,6 +12,13 @@ export interface SourceSegment {
   text: string;
 }
 
+export interface NumericEvidenceFact {
+  id: string;
+  value: string;
+  context: string;
+  segment: SourceSegment;
+}
+
 function clean(value: string) {
   return value.replace(/\s+/g, " ").trim();
 }
@@ -106,6 +113,31 @@ export function searchEvidence(assets: AssetRecord[], query: string, limit = 20)
 }
 
 const NUMBER = /(?:SAR\s*)?(?:[$€£¥]\s*)?-?\d[\d,.]*(?:\.\d+)?\s*%?/gi;
+
+export function numericEvidenceFacts(assets: AssetRecord[], limit = 20): NumericEvidenceFact[] {
+  const facts: NumericEvidenceFact[] = [];
+  for (const segment of assets.flatMap(sourceSegments)) {
+    for (const match of segment.text.matchAll(NUMBER)) {
+      const value = match[0]?.trim();
+      if (!value) continue;
+      const start = Math.max(0, (match.index ?? 0) - 90);
+      const end = Math.min(segment.text.length, (match.index ?? 0) + value.length + 110);
+      const context = clean(segment.text.slice(start, end));
+      facts.push({
+        id: `${segment.id}:number:${match.index ?? facts.length}`,
+        value,
+        context,
+        segment,
+      });
+      if (facts.length >= limit * 3) break;
+    }
+  }
+  return facts
+    .filter((fact, index, all) => all.findIndex((other) =>
+      other.value === fact.value && other.context === fact.context && other.segment.assetId === fact.segment.assetId
+    ) === index)
+    .slice(0, limit);
+}
 
 export function topNumericEvidence(assets: AssetRecord[], limit = 12): SourceSegment[] {
   const hits = assets.flatMap(sourceSegments).flatMap((segment) => {
@@ -275,5 +307,87 @@ export function groundSlidesFromSources(slides: Slide[], assets: AssetRecord[]):
     const best = candidates[0];
     if (!best || best.score < 0.34) return slide;
     return addEvidenceToSlide(slide, evidenceFromSegment(best.segment), true);
+  });
+}
+
+
+export function createKpiSlideFromEvidence(
+  presentation: Presentation,
+  segment: SourceSegment,
+  value: string,
+  context: string,
+): Slide {
+  const stamp = new Date().toISOString();
+  const id = uid();
+  const base: Slide = {
+    id,
+    presentationId: presentation.id,
+    slideNumber: presentation.slides.length + 1,
+    sortOrder: presentation.slides.length,
+    title: segment.locator,
+    purpose: "Source KPI",
+    slideIntent: "Big Number",
+    keyMessage: clean(context).slice(0, 180),
+    contentSummary: clean(context).slice(0, 500),
+    visualType: "Big Number",
+    isOptional: false,
+    bullets: [clean(context).slice(0, 300)],
+    kpis: [value],
+    sourceAssetIds: [segment.assetId],
+    evidenceRefs: [],
+    elements: [],
+    layoutId: "big-number",
+    createdAt: stamp,
+    updatedAt: stamp,
+  };
+  return addEvidenceToSlide(materializeSlide(base), evidenceFromSegment(segment, context), true);
+}
+
+export function createSourcesAppendixSlides(presentation: Presentation): Slide[] {
+  const refs = presentation.slides
+    .flatMap((slide) => slide.evidenceRefs ?? [])
+    .filter((ref, index, all) =>
+      all.findIndex((other) =>
+        other.assetId === ref.assetId &&
+        other.locator === ref.locator &&
+        other.quote === ref.quote
+      ) === index
+    );
+
+  if (!refs.length) return [];
+
+  const chunkSize = 7;
+  const chunks: EvidenceRef[][] = [];
+  for (let i = 0; i < refs.length; i += chunkSize) chunks.push(refs.slice(i, i + chunkSize));
+
+  return chunks.map((chunk, pageIndex) => {
+    const stamp = new Date().toISOString();
+    const id = uid();
+    const bullets = chunk.map((ref, i) => {
+      const number = pageIndex * chunkSize + i + 1;
+      const quote = clean(ref.quote).slice(0, 180);
+      return `[${number}] ${ref.assetName}${ref.locator ? ` · ${ref.locator}` : ""}: ${quote}`;
+    });
+    const base: Slide = {
+      id,
+      presentationId: presentation.id,
+      slideNumber: presentation.slides.length + pageIndex + 1,
+      sortOrder: presentation.slides.length + pageIndex,
+      title: pageIndex === 0 ? "Sources & Evidence" : `Sources & Evidence (${pageIndex + 1})`,
+      purpose: "References",
+      slideIntent: "Closing",
+      keyMessage: "Source material used in this presentation.",
+      contentSummary: "References are generated from evidence explicitly pinned to slides.",
+      visualType: "Minimal Text",
+      isOptional: true,
+      bullets,
+      sourceAssetIds: [...new Set(chunk.map((ref) => ref.assetId))],
+      evidenceRefs: [],
+      elements: [],
+      layoutId: "title-content",
+      createdAt: stamp,
+      updatedAt: stamp,
+    };
+    return materializeSlide(base);
   });
 }

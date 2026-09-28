@@ -9,6 +9,7 @@ import { aiProvider, type PlanRequest, type SlideRewriteAction } from "@/lib/ai"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/empty-state";
 import { SaveIndicator } from "@/components/save-indicator";
+import { QualityChecker } from "@/components/quality-checker";
 import { EditorCanvas, type Zoom } from "@/components/editor/editor-canvas";
 import { PropertiesPanel } from "@/components/editor/properties-panel";
 import { SlideRail } from "@/components/editor/slide-rail";
@@ -309,6 +310,7 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
             </DropdownMenuContent>
           </DropdownMenu>
           <Button size="icon" variant="ghost" aria-label="Zoom in" onClick={() => setZoom(Math.min(3, +(zoomNum + 0.25).toFixed(2)))}><ZoomIn className="size-4" /></Button>
+          <QualityChecker presentation={{ ...p, slides: api.snapshot(), themeId: api.themeId }} onSelectSlide={api.setActiveId} />
           <Button size="sm" className="ms-2" onClick={() => setPreviewing(true)}><Play className="size-4" /> Preview</Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

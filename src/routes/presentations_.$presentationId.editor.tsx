@@ -17,7 +17,7 @@ import { readImage } from "@/components/editor/image-upload";
 import { SlideStage, SlideThumb, useFitScale } from "@/components/editor/slide-renderer";
 import { useEditor, type EditorApi } from "@/components/editor/use-editor";
 import { usePresentation } from "@/lib/data/store";
-import { SHAPE_LABELS, TEXT_PRESETS, cloneElement, iconEl, imageEl, instantiate, shapeEl, textEl } from "@/lib/editor/elements";
+import { SHAPE_LABELS, TEXT_PRESETS, chartEl, cloneElement, diagramEl, iconEl, imageEl, instantiate, shapeEl, tableEl, textEl } from "@/lib/editor/elements";
 import { SLIDE_H, SLIDE_W, type DraftElement, type ShapeKind, type SlideElement } from "@/lib/editor/model";
 import { getTheme } from "@/lib/editor/themes";
 import { rebuildGeneratedContent, smartComposeSlide, tryAnotherDesign } from "@/lib/editor/composer";
@@ -285,8 +285,12 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
           <DropdownMenu>
             <DropdownMenuTrigger asChild><Button variant="ghost" size="sm"><BarChart3 className="size-4" /> Data</Button></DropdownMenuTrigger>
             <DropdownMenuContent>
-              {([["chart", BarChart3, "Chart"], ["table", Table2, "Table"], ["diagram", Network, "Diagram"]] as const).map(([type, I, label]) => (
-                <DropdownMenuItem key={type} onClick={() => add([{ type, name: label, ...{ x: 0, y: 0, width: 0, height: 0 }, ...box(center(720, 420)), rotation: 0, opacity: 1, locked: false, visible: true, properties: { label: `${label} placeholder` } }])}>
+              {([
+                ["chart", BarChart3, "Chart", () => chartEl("Chart", center(760, 430))],
+                ["table", Table2, "Table", () => tableEl("Table", center(760, 430))],
+                ["diagram", Network, "Diagram", () => diagramEl("Diagram", center(880, 360))],
+              ] as const).map(([type, I, label, make]) => (
+                <DropdownMenuItem key={type} onClick={() => add([make()])}>
                   <I className="size-4" /> {label}
                 </DropdownMenuItem>
               ))}

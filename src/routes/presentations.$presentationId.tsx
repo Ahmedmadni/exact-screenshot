@@ -24,7 +24,7 @@ import { applyBrandKit, clearBrandKit } from "@/lib/brand";
 import { TEMPLATE_FAMILIES, applyTemplateFamilyToSlides } from "@/lib/templates";
 import { ingestSourceFiles } from "@/lib/documents/ingest";
 import { sourceContextFromAssets } from "@/lib/documents/analyze";
-import { applySourceDataVisuals } from "@/lib/documents/visualize";
+import { applySourceVisuals } from "@/lib/documents/visualize";
 import { exportPresentationToPdf, exportPresentationToPptx, validatePresentationForExport } from "@/lib/export";
 import { VISUAL_TYPES, type AssetRecord, type Presentation, type Slide, type VisualType } from "@/lib/types";
 
@@ -247,7 +247,7 @@ function Blueprint({ p, update, save }: { p: Presentation; update: (patch: Parti
       materializeSlide({ ...s, id: uid(), presentationId: p.id, elements: [], createdAt: stamp, updatedAt: stamp }),
     );
     const recomposed = composeDeck(generated);
-    presentationRepository.replaceSlides(p.id, applySourceDataVisuals(recomposed, sources));
+    presentationRepository.replaceSlides(p.id, applySourceVisuals(recomposed, sources));
     setBusy(null);
   };
 

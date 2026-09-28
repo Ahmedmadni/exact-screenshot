@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { aiProvider } from "@/lib/ai";
 import { materializeSlide } from "@/lib/editor/layouts";
+import { composeDeck } from "@/lib/editor/composer";
 import { presentationRepository, uid } from "@/lib/data/store";
 import { useI18n } from "@/lib/i18n";
 import {
@@ -105,10 +106,10 @@ function Setup() {
       storyArc: plan.storyArc,
       slides: [],
     });
-    presentationRepository.replaceSlides(
-      created.id,
-      plan.slides.map((s) => materializeSlide({ ...s, id: uid(), presentationId: created.id, elements: [], createdAt: stamp, updatedAt: stamp })),
+    const generatedSlides = plan.slides.map((s) =>
+      materializeSlide({ ...s, id: uid(), presentationId: created.id, elements: [], createdAt: stamp, updatedAt: stamp }),
     );
+    presentationRepository.replaceSlides(created.id, composeDeck(generatedSlides));
     navigate({ to: "/presentations/$presentationId", params: { presentationId: created.id } });
   };
 

@@ -233,6 +233,16 @@ export interface BrandKit {
   updatedAt?: string;
 }
 
+export interface SavedTemplate {
+  id: string;
+  name: string;
+  description: string;
+  sourcePresentationId?: string;
+  snapshot: Omit<Presentation, "id" | "userId" | "createdAt" | "updatedAt">;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ThemeRecord {
   id: string;
   name: string;

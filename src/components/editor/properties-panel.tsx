@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { Pencil } from "lucide-react";
 import {
   AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignStartHorizontal, AlignStartVertical,
@@ -252,7 +252,9 @@ export function PropertiesPanel({ api, theme, onTheme }: { api: EditorApi; theme
         </div>
         <div className="grid grid-cols-2 gap-1">
           <Button size="sm" variant="outline" onClick={() => set((e) => ({ ...e, locked: !sel.every((s) => s.locked) }))}>{sel.every((s) => s.locked) ? <><Unlock className="size-3.5" /> Unlock</> : <><Lock className="size-3.5" /> Lock</>}</Button>
-          <Button size="sm" variant="outline" onClick={() => set((e) => ({ ...e, visible: false }))}><EyeOff className="size-3.5" /> Hide</Button>
+          <Button size="sm" variant="outline" onClick={() => set((e) => ({ ...e, visible: !sel.every((s) => s.visible) }))}>
+            {sel.every((s) => s.visible) ? <><EyeOff className="size-3.5" /> Hide</> : <><Eye className="size-3.5" /> Show</>}
+          </Button>
         </div>
       </Section>
     </aside>
@@ -313,8 +315,21 @@ function defaultName(el: SlideElement) {
 /** Double-click to rename. Enter confirms, Escape cancels, blank reverts to a default name. */
 function LayerName({ name, onRename, onSelect, className }: { name: string; onRename: (n: string) => void; onSelect?: () => void; className?: string }) {
   const [editing, setEditing] = useState(false);
-  const start = () => { setDraft(name); setEditing(true); };
   const [draft, setDraft] = useState(name);
+  const selectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const start = () => {
+    if (selectTimer.current) clearTimeout(selectTimer.current);
+    setDraft(name);
+    setEditing(true);
+  };
+  const selectWithDoubleClickGrace = () => {
+    if (!onSelect) return;
+    if (selectTimer.current) clearTimeout(selectTimer.current);
+    selectTimer.current = setTimeout(() => {
+      selectTimer.current = null;
+      onSelect();
+    }, 180);
+  };
   if (editing)
     return (
       <input
@@ -338,8 +353,8 @@ function LayerName({ name, onRename, onSelect, className }: { name: string; onRe
       <button
         className={cn("min-w-0 truncate text-start text-foreground", className)}
         title="Double-click to rename"
-        onClick={(e) => { if (e.detail === 1) onSelect?.(); }}
-        onDoubleClick={start}
+        onClick={selectWithDoubleClickGrace}
+        onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); start(); }}
       >
         {name}
       </button>

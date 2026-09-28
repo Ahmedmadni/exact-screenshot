@@ -1,9 +1,10 @@
 import { memo, useEffect, useRef, useState, type CSSProperties } from "react";
-import { BarChart3, Network, Table2, ImageIcon } from "lucide-react";
+import { ImageIcon } from "lucide-react";
 import type { Slide } from "@/lib/types";
 import { SLIDE_H, SLIDE_W, type SlideElement } from "@/lib/editor/model";
 import { getTheme, resolveColor, resolveFont, type SlideTheme } from "@/lib/editor/themes";
 import { getIcon } from "@/lib/editor/icons";
+import { ChartBody, DiagramBody, TableBody } from "./data-elements";
 
 /** Visual body of an element, positioned by the caller. Pure: same output for canvas, preview and thumbnails. */
 export function ElementBody({ el, theme }: { el: SlideElement; theme: SlideTheme }) {
@@ -60,15 +61,12 @@ export function ElementBody({ el, theme }: { el: SlideElement; theme: SlideTheme
         );
       return <img src={p.src} alt={el.name} draggable={false} style={{ width: "100%", height: "100%", objectFit: p.fit, borderRadius: p.radius, display: "block" }} />;
     }
-    default: {
-      const Icon = el.type === "chart" ? BarChart3 : el.type === "table" ? Table2 : Network;
-      return (
-        <div style={{ width: "100%", height: "100%", border: `2px dashed ${theme.colors.line}`, borderRadius: theme.shape.radius, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, color: theme.colors.secondary, fontFamily: resolveFont("theme:body", theme), fontSize: 18 }}>
-          <Icon style={{ width: 48, height: 48 }} />
-          {el.properties.label}
-        </div>
-      );
-    }
+    case "chart":
+      return <ChartBody el={el} theme={theme} />;
+    case "table":
+      return <TableBody el={el} theme={theme} />;
+    case "diagram":
+      return <DiagramBody el={el} theme={theme} />;
   }
 }
 

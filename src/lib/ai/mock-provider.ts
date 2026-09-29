@@ -1,5 +1,6 @@
 import type { AIProvider, PlanRequest, PlannedSlide, PresentationPlan } from "./types";
-import type { SlideIntent, VisualType } from "@/lib/types";
+import type { Slide, SlideIntent, VisualType } from "@/lib/types";
+import { generateSmartSpeakerNotes } from "@/lib/presenter/coach";
 import { briefCopy, designPlannedSlides, rewritePlannedSlide, storyArcFor } from "./slide-designer";
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -311,5 +312,10 @@ export class MockAIProvider implements AIProvider {
     const existingTitles = new Set(current.map((s) => s.title));
     const additions = expanded.filter((s) => !existingTitles.has(s.title));
     return renumber([...current, ...additions].slice(0, target));
+  }
+
+  async generateSpeakerNotes(request: PlanRequest, slide: Slide, next?: Slide) {
+    await delay(220);
+    return generateSmartSpeakerNotes(slide, request, next);
   }
 }

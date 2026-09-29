@@ -756,7 +756,7 @@ create or replace function public.apply_live_element_changes(
 language plpgsql
 security definer
 set search_path = public
-as $
+as $$
 declare
   v_user uuid := auth.uid();
   v_doc public.presentation_live_documents%rowtype;
@@ -899,11 +899,11 @@ begin
     'updatedAt', now()
   );
 end;
-$;
+$$;
 
 grant execute on function public.apply_live_element_changes(text,bigint,text,jsonb) to authenticated;
 
-do $
+do $$
 begin
   if not exists (
     select 1 from pg_publication_tables

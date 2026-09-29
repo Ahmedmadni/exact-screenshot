@@ -182,6 +182,16 @@ export interface Slide {
   updatedAt: string;
 }
 
+export type CollaborationRole = "owner" | "editor" | "reviewer" | "viewer";
+
+export interface CollaborationState {
+  enabled: boolean;
+  role: CollaborationRole;
+  ownerUserId: string;
+  revision: number;
+  liveUpdatedAt?: string;
+}
+
 export interface PresentationRehearsal {
   id: string;
   startedAt: string;
@@ -235,6 +245,8 @@ export interface Presentation {
   sourceAssetIds?: string[];
   /** Recent rehearsal sessions with per-slide timing. */
   rehearsals?: PresentationRehearsal[];
+  /** Optional live collaboration metadata. Collaborative decks are excluded from owner snapshot sync for non-owners. */
+  collaboration?: CollaborationState;
   slides: Slide[];
   createdAt: string;
   updatedAt: string;

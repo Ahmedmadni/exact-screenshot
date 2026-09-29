@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ArrowLeft, BarChart3, ChevronLeft, ChevronRight, Circle, Download, ImagePlus, Loader2, LockKeyhole, Minus, MoveRight, Network, Play, Redo2, Shapes, Smile, Sparkles, Square, Table2, Triangle, Type, Undo2, WandSparkles, X, ZoomIn, ZoomOut, RectangleHorizontal,
+  AlertTriangle, ArrowLeft, BarChart3, ChevronLeft, ChevronRight, Circle, Download, Eye, ImagePlus, Loader2, LockKeyhole, Minus, MoveRight, Network, Play, Redo2, Shapes, Smile, Sparkles, Square, Table2, Triangle, Type, Undo2, Users, WandSparkles, X, ZoomIn, ZoomOut, RectangleHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -28,6 +28,7 @@ import { rebuildGeneratedContent, smartComposeSlide, tryAnotherDesign } from "@/
 import { exportPresentationToPdf, exportPresentationToPptx, validatePresentationForExport } from "@/lib/export";
 import type { AssetRecord, Presentation } from "@/lib/types";
 import { sourceContextFromAssets } from "@/lib/documents/analyze";
+import { useCollaborationPresence } from "@/lib/collaboration-presence";
 import {
   addEvidenceToSlide,
   createKpiSlideFromEvidence,
@@ -68,6 +69,9 @@ function EditorPage() {
       </div>
     );
   }
+  if (p.collaboration?.enabled && (p.collaboration.role === "reviewer" || p.collaboration.role === "viewer")) {
+    return <CollaborativeReadOnlyEditor p={p} />;
+  }
   if (p.status === "Approved") return <ApprovedEditorLock p={p} />;
   return <Editor key={p.id} p={p} initialSlide={slide} />;
 }
@@ -87,7 +91,9 @@ function ApprovedEditorLock({ p }: { p: Presentation }) {
         </div>
         <div className="ms-auto flex gap-2">
           <Button asChild variant="outline"><Link to="/presentations/$presentationId/presenter" params={{ presentationId: p.id }}><Play className="size-4" /> Presenter</Link></Button>
-          <Button variant="outline" onClick={reopen}><LockKeyhole className="size-4" /> Reopen for editing</Button>
+          {(!p.collaboration?.enabled || p.collaboration.role === "owner") && (
+            <Button variant="outline" onClick={reopen}><LockKeyhole className="size-4" /> Reopen for editing</Button>
+          )}
         </div>
       </header>
       <main className="mx-auto max-w-6xl p-6">
@@ -107,6 +113,48 @@ function ApprovedEditorLock({ p }: { p: Presentation }) {
   );
 }
 
+function CollaborativeReadOnlyEditor({ p }: { p: Presentation }) {
+  const [activeId, setActiveId] = useState(p.slides[0]?.id ?? "");
+  const active = p.slides.find((slide) => slide.id === activeId) ?? p.slides[0];
+  const participants = useCollaborationPresence({
+    presentationId: p.id,
+    enabled: true,
+    role: p.collaboration?.role ?? "viewer",
+    activeSlideId: active?.id,
+  });
+  return (
+    <div className="min-h-screen bg-background">
+      <header className="flex flex-wrap items-center gap-3 border-b border-border bg-card px-5 py-4">
+        <Button asChild size="icon" variant="ghost"><Link to="/presentations/$presentationId" params={{ presentationId: p.id }}><ArrowLeft className="size-4" /></Link></Button>
+        <div>
+          <div className="flex items-center gap-2"><Eye className="size-4 text-accent" /><span className="eyebrow capitalize">{p.collaboration?.role} · read only</span></div>
+          <h1 className="mt-1 text-lg text-foreground">{p.title}</h1>
+        </div>
+        <div className="ms-auto flex items-center gap-3">
+          <PresenceStack participants={participants} />
+          <Button asChild variant="outline"><Link to="/presentations/$presentationId" params={{ presentationId: p.id }}>Open review workspace</Link></Button>
+          <Button asChild><Link to="/presentations/$presentationId/presenter" params={{ presentationId: p.id }}><Play className="size-4" /> Presenter</Link></Button>
+        </div>
+      </header>
+      <div className="grid min-h-[calc(100vh-73px)] grid-cols-[220px_minmax(0,1fr)]">
+        <aside className="border-e border-border bg-card p-3">
+          <div className="space-y-2">
+            {p.slides.map((slide) => (
+              <button key={slide.id} onClick={() => setActiveId(slide.id)} className={"w-full overflow-hidden rounded-md border text-start " + (slide.id === active?.id ? "border-primary ring-1 ring-primary" : "border-border")}>
+                <SlideThumb slide={slide} themeId={p.themeId} themeOverrides={p.themeOverrides} />
+                <div className="truncate border-t border-border px-2 py-1.5 text-[11px] text-muted-foreground">{slide.slideNumber}. {slide.title}</div>
+              </button>
+            ))}
+          </div>
+        </aside>
+        <main className="grid place-items-center overflow-hidden p-6">
+          {active && <div className="w-full max-w-5xl overflow-hidden rounded-lg border border-border shadow-sm"><SlideThumb slide={active} themeId={p.themeId} themeOverrides={p.themeOverrides} /></div>}
+        </main>
+      </div>
+    </div>
+  );
+}
+
 const SHAPE_ICONS: Record<ShapeKind, typeof Square> = { rect: Square, roundRect: RectangleHorizontal, ellipse: Circle, line: Minus, arrow: MoveRight, triangle: Triangle };
 
 function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | undefined }) {
@@ -121,6 +169,13 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
   const smartLabel = aiProvider().name === "mock-planner" ? "Smart" : "AI";
   const clipboard = useRef<SlideElement[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
+  const participants = useCollaborationPresence({
+    presentationId: p.id,
+    enabled: Boolean(p.collaboration?.enabled),
+    role: p.collaboration?.role ?? "owner",
+    activeSlideId: api.activeId,
+    editingElementId: api.selected.length === 1 ? api.selected[0] : undefined,
+  });
 
   const add = useCallback((drafts: DraftElement[]) => {
     const s = api.active;
@@ -351,6 +406,7 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
           <p className="truncate text-sm font-medium text-foreground">{p.title}</p>
           <div className="flex items-center gap-2">
             <SaveIndicator state={api.save} />
+            {p.collaboration?.enabled && <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[10px] text-accent">Live · r{api.collaborationRevision}</span>}
             {activeSourceNames.length > 0 && (
               <span className="max-w-40 truncate rounded-full bg-accent/10 px-2 py-0.5 text-[10px] text-accent" title={activeSourceNames.join(", ")}>
                 Source · {activeSourceNames.join(", ")}
@@ -431,6 +487,7 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
         </div>
 
         <div className="flex items-center gap-1">
+          {p.collaboration?.enabled && <PresenceStack participants={participants} />}
           <Button size="icon" variant="ghost" aria-label="Zoom out" onClick={() => setZoom(Math.max(0.25, +(zoomNum - 0.25).toFixed(2)))}><ZoomOut className="size-4" /></Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild><button className="w-14 rounded px-1 py-1 text-center text-xs text-muted-foreground hover:bg-muted" title="Zoom">{zoom === "fill" ? "Fill" : zoom === 1 ? "Fit" : `${Math.round(zoom * 100)}%`}</button></DropdownMenuTrigger>
@@ -486,6 +543,17 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
         </div>
       </header>
 
+      {api.conflict && (
+        <div className="hidden items-center gap-3 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm lg:flex">
+          <AlertTriangle className="size-4 shrink-0 text-amber-600" />
+          <div className="min-w-0 flex-1">
+            <span className="font-medium text-foreground">A teammate saved a newer revision.</span>
+            <span className="ms-2 text-muted-foreground">Your local edits will be stored as a recovery snapshot before loading the latest team version.</span>
+          </div>
+          <Button size="sm" variant="outline" onClick={api.resolveConflict}>Load latest team version</Button>
+        </div>
+      )}
+
       <div className="hidden min-h-0 flex-1 lg:flex">
         <SlideRail api={api} themeId={api.themeId} themeOverrides={p.themeOverrides} presentationId={p.id} />
         <EditorCanvas api={api} theme={theme} zoom={zoom} />
@@ -493,6 +561,20 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
       </div>
 
       {previewing && <Preview api={api} themeId={api.themeId} themeOverrides={p.themeOverrides} onClose={() => setPreviewing(false)} />}
+    </div>
+  );
+}
+
+function PresenceStack({ participants }: { participants: ReturnType<typeof useCollaborationPresence> }) {
+  if (!participants.length) return null;
+  return (
+    <div className="flex items-center -space-x-2 rtl:space-x-reverse" title={participants.map((item) => item.email + " · " + item.role).join("\n")}>
+      {participants.slice(0, 4).map((item) => (
+        <span key={item.userId} className="grid size-7 place-items-center rounded-full border-2 border-card bg-muted text-[10px] font-semibold text-foreground">
+          {item.email.slice(0, 1).toUpperCase()}
+        </span>
+      ))}
+      {participants.length > 4 && <span className="grid size-7 place-items-center rounded-full border-2 border-card bg-muted text-[9px] text-muted-foreground">+{participants.length - 4}</span>}
     </div>
   );
 }

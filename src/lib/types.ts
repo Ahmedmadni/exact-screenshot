@@ -119,7 +119,7 @@ export const LENGTH_RANGES: Record<Exclude<LengthPreset, "Custom">, [number, num
   Detailed: [15, 20],
 };
 
-export const STATUSES = ["Draft", "Planning", "Generated", "Under Review", "Completed"] as const;
+export const STATUSES = ["Draft", "Planning", "Generated", "Under Review", "Changes Requested", "Approved", "Completed"] as const;
 export type PresentationStatus = (typeof STATUSES)[number];
 
 /** A single beat in the narrative arc of the deck. */
@@ -245,7 +245,30 @@ export interface PresentationVersion {
   presentationId: string;
   label: string;
   createdAt: string;
-  snapshot: Pick<Presentation, "title" | "coreMessage" | "storyArc" | "slides">;
+  updatedAt: string;
+  snapshot: Pick<Presentation, "title" | "description" | "objective" | "coreMessage" | "visualDirection" | "storyArc" | "themeId" | "themeOverrides" | "brandKitId" | "sourceAssetIds" | "slides" | "status">;
+}
+
+export interface ReviewComment {
+  id: string;
+  presentationId: string;
+  slideId?: string;
+  elementId?: string;
+  authorName: string;
+  body: string;
+  resolved: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ReviewDecision {
+  id: string;
+  presentationId: string;
+  action: "submitted" | "changes_requested" | "approved";
+  note?: string;
+  actorName: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type AssetExtractionStatus = "pending" | "ready" | "failed" | "unsupported";

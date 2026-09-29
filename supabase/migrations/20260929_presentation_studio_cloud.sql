@@ -266,6 +266,8 @@ create table if not exists public.presentation_collaborators (
   primary key (presentation_id, user_id)
 );
 
+alter table public.presentation_collaborators add column if not exists email text;
+
 create table if not exists public.collaboration_invites (
   id text primary key,
   presentation_id text not null,
@@ -871,6 +873,12 @@ begin
   from jsonb_array_elements(coalesce(v_doc.payload->'slides','[]'::jsonb)) with ordinality as s(value, ord);
 
   v_payload := jsonb_set(v_doc.payload, '{slides}', v_slides, true);
+  v_payload := jsonb_set(
+    v_payload,
+    '{updatedAt}',
+    to_jsonb(to_char(now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')),
+    true
+  );
   v_new_revision := v_doc.revision + 1;
   v_merged := v_doc.revision <> p_base_revision;
 

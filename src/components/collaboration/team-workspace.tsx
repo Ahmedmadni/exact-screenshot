@@ -5,11 +5,13 @@ import type { CollaborationRole, Presentation } from "@/lib/types";
 import {
   createCollaborationInvite,
   enableLiveCollaboration,
+  listCollaborationActivity,
   listCollaborationInvites,
   listPresentationTeam,
   removeCollaborator,
   revokeCollaborationInvite,
   updateCollaboratorRole,
+  type CollaborationActivity,
   type CollaborationInvite,
   type CollaborationMember,
 } from "@/lib/collaboration";
@@ -25,6 +27,7 @@ type MemberRole = Exclude<CollaborationRole, "owner">;
 export function TeamWorkspace({ presentation: p }: { presentation: Presentation }) {
   const [members, setMembers] = useState<CollaborationMember[]>([]);
   const [invites, setInvites] = useState<CollaborationInvite[]>([]);
+  const [activity, setActivity] = useState<CollaborationActivity[]>([]);
   const [ownerEmail, setOwnerEmail] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<MemberRole>("editor");
@@ -37,8 +40,13 @@ export function TeamWorkspace({ presentation: p }: { presentation: Presentation 
     if (!cloudConfigured || !p.collaboration?.enabled) return;
     try {
       const session = await getCloudSession();
-      setOwnerEmail(session?.user.email ?? "");
-      setMembers(await listPresentationTeam(p.id));
+      setOwnerEmail(isOwner ? (session?.user.email ?? "") : "");
+      const [team, events] = await Promise.all([
+        listPresentationTeam(p.id),
+        listCollaborationActivity(p.id, 20),
+      ]);
+      setMembers(team);
+      setActivity(events);
       if (isOwner) setInvites(await listCollaborationInvites(p.id));
       else setInvites([]);
     } catch (error) {
@@ -221,6 +229,31 @@ export function TeamWorkspace({ presentation: p }: { presentation: Presentation 
         </div>
       </section>
 
+      <section className="panel p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-base text-foreground">Team activity</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Recent collaboration events for this presentation.</p>
+          </div>
+          <Button size="sm" variant="ghost" onClick={() => void refresh()}><RefreshCw className="size-4" /> Refresh</Button>
+        </div>
+        <div className="mt-4 space-y-2">
+          {activity.length === 0 ? (
+            <div className="rounded-md border border-dashed border-border p-5 text-sm text-muted-foreground">No team activity recorded yet.</div>
+          ) : activity.map((event) => (
+            <div key={event.id} className="flex items-start gap-3 rounded-md border border-border p-3">
+              <span className="mt-1 size-2 shrink-0 rounded-full bg-accent" />
+              <div className="min-w-0 flex-1">
+                <div className="text-sm text-foreground">{activityLabel(event)}</div>
+                <div className="mt-0.5 text-[11px] text-muted-foreground">
+                  {event.actorEmail || "Team member"} · {new Date(event.createdAt).toLocaleString()}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {isOwner && activeInvites.length > 0 && (
         <section className="panel p-5">
           <div className="flex items-center gap-2"><Shield className="size-4 text-muted-foreground" /><h2 className="text-base text-foreground">Pending invitations</h2></div>
@@ -238,6 +271,23 @@ export function TeamWorkspace({ presentation: p }: { presentation: Presentation 
       )}
     </div>
   );
+}
+
+function activityLabel(event: CollaborationActivity) {
+  const details = event.details ?? {};
+  switch (event.eventType) {
+    case "invite_created": return "Invitation created for " + String(details.email ?? "team member") + " as " + String(details.role ?? "member") + ".";
+    case "invite_revoked": return "Invitation revoked for " + String(details.email ?? "team member") + ".";
+    case "member_joined": return "A team member joined as " + String(details.role ?? "member") + ".";
+    case "member_removed": return "A collaborator was removed.";
+    case "role_changed": return "A collaborator role changed to " + String(details.role ?? "new role") + ".";
+    case "comment_added": return "A live review comment was added.";
+    case "conflict_detected": return "A revision conflict was detected.";
+    case "conflict_resolved": return "A revision conflict was resolved using the latest team version.";
+    case "opened_editor": return "The collaborative editor was opened.";
+    case "opened_presenter": return "Presenter View was opened.";
+    default: return event.eventType.replaceAll("_", " ");
+  }
 }
 
 function Capability({ title, text }: { title: string; text: string }) {

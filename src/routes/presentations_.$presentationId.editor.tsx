@@ -142,7 +142,8 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
     setNotesBusy(true);
     try {
       const notes = await aiProvider().generateSpeakerNotes(planRequest, slide, api.slides[index + 1]);
-      api.updateActiveSlide({ speakerNotes: notes, updatedAt: new Date().toISOString() });
+      const stamp = new Date().toISOString();
+      api.updateActiveSlide({ speakerNotes: { ...notes, updatedAt: stamp }, updatedAt: stamp });
       toast.success("Speaker notes updated.");
     } catch (error) {
       console.error(error);
@@ -407,7 +408,7 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
             slide={api.active}
             busy={notesBusy}
             onGenerate={generateActiveSpeakerNotes}
-            onSave={(speakerNotes) => api.updateActiveSlide({ speakerNotes, updatedAt: new Date().toISOString() })}
+            onSave={(speakerNotes) => api.updateActiveSlide({ speakerNotes, updatedAt: speakerNotes.updatedAt })}
           />
           <SourcePanel
             assets={sourceAssets}

@@ -15,9 +15,13 @@ import { Route as BrandKitsRouteImport } from './routes/brand-kits'
 import { Route as NewRouteImport } from './routes/new'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TemplatesRouteImport } from './routes/templates'
+import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as PresentationsIndexRouteImport } from './routes/presentations.index'
 import { Route as PresentationsPresentationIdRouteImport } from './routes/presentations.$presentationId'
+import { Route as ReviewTokenRouteImport } from './routes/review.$token'
+import { Route as PresentationsPresentationIdAudienceRouteImport } from './routes/presentations_.$presentationId.audience'
 import { Route as PresentationsPresentationIdEditorRouteImport } from './routes/presentations_.$presentationId.editor'
+import { Route as PresentationsPresentationIdPresenterRouteImport } from './routes/presentations_.$presentationId.presenter'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -49,6 +53,11 @@ const TemplatesRoute = TemplatesRouteImport.update({
   path: '/templates',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InviteTokenRoute = InviteTokenRouteImport.update({
+  id: '/invite/$token',
+  path: '/invite/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PresentationsIndexRoute = PresentationsIndexRouteImport.update({
   id: '/presentations/',
   path: '/presentations/',
@@ -60,10 +69,27 @@ const PresentationsPresentationIdRoute =
     path: '/presentations/$presentationId',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ReviewTokenRoute = ReviewTokenRouteImport.update({
+  id: '/review/$token',
+  path: '/review/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PresentationsPresentationIdAudienceRoute =
+  PresentationsPresentationIdAudienceRouteImport.update({
+    id: '/presentations_/$presentationId/audience',
+    path: '/presentations/$presentationId/audience',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const PresentationsPresentationIdEditorRoute =
   PresentationsPresentationIdEditorRouteImport.update({
     id: '/presentations_/$presentationId/editor',
     path: '/presentations/$presentationId/editor',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const PresentationsPresentationIdPresenterRoute =
+  PresentationsPresentationIdPresenterRouteImport.update({
+    id: '/presentations_/$presentationId/presenter',
+    path: '/presentations/$presentationId/presenter',
     getParentRoute: () => rootRouteImport,
   } as any)
 
@@ -74,9 +100,13 @@ export interface FileRoutesByFullPath {
   '/new': typeof NewRoute
   '/settings': typeof SettingsRoute
   '/templates': typeof TemplatesRoute
+  '/invite/$token': typeof InviteTokenRoute
   '/presentations/$presentationId': typeof PresentationsPresentationIdRoute
+  '/review/$token': typeof ReviewTokenRoute
   '/presentations/': typeof PresentationsIndexRoute
+  '/presentations/$presentationId/audience': typeof PresentationsPresentationIdAudienceRoute
   '/presentations/$presentationId/editor': typeof PresentationsPresentationIdEditorRoute
+  '/presentations/$presentationId/presenter': typeof PresentationsPresentationIdPresenterRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -85,9 +115,13 @@ export interface FileRoutesByTo {
   '/new': typeof NewRoute
   '/settings': typeof SettingsRoute
   '/templates': typeof TemplatesRoute
+  '/invite/$token': typeof InviteTokenRoute
   '/presentations/$presentationId': typeof PresentationsPresentationIdRoute
+  '/review/$token': typeof ReviewTokenRoute
   '/presentations': typeof PresentationsIndexRoute
+  '/presentations/$presentationId/audience': typeof PresentationsPresentationIdAudienceRoute
   '/presentations/$presentationId/editor': typeof PresentationsPresentationIdEditorRoute
+  '/presentations/$presentationId/presenter': typeof PresentationsPresentationIdPresenterRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -97,9 +131,13 @@ export interface FileRoutesById {
   '/new': typeof NewRoute
   '/settings': typeof SettingsRoute
   '/templates': typeof TemplatesRoute
+  '/invite/$token': typeof InviteTokenRoute
   '/presentations/$presentationId': typeof PresentationsPresentationIdRoute
+  '/review/$token': typeof ReviewTokenRoute
   '/presentations/': typeof PresentationsIndexRoute
+  '/presentations_/$presentationId/audience': typeof PresentationsPresentationIdAudienceRoute
   '/presentations_/$presentationId/editor': typeof PresentationsPresentationIdEditorRoute
+  '/presentations_/$presentationId/presenter': typeof PresentationsPresentationIdPresenterRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -110,9 +148,13 @@ export interface FileRouteTypes {
     | '/new'
     | '/settings'
     | '/templates'
+    | '/invite/$token'
     | '/presentations/$presentationId'
+    | '/review/$token'
     | '/presentations/'
+    | '/presentations/$presentationId/audience'
     | '/presentations/$presentationId/editor'
+    | '/presentations/$presentationId/presenter'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -121,9 +163,13 @@ export interface FileRouteTypes {
     | '/new'
     | '/settings'
     | '/templates'
+    | '/invite/$token'
     | '/presentations/$presentationId'
+    | '/review/$token'
     | '/presentations'
+    | '/presentations/$presentationId/audience'
     | '/presentations/$presentationId/editor'
+    | '/presentations/$presentationId/presenter'
   id:
     | '__root__'
     | '/'
@@ -132,9 +178,13 @@ export interface FileRouteTypes {
     | '/new'
     | '/settings'
     | '/templates'
+    | '/invite/$token'
     | '/presentations/$presentationId'
+    | '/review/$token'
     | '/presentations/'
+    | '/presentations_/$presentationId/audience'
     | '/presentations_/$presentationId/editor'
+    | '/presentations_/$presentationId/presenter'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -144,9 +194,13 @@ export interface RootRouteChildren {
   NewRoute: typeof NewRoute
   SettingsRoute: typeof SettingsRoute
   TemplatesRoute: typeof TemplatesRoute
+  InviteTokenRoute: typeof InviteTokenRoute
   PresentationsPresentationIdRoute: typeof PresentationsPresentationIdRoute
+  ReviewTokenRoute: typeof ReviewTokenRoute
   PresentationsIndexRoute: typeof PresentationsIndexRoute
+  PresentationsPresentationIdAudienceRoute: typeof PresentationsPresentationIdAudienceRoute
   PresentationsPresentationIdEditorRoute: typeof PresentationsPresentationIdEditorRoute
+  PresentationsPresentationIdPresenterRoute: typeof PresentationsPresentationIdPresenterRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -193,6 +247,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TemplatesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/invite/$token': {
+      id: '/invite/$token'
+      path: '/invite/$token'
+      fullPath: '/invite/$token'
+      preLoaderRoute: typeof InviteTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/presentations/': {
       id: '/presentations/'
       path: '/presentations'
@@ -207,11 +268,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PresentationsPresentationIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/review/$token': {
+      id: '/review/$token'
+      path: '/review/$token'
+      fullPath: '/review/$token'
+      preLoaderRoute: typeof ReviewTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/presentations_/$presentationId/audience': {
+      id: '/presentations_/$presentationId/audience'
+      path: '/presentations/$presentationId/audience'
+      fullPath: '/presentations/$presentationId/audience'
+      preLoaderRoute: typeof PresentationsPresentationIdAudienceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/presentations_/$presentationId/editor': {
       id: '/presentations_/$presentationId/editor'
       path: '/presentations/$presentationId/editor'
       fullPath: '/presentations/$presentationId/editor'
       preLoaderRoute: typeof PresentationsPresentationIdEditorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/presentations_/$presentationId/presenter': {
+      id: '/presentations_/$presentationId/presenter'
+      path: '/presentations/$presentationId/presenter'
+      fullPath: '/presentations/$presentationId/presenter'
+      preLoaderRoute: typeof PresentationsPresentationIdPresenterRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -224,10 +306,16 @@ const rootRouteChildren: RootRouteChildren = {
   NewRoute: NewRoute,
   SettingsRoute: SettingsRoute,
   TemplatesRoute: TemplatesRoute,
+  InviteTokenRoute: InviteTokenRoute,
   PresentationsPresentationIdRoute: PresentationsPresentationIdRoute,
+  ReviewTokenRoute: ReviewTokenRoute,
   PresentationsIndexRoute: PresentationsIndexRoute,
+  PresentationsPresentationIdAudienceRoute:
+    PresentationsPresentationIdAudienceRoute,
   PresentationsPresentationIdEditorRoute:
     PresentationsPresentationIdEditorRoute,
+  PresentationsPresentationIdPresenterRoute:
+    PresentationsPresentationIdPresenterRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

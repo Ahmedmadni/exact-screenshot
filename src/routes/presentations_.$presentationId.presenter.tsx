@@ -1,16 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, ChevronLeft, ChevronRight, Clock3, Maximize2, MonitorUp, Pause, Play, RefreshCw, Sparkles } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Clock3, Flag, Maximize2, MonitorUp, Pause, Play, RefreshCw, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/empty-state";
 import { SlideStage, SlideThumb, useFitScale } from "@/components/editor/slide-renderer";
 import { aiProvider, type PlanRequest } from "@/lib/ai";
-import { assetRepository, presentationRepository, usePresentation } from "@/lib/data/store";
+import { assetRepository, presentationRepository, uid, usePresentation } from "@/lib/data/store";
 import { sourceContextFromAssets } from "@/lib/documents/analyze";
 import { materializeSlide } from "@/lib/editor/layouts";
 import { getTheme } from "@/lib/editor/themes";
 import { generateSmartSpeakerNotes, presentationTiming } from "@/lib/presenter/coach";
-import type { AssetRecord, Presentation, Slide } from "@/lib/types";
+import type { AssetRecord, Presentation, PresentationRehearsal, Slide } from "@/lib/types";
 import { SLIDE_H, SLIDE_W } from "@/lib/editor/model";
 import { toast } from "sonner";
 
@@ -47,6 +48,9 @@ function Presenter({ p }: { p: Presentation }) {
   const [index, setIndex] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [running, setRunning] = useState(false);
+  const [rehearsalStartedAt, setRehearsalStartedAt] = useState<string | null>(null);
+  const [slideSeconds, setSlideSeconds] = useState<Record<string, number>>({});
+  const [report, setReport] = useState<PresentationRehearsal | null>(null);
   const [preparing, setPreparing] = useState(false);
   const [audienceConnected, setAudienceConnected] = useState(false);
   const audienceChannel = useRef<BroadcastChannel | null>(null);
@@ -82,9 +86,15 @@ function Presenter({ p }: { p: Presentation }) {
 
   useEffect(() => {
     if (!running) return;
-    const id = window.setInterval(() => setElapsed((value) => value + 1), 1000);
+    const activeSlideId = slide?.id;
+    const id = window.setInterval(() => {
+      setElapsed((value) => value + 1);
+      if (activeSlideId) {
+        setSlideSeconds((current) => ({ ...current, [activeSlideId]: (current[activeSlideId] ?? 0) + 1 }));
+      }
+    }, 1000);
     return () => window.clearInterval(id);
-  }, [running]);
+  }, [running, slide?.id]);
 
   useEffect(() => {
     if (typeof BroadcastChannel === "undefined") return;
@@ -122,9 +132,10 @@ function Presenter({ p }: { p: Presentation }) {
         event.preventDefault();
         move(-1);
       } else if (event.key.toLowerCase() === "p") {
+        if (!running && !rehearsalStartedAt) setRehearsalStartedAt(new Date().toISOString());
         setRunning((value) => !value);
       } else if (event.key.toLowerCase() === "r") {
-        setElapsed(0);
+        resetRehearsal();
       }
     };
     window.addEventListener("keydown", onKey);
@@ -160,7 +171,40 @@ function Presenter({ p }: { p: Presentation }) {
     }
   };
 
-  const fullscreen = () => {
+  const toggleRunning = () => {
+    if (!running && !rehearsalStartedAt) setRehearsalStartedAt(new Date().toISOString());
+    setRunning((value) => !value);
+  };
+
+  const resetRehearsal = () => {
+    setRunning(false);
+    setElapsed(0);
+    setSlideSeconds({});
+    setRehearsalStartedAt(null);
+  };
+
+  const finishRehearsal = () => {
+    if (!elapsed) {
+      toast.info("Start the timer before finishing a rehearsal.");
+      return;
+    }
+    setRunning(false);
+    const session: PresentationRehearsal = {
+      id: uid(),
+      startedAt: rehearsalStartedAt ?? new Date(Date.now() - elapsed * 1000).toISOString(),
+      endedAt: new Date().toISOString(),
+      totalSeconds: elapsed,
+      targetSeconds,
+      slideSeconds,
+      completed: index === p.slides.length - 1,
+    };
+    presentationRepository.update(p.id, {
+      rehearsals: [session, ...(p.rehearsals ?? [])].slice(0, 20),
+    });
+    setReport(session);
+  };
+
+    const fullscreen = () => {
     document.documentElement.requestFullscreen?.().catch(() => {});
   };
 
@@ -200,10 +244,13 @@ function Presenter({ p }: { p: Presentation }) {
             <MonitorUp className="size-4" /> Audience
             <span className={"size-1.5 rounded-full " + (audienceConnected ? "bg-emerald-400" : "bg-white/30")} />
           </Button>
-          <Button size="sm" variant="ghost" className="text-white hover:bg-white/10 hover:text-white" onClick={() => setRunning((value) => !value)}>
+          <Button size="sm" variant="ghost" className="text-white hover:bg-white/10 hover:text-white" onClick={toggleRunning}>
             {running ? <Pause className="size-4" /> : <Play className="size-4" />} {running ? "Pause" : "Start"}
           </Button>
-          <Button size="icon" variant="ghost" className="text-white hover:bg-white/10 hover:text-white" onClick={() => setElapsed(0)} aria-label="Reset timer">
+          <Button size="sm" variant="ghost" className="text-white hover:bg-white/10 hover:text-white" onClick={finishRehearsal}>
+            <Flag className="size-4" /> Finish
+          </Button>
+          <Button size="icon" variant="ghost" className="text-white hover:bg-white/10 hover:text-white" onClick={resetRehearsal} aria-label="Reset timer">
             <RefreshCw className="size-4" />
           </Button>
           <Button size="icon" variant="ghost" className="text-white hover:bg-white/10 hover:text-white" onClick={fullscreen} aria-label="Fullscreen">
@@ -324,6 +371,66 @@ function Presenter({ p }: { p: Presentation }) {
           </div>
         </aside>
       </main>
+
+      <Dialog open={!!report} onOpenChange={(open) => !open && setReport(null)}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Rehearsal report</DialogTitle>
+            <DialogDescription>Timing summary for this run, saved with the presentation.</DialogDescription>
+          </DialogHeader>
+          {report && <RehearsalReport report={report} slides={p.slides} />}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function RehearsalReport({ report, slides }: { report: PresentationRehearsal; slides: Slide[] }) {
+  const delta = report.totalSeconds - report.targetSeconds;
+  const pace = Math.abs(delta) <= report.targetSeconds * 0.1 ? "On pace" : delta > 0 ? "Over target" : "Under target";
+  const ranked = Object.entries(report.slideSeconds)
+    .map(([id, seconds]) => ({ slide: slides.find((item) => item.id === id), seconds }))
+    .filter((item): item is { slide: Slide; seconds: number } => !!item.slide)
+    .sort((a, b) => b.seconds - a.seconds)
+    .slice(0, 4);
+
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-3 gap-3">
+        <Metric label="Actual" value={formatTime(report.totalSeconds)} />
+        <Metric label="Target" value={formatTime(report.targetSeconds)} />
+        <Metric label="Pace" value={pace} />
+      </div>
+
+      <div>
+        <div className="mb-2 text-xs font-medium text-foreground">Slides taking the most time</div>
+        <div className="space-y-2">
+          {ranked.map(({ slide, seconds }) => (
+            <div key={slide.id} className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
+              <div className="min-w-0">
+                <div className="truncate text-sm text-foreground">{slide.slideNumber}. {slide.title}</div>
+                <div className="mt-0.5 text-[11px] text-muted-foreground">{slide.slideIntent}</div>
+              </div>
+              <div className="shrink-0 text-sm font-medium tabular-nums text-foreground">{formatTime(seconds)}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-md bg-muted/40 p-3 text-xs leading-relaxed text-muted-foreground">
+        {report.completed
+          ? "You reached the final slide in this rehearsal."
+          : "This run ended before the final slide. It is still saved so you can compare pacing across practice sessions."}
+      </div>
+    </div>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-border p-3">
+      <div className="text-lg font-semibold tabular-nums text-foreground">{value}</div>
+      <div className="text-[11px] text-muted-foreground">{label}</div>
     </div>
   );
 }

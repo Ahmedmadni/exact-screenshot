@@ -420,6 +420,9 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
             totalEvidenceCount={api.snapshot().reduce((sum, slide) => sum + (slide.evidenceRefs?.length ?? 0), 0)}
           />
           <QualityChecker presentation={{ ...p, slides: api.snapshot(), themeId: api.themeId }} onSelectSlide={api.setActiveId} />
+          <Button asChild size="sm" variant="outline">
+            <Link to="/presentations/$presentationId/presenter" params={{ presentationId: p.id }}><Play className="size-4" /> Presenter</Link>
+          </Button>
           <Button size="sm" className="ms-2" onClick={() => setPreviewing(true)}><Play className="size-4" /> Preview</Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

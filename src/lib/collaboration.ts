@@ -1,4 +1,4 @@
-import type { CollaborationRole, Presentation } from "@/lib/types";
+import type { CollaborationRole, Presentation, ReviewComment } from "@/lib/types";
 import { cloudConfigured, getCloudSession, supabase } from "@/lib/cloud/supabase";
 
 export interface LivePresentationEnvelope {
@@ -155,4 +155,29 @@ export async function updateCollaboratorRole(
     p_role: role,
   });
   if (error) throw error;
+}
+
+
+export async function addTeamReviewComment(
+  presentationId: string,
+  body: string,
+  slideId?: string,
+  elementId?: string,
+): Promise<ReviewComment> {
+  const client = requireCloud();
+  const { data, error } = await client.rpc("add_team_review_comment", {
+    p_presentation_id: presentationId,
+    p_comment_body: body,
+    p_slide_id: slideId ?? null,
+    p_element_id: elementId ?? null,
+  });
+  if (error) throw error;
+  return data as ReviewComment;
+}
+
+export async function listTeamReviewComments(presentationId: string): Promise<ReviewComment[]> {
+  const client = requireCloud();
+  const { data, error } = await client.rpc("list_team_review_comments", { p_presentation_id: presentationId });
+  if (error) throw error;
+  return (data ?? []) as ReviewComment[];
 }

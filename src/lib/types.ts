@@ -270,6 +270,8 @@ export interface ReviewComment {
   body: string;
   resolved: boolean;
   external?: boolean;
+  team?: boolean;
+  authorUserId?: string;
   createdAt: string;
   updatedAt: string;
 }

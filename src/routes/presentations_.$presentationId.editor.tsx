@@ -30,6 +30,7 @@ import { exportPresentationToPdf, exportPresentationToPptx, validatePresentation
 import type { AssetRecord, Presentation } from "@/lib/types";
 import { sourceContextFromAssets } from "@/lib/documents/analyze";
 import { useCollaborationPresence } from "@/lib/collaboration-presence";
+import { useReadOnlyLivePresentation } from "@/lib/collaboration-live";
 import {
   addEvidenceToSlide,
   createKpiSlideFromEvidence,
@@ -115,6 +116,7 @@ function ApprovedEditorLock({ p }: { p: Presentation }) {
 }
 
 function CollaborativeReadOnlyEditor({ p }: { p: Presentation }) {
+  useReadOnlyLivePresentation(p.id, p.collaboration);
   const [activeId, setActiveId] = useState(p.slides[0]?.id ?? "");
   const active = p.slides.find((slide) => slide.id === activeId) ?? p.slides[0];
   const participants = useCollaborationPresence({

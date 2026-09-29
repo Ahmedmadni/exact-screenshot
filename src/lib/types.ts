@@ -182,6 +182,16 @@ export interface Slide {
   updatedAt: string;
 }
 
+export interface PresentationRehearsal {
+  id: string;
+  startedAt: string;
+  endedAt: string;
+  totalSeconds: number;
+  targetSeconds: number;
+  slideSeconds: Record<string, number>;
+  completed: boolean;
+}
+
 export interface PresentationThemeOverrides {
   colors?: Partial<{
     background: string;
@@ -223,6 +233,8 @@ export interface Presentation {
   themeOverrides?: PresentationThemeOverrides;
   /** Source assets that informed planning or later regeneration. */
   sourceAssetIds?: string[];
+  /** Recent rehearsal sessions with per-slide timing. */
+  rehearsals?: PresentationRehearsal[];
   slides: Slide[];
   createdAt: string;
   updatedAt: string;

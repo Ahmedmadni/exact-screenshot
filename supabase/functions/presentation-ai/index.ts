@@ -67,6 +67,30 @@ Return only one slide object with the same field shape as the current slide.
 Preserve the slide intent unless the current intent is clearly incompatible. Preserve factual meaning. For "shorten", reduce density. For "executive", strengthen the takeaway. For "regenerate", create a fresh expression without inventing facts.`;
   }
 
+  if (body.operation === "coachSlide") {
+    return `${base}
+Create presenter notes and coaching for this slide.
+Presentation request: ${JSON.stringify(body.request)}
+Current slide: ${JSON.stringify(body.slide)}
+Next slide: ${JSON.stringify(body.next ?? null)}
+Return exactly:
+{
+  "talkTrack": string,
+  "keyPoints": [string],
+  "transition": string,
+  "anticipatedQuestions": [string],
+  "coachTips": [string],
+  "sourceReminders": [string],
+  "estimatedSeconds": number
+}
+Requirements:
+- The talk track should sound natural when spoken, not like slide copy.
+- Do not invent evidence or figures.
+- If the slide contains evidenceRefs, remind the presenter of the exact source names/locators.
+- Anticipated questions should reflect the requested audience.
+- Keep the talk track concise enough for 30–180 seconds unless the slide genuinely requires more explanation.`;
+  }
+
   return `${base}
 Reflow the presentation outline using action "${body.action}".
 Presentation request: ${JSON.stringify(body.request)}

@@ -105,3 +105,65 @@ From a presentation, open **Review → External collaboration**:
 3. The reviewer can browse slides and leave comments.
 4. Back in the owner account, choose **Sync feedback** to merge new comments into the local/cloud review workspace.
 5. Revoke the link when review is complete.
+
+
+## Live team collaboration
+
+The latest migration also enables opt-in collaboration for individual presentations.
+
+From a presentation, open **Team** and choose **Enable collaboration**. The owner can then invite a user by email as:
+
+- **Editor** — can edit and save live revisions.
+- **Reviewer** — read-only deck access with authenticated team comments.
+- **Viewer** — read-only deck access.
+
+Team invitations expire after 7 days and can be revoked. The invited user must sign in with the exact email address used in the invitation.
+
+### Realtime presence
+
+Collaborative presentations use Supabase Realtime Presence to show:
+
+- Who is currently in the deck.
+- Which slide each person is viewing.
+- Which element a teammate has selected for editing.
+- Live cursor position on the 1600×900 logical slide canvas.
+
+Selected elements are soft-locked in the UI. If two users still reach the same element concurrently, the server performs a before/after comparison and rejects the second conflicting change rather than silently overwriting it.
+
+### Revision-safe saves
+
+Structural deck changes use an optimistic document revision:
+
+`expected revision → save → next revision`
+
+If another teammate saved first, the editor shows **Team conflict**. Choosing **Load latest team version** first stores the local work as a recovery snapshot in Version History, then loads the newest live revision.
+
+Pure element edits use a more granular merge. Changes to different elements on the same slide can be merged even if the deck revision changed in the meantime. A change to the same element still becomes a conflict.
+
+The owner snapshot is updated whenever the live document is saved so normal cloud persistence and collaborative state stay aligned.
+
+### Collaboration activity
+
+The Team tab records collaboration events including:
+
+- invitations
+- joins
+- role changes
+- removals
+- review comments
+- editor opens
+- conflicts and conflict resolution
+
+### Existing Supabase projects
+
+Re-run:
+
+`supabase/migrations/20260929_presentation_studio_cloud.sql`
+
+after pulling these changes. The migration is written to be re-runnable and adds missing collaboration columns with `IF NOT EXISTS`.
+
+GitHub Actions now runs:
+
+`bun run check:migrations`
+
+before the frontend build. This catches malformed or unbalanced PL/pgSQL dollar quoting before changes are merged.

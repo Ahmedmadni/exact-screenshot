@@ -264,7 +264,7 @@ export interface ReviewComment {
 export interface ReviewDecision {
   id: string;
   presentationId: string;
-  action: "submitted" | "changes_requested" | "approved";
+  action: "submitted" | "changes_requested" | "approved" | "reopened";
   note?: string;
   actorName: string;
   createdAt: string;

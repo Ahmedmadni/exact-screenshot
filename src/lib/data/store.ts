@@ -204,7 +204,7 @@ export const savedTemplateRepository = {
   get: (id: string) => db.savedTemplates.find((t) => t.id === id),
   saveFromPresentation(presentation: Presentation, name = presentation.title) {
     const stamp = new Date().toISOString();
-    const { id: _id, userId: _userId, createdAt: _createdAt, updatedAt: _updatedAt, ...snapshot } = structuredClone(presentation);
+    const { id: _id, userId: _userId, createdAt: _createdAt, updatedAt: _updatedAt, rehearsals: _rehearsals, ...snapshot } = structuredClone(presentation);
     const template: SavedTemplate = {
       id: uid(),
       name,

@@ -15,6 +15,8 @@ import { syncDatabaseWithCloud } from "@/lib/cloud/sync";
 import { createReviewShare, listReviewShares, revokeReviewShare, type ReviewShareMeta } from "@/lib/review-share";
 import { compareVersionToPresentation, versionDiffSummary } from "@/lib/review";
 import { Button } from "@/components/ui/button";
+import { SlideThumb } from "@/components/editor/slide-renderer";
+import { materializeSlide } from "@/lib/editor/layouts";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -170,12 +172,29 @@ export function ReviewWorkspace({ presentation: p }: { presentation: Presentatio
                 {diff && selectedVersion && (
                   <div className="mt-4 space-y-3">
                     <div className="rounded-md bg-muted/40 p-3 text-sm text-foreground">{versionDiffSummary(diff)}</div>
-                    {diff.changedSlides.slice(0, 8).map(({ after, fields }) => (
-                      <div key={after.id} className="flex items-start justify-between gap-3 border-b border-border pb-2 text-xs">
-                        <span className="min-w-0 truncate text-foreground">Slide {after.slideNumber} · {after.title}</span>
-                        <span className="shrink-0 text-muted-foreground">{fields.join(", ")}</span>
+                    {diff.changedSlides.slice(0, 4).map(({ before, after, fields }) => (
+                      <div key={after.id} className="rounded-md border border-border p-3">
+                        <div className="mb-2 flex items-center justify-between gap-3 text-xs">
+                          <span className="min-w-0 truncate font-medium text-foreground">Slide {after.slideNumber} · {after.title}</span>
+                          <span className="shrink-0 text-muted-foreground">{fields.join(", ")}</span>
+                        </div>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <div>
+                            <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Saved version</div>
+                            <div className="overflow-hidden rounded border border-border">
+                              <SlideThumb slide={materializeSlide(before)} themeId={selectedVersion.snapshot.themeId} themeOverrides={selectedVersion.snapshot.themeOverrides} />
+                            </div>
+                          </div>
+                          <div>
+                            <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Current</div>
+                            <div className="overflow-hidden rounded border border-border">
+                              <SlideThumb slide={materializeSlide(after)} themeId={p.themeId} themeOverrides={p.themeOverrides} />
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     ))}
+                    {diff.changedSlides.length > 4 && <div className="text-xs text-muted-foreground">+ {diff.changedSlides.length - 4} more changed slide(s)</div>}
                     <Button variant="outline" onClick={() => restore(selectedVersion)}><RotateCcw className="size-4" /> Restore this version</Button>
                   </div>
                 )}

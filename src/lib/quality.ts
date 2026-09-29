@@ -80,6 +80,14 @@ export function reviewPresentation(presentation: Presentation): QualityIssue[] {
     if ((slide.evidenceRefs?.length ?? 0) > 0 && !slide.elements.some((el) => el.name === "Evidence Citation")) {
       issues.push(issue("info", "citation-footer-missing", "Evidence is pinned, but the visible citation footer is missing.", slide));
     }
+    if (slide.speakerNotes) {
+      if (new Date(slide.speakerNotes.updatedAt).getTime() < new Date(slide.updatedAt).getTime()) {
+        issues.push(issue("info", "speaker-notes-stale", "Speaker notes were generated before the latest slide edit. Refresh them before presenting.", slide));
+      }
+      if (slide.speakerNotes.estimatedSeconds > 120) {
+        issues.push(issue("info", "speaker-time-long", "This slide is expected to take more than two minutes to present.", slide));
+      }
+    }
 
     const visible = slide.elements.filter((el) => el.visible);
     if (!visible.length) issues.push(issue("error", "empty-slide", "Slide has no visible elements.", slide));
@@ -128,6 +136,19 @@ export function reviewPresentation(presentation: Presentation): QualityIssue[] {
   if (presentation.slides.length >= 5 && !presentation.slides.some((s) => s.slideIntent === "Call to Action")) {
     issues.push(issue("info", "missing-cta", "The deck has no Call to Action slide. Add one if a decision or action is expected."));
   }
+  const notesSlides = presentation.slides.filter((slide) => slide.speakerNotes?.talkTrack.trim());
+  if (notesSlides.length > 0) {
+    const totalSeconds = presentation.slides.reduce((sum, slide) => sum + (slide.speakerNotes?.estimatedSeconds ?? 60), 0);
+    const targetSeconds = Math.max(60, presentation.estimatedDuration * 60);
+    if (totalSeconds > targetSeconds * 1.2) {
+      issues.push(issue("warning", "presentation-time-overrun", `Speaker notes imply about ${Math.round(totalSeconds / 60)} minutes versus a target of ${presentation.estimatedDuration} minutes.`));
+    }
+    const missingNotes = presentation.slides.length - notesSlides.length;
+    if (missingNotes > 0) {
+      issues.push(issue("info", "speaker-notes-incomplete", `${missingNotes} slide${missingNotes === 1 ? "" : "s"} still lack speaker notes.`));
+    }
+  }
+
   if (!presentation.coreMessage.trim()) issues.push(issue("warning", "core-message", "Presentation core message is empty."));
   if (presentation.brandKitId && !presentation.themeOverrides) issues.push(issue("warning", "brand-snapshot", "A brand kit is linked but its visual snapshot is missing. Reapply the brand kit."));
 

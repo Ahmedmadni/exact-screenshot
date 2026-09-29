@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/empty-state";
 import { SaveIndicator, type SaveState } from "@/components/save-indicator";
 import { StatusBadge } from "@/components/status-badge";
 import { QualityChecker } from "@/components/quality-checker";
+import { PresentationCoachOverview } from "@/components/presenter/coach-overview";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
@@ -175,6 +176,7 @@ function Detail() {
           <TabsTrigger value="blueprint">{t("tab.blueprint")}</TabsTrigger>
           <TabsTrigger value="slides">{t("tab.slides")}</TabsTrigger>
           <TabsTrigger value="design">{t("tab.design")}</TabsTrigger>
+          <TabsTrigger value="coach">Coach</TabsTrigger>
           <TabsTrigger value="files">{t("tab.files")}</TabsTrigger>
         </TabsList>
         <TabsContent value="blueprint" className="mt-6">
@@ -197,6 +199,9 @@ function Detail() {
         </TabsContent>
         <TabsContent value="design" className="mt-6">
           <DesignOverview p={p} />
+        </TabsContent>
+        <TabsContent value="coach" className="mt-6">
+          <PresentationCoachOverview presentation={{ ...p, slides: p.slides.map(materializeSlide) }} />
         </TabsContent>
         <TabsContent value="files" className="mt-6">
           <Files p={p} />

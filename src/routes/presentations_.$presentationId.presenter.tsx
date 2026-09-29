@@ -54,6 +54,8 @@ function Presenter({ p }: { p: Presentation }) {
   const [preparing, setPreparing] = useState(false);
   const [audienceConnected, setAudienceConnected] = useState(false);
   const audienceChannel = useRef<BroadcastChannel | null>(null);
+  const currentIndex = useRef(index);
+  currentIndex.current = index;
   const { ref, scale } = useFitScale(24);
   const theme = getTheme(p.themeId, p.themeOverrides);
   const slide = p.slides[index];
@@ -103,7 +105,7 @@ function Presenter({ p }: { p: Presentation }) {
     channel.onmessage = (event) => {
       if (event.data?.type === "ready") {
         setAudienceConnected(true);
-        channel.postMessage({ type: "slide", index });
+        channel.postMessage({ type: "slide", index: currentIndex.current });
       }
     };
     channel.postMessage({ type: "ping" });
@@ -135,12 +137,15 @@ function Presenter({ p }: { p: Presentation }) {
         if (!running && !rehearsalStartedAt) setRehearsalStartedAt(new Date().toISOString());
         setRunning((value) => !value);
       } else if (event.key.toLowerCase() === "r") {
-        resetRehearsal();
+        setRunning(false);
+        setElapsed(0);
+        setSlideSeconds({});
+        setRehearsalStartedAt(null);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [move]);
+  }, [move, running, rehearsalStartedAt]);
 
   const prepareMissing = async () => {
     const missing = p.slides.filter((item) => !item.speakerNotes?.talkTrack.trim());

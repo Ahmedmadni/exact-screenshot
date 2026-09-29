@@ -14,6 +14,7 @@ import { EditorCanvas, type Zoom } from "@/components/editor/editor-canvas";
 import { PropertiesPanel } from "@/components/editor/properties-panel";
 import { SourcePanel } from "@/components/editor/source-panel";
 import { SpeakerNotesPanel } from "@/components/editor/speaker-notes-panel";
+import { EditorReviewPanel } from "@/components/review-workspace";
 import { SlideRail } from "@/components/editor/slide-rail";
 import { IconPicker } from "@/components/editor/icon-picker";
 import { readImage } from "@/components/editor/image-upload";
@@ -419,6 +420,11 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
             onCreateKpi={createKpiEvidenceSlide}
             onAddSourcesAppendix={addSourcesAppendix}
             totalEvidenceCount={api.snapshot().reduce((sum, slide) => sum + (slide.evidenceRefs?.length ?? 0), 0)}
+          />
+          <EditorReviewPanel
+            presentation={{ ...p, slides: api.snapshot(), themeId: api.themeId }}
+            activeSlideId={api.activeId}
+            selectedElementId={api.selected.length === 1 ? api.selected[0] : undefined}
           />
           <QualityChecker presentation={{ ...p, slides: api.snapshot(), themeId: api.themeId }} onSelectSlide={api.setActiveId} />
           <Button asChild size="sm" variant="outline">

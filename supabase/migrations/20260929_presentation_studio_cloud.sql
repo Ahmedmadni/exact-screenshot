@@ -752,3 +752,153 @@ begin
     alter publication supabase_realtime add table public.presentation_live_documents;
   end if;
 end $$;
+
+
+-- Collaboration activity -----------------------------------------------------
+
+create table if not exists public.collaboration_activity (
+  id text primary key,
+  presentation_id text not null,
+  owner_user_id uuid not null references auth.users(id) on delete cascade,
+  actor_user_id uuid not null references auth.users(id) on delete cascade,
+  actor_email text,
+  event_type text not null,
+  details jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists collaboration_activity_presentation_idx
+on public.collaboration_activity(presentation_id, created_at desc);
+
+alter table public.collaboration_activity enable row level security;
+
+drop policy if exists "team_read_collaboration_activity" on public.collaboration_activity;
+create policy "team_read_collaboration_activity" on public.collaboration_activity
+for select using (
+  auth.uid() = owner_user_id
+  or exists (
+    select 1 from public.presentation_collaborators c
+    where c.presentation_id = collaboration_activity.presentation_id
+      and c.user_id = auth.uid()
+  )
+);
+
+create or replace function public.record_collaboration_activity(
+  p_presentation_id text,
+  p_event_type text,
+  p_details jsonb default '{}'::jsonb
+) returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user uuid := auth.uid();
+  v_owner uuid;
+  v_role text;
+  v_email text := coalesce(auth.jwt()->>'email','Team member');
+  v_id text := encode(gen_random_bytes(12), 'hex');
+begin
+  if v_user is null then raise exception 'Authentication required'; end if;
+  select owner_user_id into v_owner from public.presentation_live_documents where presentation_id = p_presentation_id;
+  if v_owner is null then raise exception 'Live presentation not found'; end if;
+
+  if v_owner = v_user then
+    v_role := 'owner';
+  else
+    select role into v_role from public.presentation_collaborators
+    where presentation_id = p_presentation_id and user_id = v_user;
+  end if;
+
+  if v_role is null then raise exception 'You do not have access to this presentation'; end if;
+  if p_event_type not in (
+    'conflict_detected','conflict_resolved','manual_snapshot','comment_added',
+    'opened_editor','opened_presenter'
+  ) then
+    raise exception 'Unsupported client activity event';
+  end if;
+
+  insert into public.collaboration_activity(
+    id, presentation_id, owner_user_id, actor_user_id, actor_email, event_type, details
+  ) values (
+    v_id, p_presentation_id, v_owner, v_user, left(v_email,120), p_event_type, coalesce(p_details,'{}'::jsonb)
+  );
+end;
+$$;
+
+create or replace function public.list_collaboration_activity(
+  p_presentation_id text,
+  p_limit integer default 30
+) returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user uuid := auth.uid();
+  v_owner uuid;
+  v_role text;
+  v_rows jsonb;
+begin
+  if v_user is null then raise exception 'Authentication required'; end if;
+  select owner_user_id into v_owner from public.presentation_live_documents where presentation_id = p_presentation_id;
+  if v_owner is null then return '[]'::jsonb; end if;
+
+  if v_owner = v_user then
+    v_role := 'owner';
+  else
+    select role into v_role from public.presentation_collaborators
+    where presentation_id = p_presentation_id and user_id = v_user;
+  end if;
+  if v_role is null then raise exception 'You do not have access to this team'; end if;
+
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'id', a.id,
+    'presentationId', a.presentation_id,
+    'actorUserId', a.actor_user_id,
+    'actorEmail', a.actor_email,
+    'eventType', a.event_type,
+    'details', a.details,
+    'createdAt', a.created_at
+  ) order by a.created_at desc), '[]'::jsonb)
+  into v_rows
+  from (
+    select *
+    from public.collaboration_activity
+    where presentation_id = p_presentation_id
+    order by created_at desc
+    limit greatest(1, least(coalesce(p_limit,30),100))
+  ) a;
+
+  return v_rows;
+end;
+$$;
+
+create or replace function public.revoke_collaboration_invite(p_invite_id text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user uuid := auth.uid();
+  v_invite public.collaboration_invites%rowtype;
+begin
+  select * into v_invite from public.collaboration_invites where id = p_invite_id;
+  if v_invite.id is null then return; end if;
+  if v_invite.owner_user_id <> v_user then raise exception 'Only the owner can revoke invitations'; end if;
+
+  update public.collaboration_invites set revoked_at = now() where id = p_invite_id;
+  insert into public.collaboration_activity(
+    id, presentation_id, owner_user_id, actor_user_id, actor_email, event_type, details
+  ) values (
+    encode(gen_random_bytes(12), 'hex'), v_invite.presentation_id, v_invite.owner_user_id,
+    v_user, coalesce(auth.jwt()->>'email','Owner'), 'invite_revoked',
+    jsonb_build_object('email',v_invite.invited_email,'role',v_invite.role)
+  );
+end;
+$$;
+
+grant execute on function public.record_collaboration_activity(text,text,jsonb) to authenticated;
+grant execute on function public.list_collaboration_activity(text,integer) to authenticated;
+grant execute on function public.revoke_collaboration_invite(text) to authenticated;

@@ -188,7 +188,8 @@ begin
   select coalesce(jsonb_agg(payload order by updated_at asc), '[]'::jsonb)
   into v_comments
   from public.review_comments
-  where payload->>'presentationId' = v_link.presentation_id;
+  where payload->>'presentationId' = v_link.presentation_id
+    and coalesce((payload->>'external')::boolean, false) = true;
 
   return jsonb_build_object(
     'presentation', v_payload,
@@ -235,6 +236,7 @@ begin
     'authorName', left(coalesce(nullif(trim(p_author_name), ''), 'External reviewer'), 120),
     'body', trim(p_comment_body),
     'resolved', false,
+    'external', true,
     'createdAt', to_char(v_stamp at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
     'updatedAt', to_char(v_stamp at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
   );

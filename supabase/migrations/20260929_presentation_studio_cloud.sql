@@ -259,6 +259,7 @@ create table if not exists public.presentation_collaborators (
   presentation_id text not null,
   owner_user_id uuid not null references auth.users(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
+  email text,
   role text not null check (role in ('editor','reviewer','viewer')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -446,10 +447,10 @@ begin
     raise exception 'Sign in with the invited email address';
   end if;
 
-  insert into public.presentation_collaborators(presentation_id, owner_user_id, user_id, role)
-  values (v_invite.presentation_id, v_invite.owner_user_id, v_user, v_invite.role)
+  insert into public.presentation_collaborators(presentation_id, owner_user_id, user_id, email, role)
+  values (v_invite.presentation_id, v_invite.owner_user_id, v_user, v_email, v_invite.role)
   on conflict (presentation_id, user_id)
-  do update set role = excluded.role, updated_at = now();
+  do update set email = excluded.email, role = excluded.role, updated_at = now();
 
   update public.collaboration_invites set accepted_at = now() where id = v_invite.id;
   select * into v_doc from public.presentation_live_documents where presentation_id = v_invite.presentation_id;
@@ -574,6 +575,7 @@ begin
 
   select coalesce(jsonb_agg(jsonb_build_object(
     'userId', c.user_id,
+    'email', c.email,
     'role', c.role,
     'createdAt', c.created_at
   ) order by c.created_at), '[]'::jsonb)
@@ -610,7 +612,33 @@ grant execute on function public.accept_collaboration_invite(text) to authentica
 grant execute on function public.get_live_presentation(text) to authenticated;
 grant execute on function public.save_live_presentation(text,bigint,jsonb) to authenticated;
 grant execute on function public.list_presentation_team(text) to authenticated;
+create or replace function public.update_presentation_collaborator_role(
+  p_presentation_id text,
+  p_user_id uuid,
+  p_role text
+) returns void
+language plpgsql
+security definer
+set search_path = public
+as $
+declare
+  v_user uuid := auth.uid();
+begin
+  if p_role not in ('editor','reviewer','viewer') then raise exception 'Invalid collaboration role'; end if;
+  if not exists (
+    select 1 from public.presentation_live_documents
+    where presentation_id = p_presentation_id and owner_user_id = v_user
+  ) then
+    raise exception 'Only the owner can change collaborator roles';
+  end if;
+  update public.presentation_collaborators
+  set role = p_role, updated_at = now()
+  where presentation_id = p_presentation_id and user_id = p_user_id;
+end;
+$;
+
 grant execute on function public.remove_presentation_collaborator(text,uuid) to authenticated;
+grant execute on function public.update_presentation_collaborator_role(text,uuid,text) to authenticated;
 
 do $$
 begin

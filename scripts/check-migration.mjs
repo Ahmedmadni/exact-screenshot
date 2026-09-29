@@ -14,20 +14,33 @@ if (badSingle.length) {
   process.exit(1);
 }
 
-const openFunctions = lines.filter((line) => line.trim() === "as $$").length;
-const closeBlocks = lines.filter((line) => line.trim() === "$$;").length;
-const doBlocks = lines.filter((line) => line.trim() === "do $$").length;
+const functionCount = (sql.match(/create\s+or\s+replace\s+function/gi) ?? []).length;
+const functionOpenCount = (sql.match(/^\s*as \$\$\s*$/gm) ?? []).length;
+const doOpenCount = (sql.match(/^\s*do \$\$/gm) ?? []).length;
+const dollarTokenCount = (sql.match(/\$\$/g) ?? []).length;
+const expectedDollarTokens = (functionOpenCount + doOpenCount) * 2;
 
-if (closeBlocks !== openFunctions + doBlocks) {
+if (functionCount !== functionOpenCount) {
   console.error(
-    "Unbalanced dollar-quoted SQL blocks: " +
-      openFunctions + " function block(s) + " + doBlocks + " DO block(s), but " + closeBlocks + " closing delimiter(s).",
+    "Function delimiter mismatch: " +
+      functionCount + " function declaration(s), but " +
+      functionOpenCount + " PL/pgSQL function opening delimiter(s).",
   );
   process.exit(1);
 }
 
-const functions = lines.filter((line) => line.trim().startsWith("create or replace function")).length;
+if (dollarTokenCount !== expectedDollarTokens) {
+  console.error(
+    "Unbalanced dollar-quoted SQL blocks: expected " +
+      expectedDollarTokens + " $$ token(s) for " +
+      functionOpenCount + " function block(s) and " +
+      doOpenCount + " DO block(s), found " +
+      dollarTokenCount + ".",
+  );
+  process.exit(1);
+}
+
 console.log(
-  "Migration structure OK · " + functions + " function(s) · " +
-  doBlocks + " DO block(s) · " + closeBlocks + " balanced closing delimiter(s).",
+  "Migration structure OK · " + functionCount + " function(s) · " +
+  doOpenCount + " DO block(s) · " + dollarTokenCount + " balanced $$ token(s).",
 );

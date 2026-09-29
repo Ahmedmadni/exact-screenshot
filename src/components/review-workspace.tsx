@@ -1,5 +1,5 @@
-import { Check, CheckCircle2, GitCompare, History, MessageSquare, RotateCcw, Send, Snapshot, XCircle } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Check, CheckCircle2, GitCompare, History, MessageSquare, RotateCcw, Send, XCircle } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 import type { Presentation, PresentationVersion } from "@/lib/types";
 import {
@@ -203,10 +203,7 @@ export function EditorReviewPanel({
 }) {
   useDatabase();
   const [body, setBody] = useState("");
-  const comments = useMemo(
-    () => reviewCommentRepository.list(presentation.id).filter((comment) => comment.slideId === activeSlideId),
-    [presentation.id, activeSlideId, useDatabase()],
-  );
+  const comments = reviewCommentRepository.list(presentation.id).filter((comment) => comment.slideId === activeSlideId);
   const open = comments.filter((comment) => !comment.resolved);
 
   const add = () => {

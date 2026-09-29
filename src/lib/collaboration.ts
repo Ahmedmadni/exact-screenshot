@@ -15,6 +15,15 @@ export interface LiveSaveResult {
   revision: number;
   presentation?: Presentation;
   updatedAt?: string;
+  merged?: boolean;
+  reason?: string;
+  elementId?: string;
+}
+
+export interface LiveElementChange {
+  id: string;
+  before: unknown | null;
+  after: unknown | null;
 }
 
 export interface CollaborationMember {
@@ -83,6 +92,23 @@ export async function saveLivePresentation(
     p_presentation_id: presentationId,
     p_expected_revision: expectedRevision,
     p_payload: presentation,
+  });
+  if (error) throw error;
+  return data as LiveSaveResult;
+}
+
+export async function applyLiveElementChanges(
+  presentationId: string,
+  baseRevision: number,
+  slideId: string,
+  changes: LiveElementChange[],
+): Promise<LiveSaveResult> {
+  const client = requireCloud();
+  const { data, error } = await client.rpc("apply_live_element_changes", {
+    p_presentation_id: presentationId,
+    p_base_revision: baseRevision,
+    p_slide_id: slideId,
+    p_changes: changes,
   });
   if (error) throw error;
   return data as LiveSaveResult;

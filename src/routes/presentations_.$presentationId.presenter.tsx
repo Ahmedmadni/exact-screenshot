@@ -124,7 +124,8 @@ function Presenter({ p }: { p: Presentation }) {
           continue;
         }
         const generated = await aiProvider().generateSpeakerNotes(planRequest, current, p.slides[i + 1]);
-        slides.push({ ...current, speakerNotes: generated, updatedAt: new Date().toISOString() });
+        const stamp = new Date().toISOString();
+        slides.push({ ...current, speakerNotes: { ...generated, updatedAt: stamp }, updatedAt: stamp });
       }
       presentationRepository.update(p.id, { slides });
       toast.success("Speaker notes prepared for the full presentation.");

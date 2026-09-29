@@ -174,6 +174,7 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
   const [aiBusy, setAiBusy] = useState<SlideRewriteAction | null>(null);
   const [notesBusy, setNotesBusy] = useState(false);
   const [exporting, setExporting] = useState<"pptx" | "pdf" | null>(null);
+  const [liveCursor, setLiveCursor] = useState<{ x: number; y: number } | undefined>(undefined);
   const smartLabel = aiProvider().name === "mock-planner" ? "Smart" : "AI";
   const clipboard = useRef<SlideElement[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -183,6 +184,7 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
     role: p.collaboration?.role ?? "owner",
     activeSlideId: api.activeId,
     editingElementId: api.selected.length === 1 ? api.selected[0] : undefined,
+    cursor: liveCursor,
   });
 
   const add = useCallback((drafts: DraftElement[]) => {
@@ -573,7 +575,13 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
 
       <div className="hidden min-h-0 flex-1 lg:flex">
         <SlideRail api={api} themeId={api.themeId} themeOverrides={p.themeOverrides} presentationId={p.id} />
-        <EditorCanvas api={api} theme={theme} zoom={zoom} />
+        <EditorCanvas
+          api={api}
+          theme={theme}
+          zoom={zoom}
+          collaborators={participants}
+          onCursorMove={setLiveCursor}
+        />
         <PropertiesPanel api={api} theme={theme} onTheme={api.setTheme} />
       </div>
 

@@ -190,12 +190,8 @@ export const versionRepository = {
   list: (presentationId: string) => db.versions.filter((v) => v.presentationId === presentationId).sort((a,b) => b.createdAt.localeCompare(a.createdAt)),
   create(presentation: Presentation, label = "Snapshot") {
     const stamp = new Date().toISOString();
-    const snapshot = structuredClone({
-      title: presentation.title, description: presentation.description, objective: presentation.objective,
-      coreMessage: presentation.coreMessage, visualDirection: presentation.visualDirection, storyArc: presentation.storyArc,
-      themeId: presentation.themeId, themeOverrides: presentation.themeOverrides, brandKitId: presentation.brandKitId,
-      sourceAssetIds: presentation.sourceAssetIds, slides: presentation.slides, status: presentation.status,
-    });
+    const { id: _id, userId: _userId, createdAt: _createdAt, updatedAt: _updatedAt, rehearsals: _rehearsals, ...versionState } = structuredClone(presentation);
+    const snapshot = versionState;
     const version: PresentationVersion = { id: uid(), presentationId: presentation.id, label, createdAt: stamp, updatedAt: stamp, snapshot };
     mutate((d) => ({ ...d, versions: [version, ...d.versions] }));
     return version;

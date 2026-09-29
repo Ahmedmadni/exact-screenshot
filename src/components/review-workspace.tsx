@@ -133,7 +133,7 @@ export function ReviewWorkspace({ presentation: p }: { presentation: Presentatio
                       <div className="text-xs font-medium text-foreground">{comment.authorName}</div>
                       <div className="mt-0.5 text-[10px] text-muted-foreground">
                         {slide ? "Slide " + slide.slideNumber + " · " + slide.title : "Whole presentation"}
-                        {comment.elementId ? " · element comment" : ""}
+                        {comment.elementId ? " · element comment" : ""}{comment.external ? " · external reviewer" : ""}
                       </div>
                     </div>
                     <Button size="sm" variant="ghost" onClick={() => reviewCommentRepository.update(comment.id, { resolved: !comment.resolved })}>

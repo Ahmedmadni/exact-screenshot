@@ -141,6 +141,18 @@ export interface EvidenceRef {
   createdAt: string;
 }
 
+export interface SpeakerNotes {
+  talkTrack: string;
+  keyPoints: string[];
+  transition?: string;
+  anticipatedQuestions: string[];
+  coachTips: string[];
+  sourceReminders: string[];
+  estimatedSeconds: number;
+  generatedBy: "smart" | "cloud" | "manual";
+  updatedAt: string;
+}
+
 export interface Slide {
   id: string;
   presentationId: string;
@@ -164,6 +176,8 @@ export interface Slide {
   sourceAssetIds?: string[];
   /** Exact evidence used to support the slide, with file/page/sheet provenance. */
   evidenceRefs?: EvidenceRef[];
+  /** Presenter-only talk track, anticipated questions, timing and coaching guidance. */
+  speakerNotes?: SpeakerNotes;
   createdAt: string;
   updatedAt: string;
 }

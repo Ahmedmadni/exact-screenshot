@@ -257,6 +257,7 @@ export interface ReviewComment {
   authorName: string;
   body: string;
   resolved: boolean;
+  external?: boolean;
   createdAt: string;
   updatedAt: string;
 }

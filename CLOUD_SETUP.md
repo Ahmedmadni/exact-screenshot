@@ -83,3 +83,25 @@ supabase functions deploy presentation-ai
 The function verifies that the caller has a valid Supabase user session before calling the model.
 
 If Supabase, authentication, the Edge Function, or the model provider is unavailable, the frontend automatically falls back to the deterministic local Smart planner so presentation creation stays usable.
+
+
+## Secure external review links
+
+The updated cloud migration also enables review collaboration:
+
+- Owner-created, time-limited review links
+- View-only slide access for external reviewers
+- Slide-level external comments without requiring a reviewer account
+- Revocation and expiration
+- Speaker notes and rehearsal history are stripped from the shared payload
+- Internal review comments remain private and are never returned through public review links
+
+After updating an existing Supabase project, re-run the latest SQL migration so the review tables, RLS policies and RPC functions are installed.
+
+From a presentation, open **Review → External collaboration**:
+
+1. Choose **Create 7-day link**.
+2. Send the copied URL to the reviewer.
+3. The reviewer can browse slides and leave comments.
+4. Back in the owner account, choose **Sync feedback** to merge new comments into the local/cloud review workspace.
+5. Revoke the link when review is complete.

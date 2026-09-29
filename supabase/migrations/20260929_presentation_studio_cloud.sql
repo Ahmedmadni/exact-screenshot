@@ -528,6 +528,9 @@ begin
   if v_role not in ('owner','editor') then
     raise exception 'Your collaboration role is read-only';
   end if;
+  if v_doc.payload->>'status' = 'Approved' and v_role <> 'owner' then
+    raise exception 'Approved presentations can only be reopened by the owner';
+  end if;
 
   if v_doc.revision <> p_expected_revision then
     return jsonb_build_object(

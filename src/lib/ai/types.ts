@@ -5,6 +5,7 @@ import type {
   PresentationType,
   Purpose,
   Slide,
+  SpeakerNotes,
   StoryBeat,
   Tone,
 } from "@/lib/types";
@@ -64,4 +65,9 @@ export interface AIProvider {
     slide: PlannedSlide,
     action: SlideRewriteAction,
   ): Promise<PlannedSlide>;
+  generateSpeakerNotes(
+    request: PlanRequest,
+    slide: Slide,
+    next?: Slide,
+  ): Promise<SpeakerNotes>;
 }

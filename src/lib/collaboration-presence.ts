@@ -8,6 +8,9 @@ export interface PresenceParticipant {
   role: CollaborationRole;
   activeSlideId?: string;
   editingElementId?: string;
+  cursorX?: number;
+  cursorY?: number;
+  isSelf?: boolean;
   onlineAt: string;
 }
 
@@ -17,12 +20,14 @@ export function useCollaborationPresence({
   role,
   activeSlideId,
   editingElementId,
+  cursor,
 }: {
   presentationId: string;
   enabled: boolean;
   role: CollaborationRole;
   activeSlideId?: string;
   editingElementId?: string;
+  cursor?: { x: number; y: number };
 }) {
   const [participants, setParticipants] = useState<PresenceParticipant[]>([]);
   const channelRef = useRef<ReturnType<NonNullable<typeof supabase>["channel"]> | null>(null);
@@ -61,6 +66,9 @@ export function useCollaborationPresence({
               role: (typeof entry.role === "string" ? entry.role : "viewer") as CollaborationRole,
               activeSlideId: typeof entry.activeSlideId === "string" ? entry.activeSlideId : undefined,
               editingElementId: typeof entry.editingElementId === "string" ? entry.editingElementId : undefined,
+              cursorX: typeof entry.cursorX === "number" ? entry.cursorX : undefined,
+              cursorY: typeof entry.cursorY === "number" ? entry.cursorY : undefined,
+              isSelf: entry.userId === identityRef.current?.userId,
               onlineAt: typeof entry.onlineAt === "string" ? entry.onlineAt : new Date().toISOString(),
             });
           }
@@ -81,6 +89,8 @@ export function useCollaborationPresence({
             ...identityRef.current,
             activeSlideId,
             editingElementId,
+            cursorX: cursor?.x,
+            cursorY: cursor?.y,
             onlineAt: new Date().toISOString(),
           });
         });
@@ -104,9 +114,11 @@ export function useCollaborationPresence({
       ...identity,
       activeSlideId,
       editingElementId,
+      cursorX: cursor?.x,
+      cursorY: cursor?.y,
       onlineAt: new Date().toISOString(),
     });
-  }, [activeSlideId, editingElementId]);
+  }, [activeSlideId, editingElementId, cursor?.x, cursor?.y]);
 
   return participants;
 }

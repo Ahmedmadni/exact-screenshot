@@ -49,10 +49,10 @@ export function ReviewWorkspace({ presentation: p }: { presentation: Presentatio
     toast.success("Review comment added.");
   };
 
-  const decision = (action: "submitted" | "changes_requested" | "approved") => {
+  const decision = (action: "submitted" | "changes_requested" | "approved" | "reopened") => {
     reviewDecisionRepository.apply(p, action, decisionNote.trim(), author.trim() || "Reviewer");
     setDecisionNote("");
-    toast.success(action === "submitted" ? "Submitted for review." : action === "approved" ? "Presentation approved." : "Changes requested.");
+    toast.success(action === "submitted" ? "Submitted for review." : action === "approved" ? "Presentation approved." : action === "reopened" ? "Presentation reopened for editing." : "Changes requested.");
   };
 
   const snapshot = () => {
@@ -90,9 +90,15 @@ export function ReviewWorkspace({ presentation: p }: { presentation: Presentatio
         <div className="mt-5 grid gap-3 lg:grid-cols-[1fr_auto]">
           <Textarea rows={3} placeholder="Optional review note…" value={decisionNote} onChange={(e) => setDecisionNote(e.target.value)} />
           <div className="flex flex-wrap items-start gap-2 lg:flex-col">
-            <Button variant="outline" onClick={() => decision("submitted")}><Send className="size-4" /> Submit for review</Button>
-            <Button variant="outline" onClick={() => decision("changes_requested")}><XCircle className="size-4" /> Request changes</Button>
-            <Button onClick={() => decision("approved")}><CheckCircle2 className="size-4" /> Approve</Button>
+            {p.status === "Approved" ? (
+              <Button variant="outline" onClick={() => decision("reopened")}><RotateCcw className="size-4" /> Reopen for editing</Button>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => decision("submitted")}><Send className="size-4" /> Submit for review</Button>
+                <Button variant="outline" onClick={() => decision("changes_requested")}><XCircle className="size-4" /> Request changes</Button>
+                <Button onClick={() => decision("approved")}><CheckCircle2 className="size-4" /> Approve</Button>
+              </>
+            )}
           </div>
         </div>
       </section>

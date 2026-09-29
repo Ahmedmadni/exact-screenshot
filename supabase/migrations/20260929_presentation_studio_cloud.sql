@@ -547,6 +547,10 @@ begin
   set payload = p_payload, revision = v_new_revision, updated_by = v_user, updated_at = now()
   where presentation_id = p_presentation_id;
 
+  update public.presentation_snapshots
+  set payload = p_payload, updated_at = now()
+  where id = p_presentation_id and user_id = v_doc.owner_user_id;
+
   return jsonb_build_object(
     'ok', true,
     'conflict', false,
@@ -741,7 +745,157 @@ $$;
 grant execute on function public.add_team_review_comment(text,text,text,text) to authenticated;
 grant execute on function public.list_team_review_comments(text) to authenticated;
 
-do $$
+create or replace function public.apply_live_element_changes(
+  p_presentation_id text,
+  p_base_revision bigint,
+  p_slide_id text,
+  p_changes jsonb
+) returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $
+declare
+  v_user uuid := auth.uid();
+  v_doc public.presentation_live_documents%rowtype;
+  v_role text;
+  v_slide jsonb;
+  v_slides jsonb;
+  v_elements jsonb;
+  v_change jsonb;
+  v_id text;
+  v_before jsonb;
+  v_after jsonb;
+  v_current jsonb;
+  v_new_revision bigint;
+  v_payload jsonb;
+  v_merged boolean;
+begin
+  if v_user is null then raise exception 'Authentication required'; end if;
+  if jsonb_typeof(p_changes) <> 'array' or jsonb_array_length(p_changes) < 1 then
+    raise exception 'Element changes must be a non-empty array';
+  end if;
+
+  select * into v_doc
+  from public.presentation_live_documents
+  where presentation_id = p_presentation_id
+  for update;
+
+  if v_doc.presentation_id is null then raise exception 'Live document not found'; end if;
+
+  if v_doc.owner_user_id = v_user then
+    v_role := 'owner';
+  else
+    select role into v_role
+    from public.presentation_collaborators
+    where presentation_id = p_presentation_id and user_id = v_user;
+  end if;
+
+  if v_role not in ('owner','editor') then raise exception 'Your collaboration role is read-only'; end if;
+  if v_doc.payload->>'status' = 'Approved' and v_role <> 'owner' then
+    raise exception 'Approved presentations can only be reopened by the owner';
+  end if;
+
+  select value into v_slide
+  from jsonb_array_elements(coalesce(v_doc.payload->'slides','[]'::jsonb)) value
+  where value->>'id' = p_slide_id
+  limit 1;
+
+  if v_slide is null then
+    return jsonb_build_object(
+      'ok', false, 'conflict', true, 'reason', 'slide_changed',
+      'revision', v_doc.revision, 'presentation', v_doc.payload, 'updatedAt', v_doc.updated_at
+    );
+  end if;
+
+  v_elements := coalesce(v_slide->'elements','[]'::jsonb);
+
+  for v_change in select value from jsonb_array_elements(p_changes) value
+  loop
+    v_id := v_change->>'id';
+    v_before := v_change->'before';
+    v_after := v_change->'after';
+    v_current := null;
+
+    select value into v_current
+    from jsonb_array_elements(v_elements) value
+    where value->>'id' = v_id
+    limit 1;
+
+    if v_before is null or v_before = 'null'::jsonb then
+      if v_current is not null then
+        return jsonb_build_object(
+          'ok', false, 'conflict', true, 'reason', 'same_element_changed',
+          'elementId', v_id, 'revision', v_doc.revision,
+          'presentation', v_doc.payload, 'updatedAt', v_doc.updated_at
+        );
+      end if;
+    elsif v_current is null or v_current <> v_before then
+      return jsonb_build_object(
+        'ok', false, 'conflict', true, 'reason', 'same_element_changed',
+        'elementId', v_id, 'revision', v_doc.revision,
+        'presentation', v_doc.payload, 'updatedAt', v_doc.updated_at
+      );
+    end if;
+
+    if v_after is null or v_after = 'null'::jsonb then
+      select coalesce(jsonb_agg(value order by ord), '[]'::jsonb)
+      into v_elements
+      from jsonb_array_elements(v_elements) with ordinality as e(value, ord)
+      where value->>'id' <> v_id;
+    elsif v_before is null or v_before = 'null'::jsonb then
+      v_elements := v_elements || jsonb_build_array(v_after);
+    else
+      select coalesce(jsonb_agg(
+        case when value->>'id' = v_id then v_after else value end
+        order by ord
+      ), '[]'::jsonb)
+      into v_elements
+      from jsonb_array_elements(v_elements) with ordinality as e(value, ord);
+    end if;
+  end loop;
+
+  v_slide := jsonb_set(v_slide, '{elements}', v_elements, true);
+  v_slide := jsonb_set(
+    v_slide,
+    '{updatedAt}',
+    to_jsonb(to_char(now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')),
+    true
+  );
+
+  select coalesce(jsonb_agg(
+    case when value->>'id' = p_slide_id then v_slide else value end
+    order by ord
+  ), '[]'::jsonb)
+  into v_slides
+  from jsonb_array_elements(coalesce(v_doc.payload->'slides','[]'::jsonb)) with ordinality as s(value, ord);
+
+  v_payload := jsonb_set(v_doc.payload, '{slides}', v_slides, true);
+  v_new_revision := v_doc.revision + 1;
+  v_merged := v_doc.revision <> p_base_revision;
+
+  update public.presentation_live_documents
+  set payload = v_payload, revision = v_new_revision, updated_by = v_user, updated_at = now()
+  where presentation_id = p_presentation_id;
+
+  update public.presentation_snapshots
+  set payload = v_payload, updated_at = now()
+  where id = p_presentation_id and user_id = v_doc.owner_user_id;
+
+  return jsonb_build_object(
+    'ok', true,
+    'conflict', false,
+    'revision', v_new_revision,
+    'presentation', v_payload,
+    'merged', v_merged,
+    'updatedAt', now()
+  );
+end;
+$;
+
+grant execute on function public.apply_live_element_changes(text,bigint,text,jsonb) to authenticated;
+
+do $
 begin
   if not exists (
     select 1 from pg_publication_tables

@@ -186,6 +186,15 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
     editingElementId: api.selected.length === 1 ? api.selected[0] : undefined,
     cursor: liveCursor,
   });
+  const remoteLockedIds = participants
+    .filter((participant) => !participant.isSelf && participant.activeSlideId === api.activeId && participant.editingElementId)
+    .map((participant) => participant.editingElementId!);
+
+  useEffect(() => {
+    if (!remoteLockedIds.length || !api.selected.some((id) => remoteLockedIds.includes(id))) return;
+    api.setSelected(api.selected.filter((id) => !remoteLockedIds.includes(id)));
+    toast.info("A teammate is editing that element, so it has been soft-locked.");
+  }, [remoteLockedIds.join("|")]);
 
   const add = useCallback((drafts: DraftElement[]) => {
     const s = api.active;

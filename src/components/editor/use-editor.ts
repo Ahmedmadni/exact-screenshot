@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Presentation, Slide } from "@/lib/types";
 import type { SlideElement } from "@/lib/editor/model";
-import { presentationRepository } from "@/lib/data/store";
+import { presentationRepository, versionRepository } from "@/lib/data/store";
+import { saveLivePresentation } from "@/lib/collaboration";
+import { supabase } from "@/lib/cloud/supabase";
 import { materializeSlide } from "@/lib/editor/layouts";
 import { DEFAULT_THEME_ID } from "@/lib/editor/themes";
 import type { SaveState } from "@/components/save-indicator";
@@ -27,6 +29,12 @@ export function useEditor(p: Presentation, initialSlideId?: string) {
   const [selected, setSelected] = useState<string[]>([]);
   const [save, setSave] = useState<SaveState>("idle");
   const [history, setHistory] = useState({ past: 0, future: 0 });
+  const [conflict, setConflict] = useState<{ presentation: Presentation; revision: number; updatedAt?: string } | null>(null);
+  const collaborationRef = useRef(p.collaboration);
+  collaborationRef.current = p.collaboration ?? collaborationRef.current;
+  const revisionRef = useRef(p.collaboration?.revision ?? 0);
+  if ((p.collaboration?.revision ?? 0) > revisionRef.current) revisionRef.current = p.collaboration!.revision;
+  const liveSaving = useRef(false);
   const past = useRef<Doc[]>([]);
   const future = useRef<Doc[]>([]);
   const current = useRef(doc);
@@ -35,12 +43,52 @@ export function useEditor(p: Presentation, initialSlideId?: string) {
   const pending = useRef<Doc | null>(null);
 
   const write = useCallback(
-    (d: Doc) => {
+    async (d: Doc) => {
       presentationRepository.update(p.id, {
         slides: d.slides.map((s, i) => ({ ...s, slideNumber: i + 1, sortOrder: i })),
         recommendedSlideCount: d.slides.length,
         themeId: d.themeId,
       });
+
+      const collaboration = collaborationRef.current;
+      if (!collaboration?.enabled || !["owner", "editor"].includes(collaboration.role)) {
+        setSave("saved");
+        return;
+      }
+
+      const local = presentationRepository.get(p.id);
+      if (!local) {
+        setSave("saved");
+        return;
+      }
+
+      const payload = structuredClone(local);
+      delete payload.collaboration;
+      liveSaving.current = true;
+      try {
+        const result = await saveLivePresentation(p.id, revisionRef.current, payload);
+        if (result.conflict && result.presentation) {
+          setConflict({ presentation: result.presentation, revision: result.revision, updatedAt: result.updatedAt });
+          setSave("conflict");
+          return;
+        }
+
+        revisionRef.current = result.revision;
+        const nextCollaboration = {
+          ...collaboration,
+          revision: result.revision,
+          liveUpdatedAt: result.updatedAt,
+        };
+        collaborationRef.current = nextCollaboration;
+        presentationRepository.update(p.id, { collaboration: nextCollaboration });
+        setConflict(null);
+        setSave("saved");
+      } catch (error) {
+        console.error("Live collaboration save failed", error);
+        setSave("conflict");
+      } finally {
+        liveSaving.current = false;
+      }
     },
     [p.id],
   );
@@ -48,9 +96,9 @@ export function useEditor(p: Presentation, initialSlideId?: string) {
   const flush = useCallback(() => {
     clearTimeout(timer.current);
     if (pending.current) {
-      write(pending.current);
+      const next = pending.current;
       pending.current = null;
-      setSave("saved");
+      void write(next);
     }
   }, [write]);
 
@@ -75,6 +123,92 @@ export function useEditor(p: Presentation, initialSlideId?: string) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const collaboration = collaborationRef.current;
+    if (!collaboration?.enabled || !supabase) return;
+
+    const channel = supabase
+      .channel("live-document-" + p.id)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "presentation_live_documents", filter: "presentation_id=eq." + p.id },
+        (event) => {
+          const row = event.new as Record<string, unknown>;
+          const revision = Number(row.revision ?? 0);
+          const remote = row.payload as Presentation | undefined;
+          if (!remote || !Number.isFinite(revision) || revision <= revisionRef.current) return;
+          if (liveSaving.current || pending.current) {
+            setConflict({
+              presentation: remote,
+              revision,
+              updatedAt: typeof row.updated_at === "string" ? row.updated_at : undefined,
+            });
+            setSave("conflict");
+            return;
+          }
+
+          const meta = {
+            ...collaborationRef.current!,
+            revision,
+            liveUpdatedAt: typeof row.updated_at === "string" ? row.updated_at : undefined,
+          };
+          collaborationRef.current = meta;
+          revisionRef.current = revision;
+          const hydrated = { ...remote, collaboration: meta };
+          presentationRepository.upsertCollaborative(hydrated);
+          const nextDoc: Doc = {
+            slides: hydrated.slides.map(materializeSlide),
+            themeId: hydrated.themeId ?? DEFAULT_THEME_ID,
+          };
+          current.current = nextDoc;
+          setDoc(nextDoc);
+          past.current = [];
+          future.current = [];
+          setHistory({ past: 0, future: 0 });
+          setSelected([]);
+          setActiveIdState((id) => nextDoc.slides.some((slide) => slide.id === id) ? id : (nextDoc.slides[0]?.id ?? ""));
+          setSave("saved");
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [p.id]);
+
+  const resolveConflict = useCallback(() => {
+    if (!conflict) return;
+    const local = presentationRepository.get(p.id);
+    if (local) versionRepository.create(local, "Conflict recovery — local edits");
+    const collaboration = collaborationRef.current;
+    if (!collaboration) return;
+
+    const meta = {
+      ...collaboration,
+      revision: conflict.revision,
+      liveUpdatedAt: conflict.updatedAt,
+    };
+    collaborationRef.current = meta;
+    revisionRef.current = conflict.revision;
+    const hydrated: Presentation = { ...conflict.presentation, collaboration: meta };
+    presentationRepository.upsertCollaborative(hydrated);
+    const nextDoc: Doc = {
+      slides: hydrated.slides.map(materializeSlide),
+      themeId: hydrated.themeId ?? DEFAULT_THEME_ID,
+    };
+    current.current = nextDoc;
+    setDoc(nextDoc);
+    past.current = [];
+    future.current = [];
+    pending.current = null;
+    setHistory({ past: 0, future: 0 });
+    setSelected([]);
+    setActiveIdState((id) => nextDoc.slides.some((slide) => slide.id === id) ? id : (nextDoc.slides[0]?.id ?? ""));
+    setConflict(null);
+    setSave("saved");
+  }, [conflict, p.id]);
 
   const syncHistory = () => setHistory({ past: past.current.length, future: future.current.length });
 
@@ -175,6 +309,9 @@ export function useEditor(p: Presentation, initialSlideId?: string) {
     selected,
     setSelected,
     save,
+    conflict,
+    resolveConflict,
+    collaborationRevision: revisionRef.current,
     setLive,
     silentUpdate,
     commit,

@@ -5,6 +5,7 @@ import { resolveColor, resolveFont } from "@/lib/editor/themes";
 import type { Slide } from "@/lib/types";
 import { ElementBody, elementBoxStyle, slideBackground, useFitScale } from "./slide-renderer";
 import type { EditorApi } from "./use-editor";
+import type { PresenceParticipant } from "@/lib/collaboration-presence";
 
 type Handle = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
 const HANDLES: Handle[] = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
@@ -17,14 +18,29 @@ interface Guide { axis: "x" | "y"; pos: number }
 
 export type Zoom = number | "fill";
 
-export function EditorCanvas({ api, theme, zoom }: { api: EditorApi; theme: SlideTheme; zoom: Zoom }) {
+export function EditorCanvas({
+  api,
+  theme,
+  zoom,
+  collaborators = [],
+  onCursorMove,
+}: {
+  api: EditorApi;
+  theme: SlideTheme;
+  zoom: Zoom;
+  collaborators?: PresenceParticipant[];
+  onCursorMove?: (cursor?: { x: number; y: number }) => void;
+}) {
   const { ref, scale: fit, fillScale } = useFitScale(40);
   const scale = zoom === "fill" ? fillScale : fit * zoom;
   const stageRef = useRef<HTMLDivElement>(null);
   const [guides, setGuides] = useState<Guide[]>([]);
   const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const lastCursorAt = useRef(0);
   const slide = api.active;
+  const remoteOnSlide = collaborators.filter((participant) => !participant.isSelf && participant.activeSlideId === slide?.id);
+  const remoteLock = (elementId: string) => remoteOnSlide.find((participant) => participant.editingElementId === elementId);
 
   // Text never silently disappears: boxes grow to fit their content.
   useLayoutEffect(() => {
@@ -62,7 +78,7 @@ export function EditorCanvas({ api, theme, zoom }: { api: EditorApi; theme: Slid
 
   const startMove = (e: RPointerEvent, el: SlideElement) => {
     e.stopPropagation();
-    if (editingId === el.id) return;
+    if (editingId === el.id || remoteLock(el.id)) return;
     let ids = api.selected;
     if (e.shiftKey) {
       ids = ids.includes(el.id) ? ids.filter((i) => i !== el.id) : [...ids, el.id];
@@ -127,6 +143,7 @@ export function EditorCanvas({ api, theme, zoom }: { api: EditorApi; theme: Slid
 
   const startResize = (e: RPointerEvent, el: SlideElement, h: Handle) => {
     e.stopPropagation();
+    if (remoteLock(el.id)) return;
     const base = api.snapshot();
     const origin = toLogical(e);
     const s0 = { x: el.x, y: el.y, w: el.width, h: el.height };
@@ -172,6 +189,7 @@ export function EditorCanvas({ api, theme, zoom }: { api: EditorApi; theme: Slid
 
   const startRotate = (e: RPointerEvent, el: SlideElement) => {
     e.stopPropagation();
+    if (remoteLock(el.id)) return;
     const base = api.snapshot();
     const cx = el.x + el.width / 2;
     const cy = el.y + el.height / 2;
@@ -200,7 +218,7 @@ export function EditorCanvas({ api, theme, zoom }: { api: EditorApi; theme: Slid
         const box = { x: Math.min(o.x, p.x), y: Math.min(o.y, p.y), w: Math.abs(p.x - o.x), h: Math.abs(p.y - o.y) };
         setMarquee(box);
         const hit = slide.elements
-          .filter((x) => x.visible && !x.locked && x.x < box.x + box.w && x.x + x.width > box.x && x.y < box.y + box.h && x.y + x.height > box.y)
+          .filter((x) => x.visible && !x.locked && !remoteLock(x.id) && x.x < box.x + box.w && x.x + x.width > box.x && x.y < box.y + box.h && x.y + x.height > box.y)
           .map((x) => x.id);
         api.setSelected(additive ? Array.from(new Set([...prior, ...hit])) : hit);
       },
@@ -219,14 +237,26 @@ export function EditorCanvas({ api, theme, zoom }: { api: EditorApi; theme: Slid
           className="relative shrink-0 shadow-xl"
           style={{ width: SLIDE_W * scale, height: SLIDE_H * scale }}
           onPointerDown={(e) => { e.stopPropagation(); startMarquee(e); }}
+          onPointerMove={(e) => {
+            if (!onCursorMove || !stageRef.current) return;
+            const now = performance.now();
+            if (now - lastCursorAt.current < 70) return;
+            lastCursorAt.current = now;
+            const point = toLogical(e);
+            onCursorMove({
+              x: Math.max(0, Math.min(SLIDE_W, Math.round(point.x))),
+              y: Math.max(0, Math.min(SLIDE_H, Math.round(point.y))),
+            });
+          }}
+          onPointerLeave={() => onCursorMove?.(undefined)}
         >
           <div style={{ position: "absolute", top: 0, left: 0, width: SLIDE_W, height: SLIDE_H, transform: `scale(${scale})`, transformOrigin: "top left", background: slideBackground(slide, theme), overflow: "hidden" }}>
             {[...slide.elements].sort((a, b) => a.zIndex - b.zIndex).filter((x) => x.visible).map((el) => (
               <div
                 key={el.id}
-                style={{ ...elementBoxStyle(el), cursor: el.locked ? "default" : "move" }}
+                style={{ ...elementBoxStyle(el), cursor: remoteLock(el.id) ? "not-allowed" : el.locked ? "default" : "move" }}
                 onPointerDown={(e) => startMove(e, el)}
-                onDoubleClick={() => el.type === "text" && !el.locked && setEditingId(el.id)}
+                onDoubleClick={() => el.type === "text" && !el.locked && !remoteLock(el.id) && setEditingId(el.id)}
               >
                 {editingId === el.id && el.type === "text" ? (
                   <TextEditor el={el} theme={theme} onDone={(text) => {
@@ -266,6 +296,33 @@ export function EditorCanvas({ api, theme, zoom }: { api: EditorApi; theme: Slid
                     />
                   </>
                 )}
+              </div>
+            ))}
+            {remoteOnSlide.filter((participant) => participant.editingElementId).map((participant) => {
+              const el = slide.elements.find((element) => element.id === participant.editingElementId);
+              if (!el) return null;
+              return (
+                <div
+                  key={"remote-lock-" + participant.userId}
+                  className="absolute outline outline-2 outline-amber-500"
+                  style={{ left: el.x * scale, top: el.y * scale, width: el.width * scale, height: el.height * scale, transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined }}
+                >
+                  <span className="absolute -top-6 start-0 max-w-40 truncate rounded bg-amber-500 px-1.5 py-0.5 text-[10px] font-medium text-white shadow">
+                    {participant.email} · editing
+                  </span>
+                </div>
+              );
+            })}
+            {remoteOnSlide.filter((participant) => typeof participant.cursorX === "number" && typeof participant.cursorY === "number").map((participant) => (
+              <div
+                key={"cursor-" + participant.userId}
+                className="absolute"
+                style={{ left: participant.cursorX! * scale, top: participant.cursorY! * scale }}
+              >
+                <span className="block size-3 -translate-x-1 -translate-y-1 rotate-45 rounded-sm bg-accent shadow-sm" />
+                <span className="absolute start-2 top-2 max-w-36 truncate rounded bg-foreground px-1.5 py-0.5 text-[10px] text-background shadow">
+                  {participant.email}
+                </span>
               </div>
             ))}
             {guides.map((g, i) => (

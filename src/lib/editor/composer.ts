@@ -67,7 +67,7 @@ export function rebuildGeneratedContent(
   slide: Slide,
   patch: Pick<Slide, "title" | "keyMessage" | "contentSummary" | "bullets" | "kpis" | "visualType" | "slideIntent" | "purpose">,
 ): Slide {
-  const next: Slide = { ...slide, ...patch };
+  const next: Slide = { ...slide, ...patch, speakerNotes: undefined };
   const layoutId = recommendedLayoutId(next);
   let generated = buildLayout(layoutId, contentFromSlide(next), next.id);
   const existingMedia = slide.elements.find((e) => e.type === "image" && e.role === "media" && e.properties.src);

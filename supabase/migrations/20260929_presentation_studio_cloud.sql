@@ -623,7 +623,7 @@ create or replace function public.update_presentation_collaborator_role(
 language plpgsql
 security definer
 set search_path = public
-as $
+as $$
 declare
   v_user uuid := auth.uid();
 begin
@@ -638,7 +638,7 @@ begin
   set role = p_role, updated_at = now()
   where presentation_id = p_presentation_id and user_id = p_user_id;
 end;
-$;
+$$;
 
 grant execute on function public.remove_presentation_collaborator(text,uuid) to authenticated;
 grant execute on function public.update_presentation_collaborator_role(text,uuid,text) to authenticated;
@@ -652,7 +652,7 @@ create or replace function public.add_team_review_comment(
 language plpgsql
 security definer
 set search_path = public
-as $
+as $$
 declare
   v_user uuid := auth.uid();
   v_email text := coalesce(auth.jwt()->>'email','Team reviewer');
@@ -699,14 +699,14 @@ begin
 
   return v_payload;
 end;
-$;
+$$;
 
 create or replace function public.list_team_review_comments(p_presentation_id text)
 returns jsonb
 language plpgsql
 security definer
 set search_path = public
-as $
+as $$
 declare
   v_user uuid := auth.uid();
   v_owner uuid;
@@ -736,7 +736,7 @@ begin
 
   return v_comments;
 end;
-$;
+$$;
 
 grant execute on function public.add_team_review_comment(text,text,text,text) to authenticated;
 grant execute on function public.list_team_review_comments(text) to authenticated;

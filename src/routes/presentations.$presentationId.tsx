@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, BookmarkPlus, Download, FileText, Loader2, Minimize2, Plus, RefreshCw, Trash2, Maximize2, Upload, ArrowLeft } from "lucide-react";
+import { ArrowDown, ArrowUp, BookmarkPlus, Download, FileText, Loader2, Minimize2, Play, Plus, RefreshCw, Trash2, Maximize2, Upload, ArrowLeft } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { EmptyState } from "@/components/empty-state";
 import { SaveIndicator, type SaveState } from "@/components/save-indicator";
@@ -139,6 +139,9 @@ function Detail() {
         <div className="flex items-center gap-2">
           <SaveIndicator state={state} />
           <QualityChecker presentation={{ ...p, slides: p.slides.map(materializeSlide) }} />
+          <Button asChild variant="outline">
+            <Link to="/presentations/$presentationId/presenter" params={{ presentationId: p.id }}><Play className="size-4" /> Presenter</Link>
+          </Button>
           <Button
             variant="outline"
             onClick={() => {

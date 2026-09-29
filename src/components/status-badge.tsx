@@ -6,6 +6,8 @@ const STYLES: Record<PresentationStatus, string> = {
   Planning: "border-accent/40 bg-accent-soft text-foreground",
   Generated: "border-chart-2/30 text-chart-2",
   "Under Review": "border-chart-4/50 text-foreground bg-accent-soft/60",
+  "Changes Requested": "border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+  Approved: "border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
   Completed: "border-success/40 text-success",
 };
 

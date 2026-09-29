@@ -349,6 +349,21 @@ function addDiagram(pptx: any, pptxSlide: any, el: Extract<SlideElement, { type:
   });
 }
 
+function speakerNotesText(slide: Presentation["slides"][number]) {
+  const notes = slide.speakerNotes;
+  if (!notes?.talkTrack.trim()) return "";
+  const sections = [
+    "WHAT TO SAY\n" + notes.talkTrack.trim(),
+    notes.keyPoints.length ? "KEY POINTS\n" + notes.keyPoints.map((point) => "- " + point).join("\n") : "",
+    notes.transition?.trim() ? "TRANSITION\n" + notes.transition.trim() : "",
+    notes.anticipatedQuestions.length ? "LIKELY QUESTIONS\n" + notes.anticipatedQuestions.map((question) => "- " + question).join("\n") : "",
+    notes.coachTips.length ? "COACH\n" + notes.coachTips.map((tip) => "- " + tip).join("\n") : "",
+    notes.sourceReminders.length ? "SOURCES\n" + notes.sourceReminders.map((source) => "- " + source).join("\n") : "",
+    "ESTIMATED TIME\n" + Math.max(1, Math.round(notes.estimatedSeconds / 60)) + " minute(s)",
+  ].filter(Boolean);
+  return sections.join("\n\n");
+}
+
 function addElement(pptx: any, pptxSlide: any, el: SlideElement, theme: SlideTheme) {
   if (!el.visible) return;
   if (el.type === "text") addText(pptxSlide, el, theme);
@@ -383,6 +398,9 @@ export async function exportPresentationToPptx(presentation: Presentation) {
       .filter((el) => el.visible)
       .sort((a, b) => a.zIndex - b.zIndex)
       .forEach((el) => addElement(pptx, out, el, theme));
+
+    const notes = speakerNotesText(slide);
+    if (notes) out.addNotes(notes);
   });
 
   await pptx.writeFile({ fileName: safeExportFilename(presentation.title, "pptx") });

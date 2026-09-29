@@ -94,7 +94,10 @@ export async function syncDatabaseWithCloud(local: Database): Promise<SyncResult
     rows<AssetRecord>("asset_records"),
   ]);
 
-  const presentations = mergeById(local.presentations, remotePresentations, (p) => p.updatedAt);
+  const collaborativeLocal = local.presentations.filter((p) => p.collaboration && p.collaboration.role !== "owner");
+  const ownedLocal = local.presentations.filter((p) => !p.collaboration || p.collaboration.role === "owner");
+  const ownedPresentations = mergeById(ownedLocal, remotePresentations, (p) => p.updatedAt);
+  const presentations = [...collaborativeLocal, ...ownedPresentations.filter((p) => !collaborativeLocal.some((c) => c.id === p.id))];
   const brandKits = mergeById(local.brandKits, remoteBrandKits, (k) => k.updatedAt ?? k.createdAt);
   const savedTemplates = mergeById(local.savedTemplates, remoteTemplates, (t) => t.updatedAt);
   const versions = mergeById(local.versions, remoteVersions, (v) => v.updatedAt);
@@ -103,7 +106,7 @@ export async function syncDatabaseWithCloud(local: Database): Promise<SyncResult
   const assets = mergeById(local.assets, remoteAssets, (a) => a.updatedAt ?? a.createdAt);
 
   await Promise.all([
-    upsert("presentation_snapshots", session.user.id, presentations, (p: Presentation) => p.updatedAt),
+    upsert("presentation_snapshots", session.user.id, ownedPresentations, (p: Presentation) => p.updatedAt),
     upsert("brand_kit_snapshots", session.user.id, brandKits, (k: BrandKit) => k.updatedAt ?? k.createdAt),
     upsert("saved_template_snapshots", session.user.id, savedTemplates, (t: SavedTemplate) => t.updatedAt),
     upsert("presentation_versions", session.user.id, versions, (v: PresentationVersion) => v.updatedAt),
@@ -122,7 +125,7 @@ export async function syncDatabaseWithCloud(local: Database): Promise<SyncResult
     remoteAssets.filter((r) => !local.assets.some((l) => l.id === r.id)).length;
 
   const pushed =
-    presentations.filter((r) => !remotePresentations.some((l) => l.id === r.id)).length +
+    ownedPresentations.filter((r) => !remotePresentations.some((l) => l.id === r.id)).length +
     brandKits.filter((r) => !remoteBrandKits.some((l) => l.id === r.id)).length +
     savedTemplates.filter((r) => !remoteTemplates.some((l) => l.id === r.id)).length +
     versions.filter((r) => !remoteVersions.some((l) => l.id === r.id)).length +

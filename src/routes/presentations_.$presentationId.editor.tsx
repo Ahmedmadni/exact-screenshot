@@ -13,6 +13,7 @@ import { QualityChecker } from "@/components/quality-checker";
 import { EditorCanvas, type Zoom } from "@/components/editor/editor-canvas";
 import { PropertiesPanel } from "@/components/editor/properties-panel";
 import { SourcePanel } from "@/components/editor/source-panel";
+import { SpeakerNotesPanel } from "@/components/editor/speaker-notes-panel";
 import { SlideRail } from "@/components/editor/slide-rail";
 import { IconPicker } from "@/components/editor/icon-picker";
 import { readImage } from "@/components/editor/image-upload";
@@ -78,6 +79,7 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
   const zoomNum = zoom === "fill" ? 1 : zoom;
   const [previewing, setPreviewing] = useState(false);
   const [aiBusy, setAiBusy] = useState<SlideRewriteAction | null>(null);
+  const [notesBusy, setNotesBusy] = useState(false);
   const [exporting, setExporting] = useState<"pptx" | "pdf" | null>(null);
   const smartLabel = aiProvider().name === "mock-planner" ? "Smart" : "AI";
   const clipboard = useRef<SlideElement[]>([]);
@@ -132,6 +134,23 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
       setAiBusy(null);
     }
   }, [api.active, aiBusy, planRequest, replaceActive]);
+
+  const generateActiveSpeakerNotes = useCallback(async () => {
+    const slide = api.active;
+    if (!slide || notesBusy) return;
+    const index = api.slides.findIndex((item) => item.id === slide.id);
+    setNotesBusy(true);
+    try {
+      const notes = await aiProvider().generateSpeakerNotes(planRequest, slide, api.slides[index + 1]);
+      api.updateActiveSlide({ speakerNotes: notes, updatedAt: new Date().toISOString() });
+      toast.success("Speaker notes updated.");
+    } catch (error) {
+      console.error(error);
+      toast.error("Could not generate speaker notes.");
+    } finally {
+      setNotesBusy(false);
+    }
+  }, [api, notesBusy, planRequest]);
 
   const pinEvidence = useCallback((segment: SourceSegment, quote?: string) => {
     const slide = api.active;
@@ -384,6 +403,12 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
             </DropdownMenuContent>
           </DropdownMenu>
           <Button size="icon" variant="ghost" aria-label="Zoom in" onClick={() => setZoom(Math.min(3, +(zoomNum + 0.25).toFixed(2)))}><ZoomIn className="size-4" /></Button>
+          <SpeakerNotesPanel
+            slide={api.active}
+            busy={notesBusy}
+            onGenerate={generateActiveSpeakerNotes}
+            onSave={(speakerNotes) => api.updateActiveSlide({ speakerNotes, updatedAt: new Date().toISOString() })}
+          />
           <SourcePanel
             assets={sourceAssets}
             activeSlide={api.active}

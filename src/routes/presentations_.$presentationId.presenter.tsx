@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, ChevronLeft, ChevronRight, Clock3, Maximize2, Pause, Play, RefreshCw, Sparkles } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Clock3, Maximize2, MonitorUp, Pause, Play, RefreshCw, Sparkles } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/empty-state";
 import { SlideStage, SlideThumb, useFitScale } from "@/components/editor/slide-renderer";
@@ -48,6 +48,8 @@ function Presenter({ p }: { p: Presentation }) {
   const [elapsed, setElapsed] = useState(0);
   const [running, setRunning] = useState(false);
   const [preparing, setPreparing] = useState(false);
+  const [audienceConnected, setAudienceConnected] = useState(false);
+  const audienceChannel = useRef<BroadcastChannel | null>(null);
   const { ref, scale } = useFitScale(24);
   const theme = getTheme(p.themeId, p.themeOverrides);
   const slide = p.slides[index];
@@ -83,6 +85,27 @@ function Presenter({ p }: { p: Presentation }) {
     const id = window.setInterval(() => setElapsed((value) => value + 1), 1000);
     return () => window.clearInterval(id);
   }, [running]);
+
+  useEffect(() => {
+    if (typeof BroadcastChannel === "undefined") return;
+    const channel = new BroadcastChannel("meridian-presenter-" + p.id);
+    audienceChannel.current = channel;
+    channel.onmessage = (event) => {
+      if (event.data?.type === "ready") {
+        setAudienceConnected(true);
+        channel.postMessage({ type: "slide", index });
+      }
+    };
+    channel.postMessage({ type: "ping" });
+    return () => {
+      channel.close();
+      audienceChannel.current = null;
+    };
+  }, [p.id]);
+
+  useEffect(() => {
+    audienceChannel.current?.postMessage({ type: "slide", index });
+  }, [index]);
 
   const move = useCallback((delta: number) => {
     setIndex((value) => Math.max(0, Math.min(p.slides.length - 1, value + delta)));
@@ -141,6 +164,16 @@ function Presenter({ p }: { p: Presentation }) {
     document.documentElement.requestFullscreen?.().catch(() => {});
   };
 
+  const openAudience = () => {
+    const url = window.location.origin + "/presentations/" + encodeURIComponent(p.id) + "/audience";
+    const win = window.open(url, "meridian-audience-" + p.id, "popup=yes,width=1440,height=900");
+    if (!win) {
+      toast.error("The audience window was blocked by the browser. Allow pop-ups for this site and try again.");
+      return;
+    }
+    window.setTimeout(() => audienceChannel.current?.postMessage({ type: "slide", index }), 500);
+  };
+
   if (!slide) return null;
 
   return (
@@ -163,6 +196,10 @@ function Presenter({ p }: { p: Presentation }) {
             </span>
             <span className="text-white/40"> / {formatTime(targetSeconds)}</span>
           </div>
+          <Button size="sm" variant="ghost" className="text-white hover:bg-white/10 hover:text-white" onClick={openAudience}>
+            <MonitorUp className="size-4" /> Audience
+            <span className={"size-1.5 rounded-full " + (audienceConnected ? "bg-emerald-400" : "bg-white/30")} />
+          </Button>
           <Button size="sm" variant="ghost" className="text-white hover:bg-white/10 hover:text-white" onClick={() => setRunning((value) => !value)}>
             {running ? <Pause className="size-4" /> : <Play className="size-4" />} {running ? "Pause" : "Start"}
           </Button>

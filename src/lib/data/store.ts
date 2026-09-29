@@ -220,8 +220,14 @@ export const reviewDecisionRepository = {
   list: (presentationId: string) => db.reviewDecisions.filter((d) => d.presentationId === presentationId).sort((a,b) => b.createdAt.localeCompare(a.createdAt)),
   apply(presentation: Presentation, action: ReviewDecision["action"], note = "", actorName = "Reviewer") {
     const stamp = new Date().toISOString();
-    const status = action === "submitted" ? "Under Review" : action === "changes_requested" ? "Changes Requested" : "Approved";
-    versionRepository.create(presentation, action === "submitted" ? "Submitted for review" : action === "approved" ? "Approved version" : "Changes requested");
+    const status = action === "submitted" ? "Under Review" : action === "changes_requested" ? "Changes Requested" : action === "approved" ? "Approved" : "Draft";
+    versionRepository.create(
+      presentation,
+      action === "submitted" ? "Submitted for review" :
+      action === "approved" ? "Approved version" :
+      action === "reopened" ? "Approved version before reopening" :
+      "Changes requested",
+    );
     const decision: ReviewDecision = { id:uid(), presentationId:presentation.id, action, note, actorName, createdAt:stamp, updatedAt:stamp };
     mutate((d) => ({ ...d, reviewDecisions:[decision,...d.reviewDecisions], presentations:d.presentations.map((p)=>p.id===presentation.id?{...p,status,updatedAt:stamp}:p) }));
     return decision;

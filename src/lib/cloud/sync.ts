@@ -1,5 +1,5 @@
 import type { Database } from "@/lib/data/store";
-import type { AssetRecord, BrandKit, Presentation, SavedTemplate } from "@/lib/types";
+import type { AssetRecord, BrandKit, Presentation, PresentationVersion, ReviewComment, ReviewDecision, SavedTemplate } from "@/lib/types";
 import { getCloudSession, supabase } from "./supabase";
 import { clearCloudDeletes, queuedCloudDeletes, type CloudDeleteKind } from "./delete-queue";
 
@@ -84,22 +84,31 @@ export async function syncDatabaseWithCloud(local: Database): Promise<SyncResult
 
   await flushDeleteQueue(session.user.id);
 
-  const [remotePresentations, remoteBrandKits, remoteTemplates, remoteAssets] = await Promise.all([
+  const [remotePresentations, remoteBrandKits, remoteTemplates, remoteVersions, remoteComments, remoteDecisions, remoteAssets] = await Promise.all([
     rows<Presentation>("presentation_snapshots"),
     rows<BrandKit>("brand_kit_snapshots"),
     rows<SavedTemplate>("saved_template_snapshots"),
+    rows<PresentationVersion>("presentation_versions"),
+    rows<ReviewComment>("review_comments"),
+    rows<ReviewDecision>("review_decisions"),
     rows<AssetRecord>("asset_records"),
   ]);
 
   const presentations = mergeById(local.presentations, remotePresentations, (p) => p.updatedAt);
   const brandKits = mergeById(local.brandKits, remoteBrandKits, (k) => k.updatedAt ?? k.createdAt);
   const savedTemplates = mergeById(local.savedTemplates, remoteTemplates, (t) => t.updatedAt);
+  const versions = mergeById(local.versions, remoteVersions, (v) => v.updatedAt);
+  const reviewComments = mergeById(local.reviewComments, remoteComments, (c) => c.updatedAt);
+  const reviewDecisions = mergeById(local.reviewDecisions, remoteDecisions, (d) => d.updatedAt);
   const assets = mergeById(local.assets, remoteAssets, (a) => a.updatedAt ?? a.createdAt);
 
   await Promise.all([
     upsert("presentation_snapshots", session.user.id, presentations, (p: Presentation) => p.updatedAt),
     upsert("brand_kit_snapshots", session.user.id, brandKits, (k: BrandKit) => k.updatedAt ?? k.createdAt),
     upsert("saved_template_snapshots", session.user.id, savedTemplates, (t: SavedTemplate) => t.updatedAt),
+    upsert("presentation_versions", session.user.id, versions, (v: PresentationVersion) => v.updatedAt),
+    upsert("review_comments", session.user.id, reviewComments, (c: ReviewComment) => c.updatedAt),
+    upsert("review_decisions", session.user.id, reviewDecisions, (d: ReviewDecision) => d.updatedAt),
     upsert("asset_records", session.user.id, assets, (a: AssetRecord) => a.updatedAt ?? a.createdAt),
   ]);
 
@@ -107,16 +116,22 @@ export async function syncDatabaseWithCloud(local: Database): Promise<SyncResult
     remotePresentations.filter((r) => !local.presentations.some((l) => l.id === r.id)).length +
     remoteBrandKits.filter((r) => !local.brandKits.some((l) => l.id === r.id)).length +
     remoteTemplates.filter((r) => !local.savedTemplates.some((l) => l.id === r.id)).length +
+    remoteVersions.filter((r) => !local.versions.some((l) => l.id === r.id)).length +
+    remoteComments.filter((r) => !local.reviewComments.some((l) => l.id === r.id)).length +
+    remoteDecisions.filter((r) => !local.reviewDecisions.some((l) => l.id === r.id)).length +
     remoteAssets.filter((r) => !local.assets.some((l) => l.id === r.id)).length;
 
   const pushed =
     presentations.filter((r) => !remotePresentations.some((l) => l.id === r.id)).length +
     brandKits.filter((r) => !remoteBrandKits.some((l) => l.id === r.id)).length +
     savedTemplates.filter((r) => !remoteTemplates.some((l) => l.id === r.id)).length +
+    versions.filter((r) => !remoteVersions.some((l) => l.id === r.id)).length +
+    reviewComments.filter((r) => !remoteComments.some((l) => l.id === r.id)).length +
+    reviewDecisions.filter((r) => !remoteDecisions.some((l) => l.id === r.id)).length +
     assets.filter((r) => !remoteAssets.some((l) => l.id === r.id)).length;
 
   return {
-    database: { ...local, presentations, brandKits, savedTemplates, assets },
+    database: { ...local, presentations, brandKits, savedTemplates, versions, reviewComments, reviewDecisions, assets },
     pulled,
     pushed,
     userEmail: session.user.email,

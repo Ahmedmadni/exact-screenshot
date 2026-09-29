@@ -130,6 +130,7 @@ export interface PresentationRepository {
   remove(id: string): void;
   duplicate(id: string): Presentation | undefined;
   replaceSlides(id: string, slides: Slide[]): void;
+  upsertCollaborative(presentation: Presentation): void;
 }
 
 export const presentationRepository: PresentationRepository = {
@@ -183,6 +184,17 @@ export const presentationRepository: PresentationRepository = {
       sortOrder: index,
     }));
     this.update(id, { slides: normalised, recommendedSlideCount: normalised.length });
+  },
+  upsertCollaborative(presentation) {
+    mutate((d) => {
+      const exists = d.presentations.some((p) => p.id === presentation.id);
+      return {
+        ...d,
+        presentations: exists
+          ? d.presentations.map((p) => p.id === presentation.id ? structuredClone(presentation) : p)
+          : [structuredClone(presentation), ...d.presentations],
+      };
+    });
   },
 };
 

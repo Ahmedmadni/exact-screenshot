@@ -24,6 +24,16 @@ export interface CollaborationMember {
   createdAt: string;
 }
 
+export interface CollaborationActivity {
+  id: string;
+  presentationId: string;
+  actorUserId: string;
+  actorEmail?: string | null;
+  eventType: string;
+  details: Record<string, unknown>;
+  createdAt: string;
+}
+
 export interface CollaborationInvite {
   id: string;
   presentation_id: string;
@@ -95,6 +105,7 @@ export async function createCollaborationInvite(
     p_expires_at: expiresAt,
   });
   if (error) throw error;
+  await recordCollaborationActivity(presentationId, "invite_created", { email: email.trim().toLowerCase(), role });
   return {
     id: data?.id as string,
     token: inviteToken,
@@ -107,7 +118,9 @@ export async function acceptCollaborationInvite(inviteToken: string): Promise<Li
   const client = requireCloud();
   const { data, error } = await client.rpc("accept_collaboration_invite", { p_invite_token: inviteToken });
   if (error) throw error;
-  return data as LivePresentationEnvelope;
+  const envelope = data as LivePresentationEnvelope;
+  await recordCollaborationActivity(envelope.presentation.id, "member_joined", { role: envelope.role });
+  return envelope;
 }
 
 export async function listPresentationTeam(presentationId: string): Promise<CollaborationMember[]> {
@@ -130,7 +143,7 @@ export async function listCollaborationInvites(presentationId: string): Promise<
 
 export async function revokeCollaborationInvite(id: string) {
   const client = requireCloud();
-  const { error } = await client.from("collaboration_invites").update({ revoked_at: new Date().toISOString() }).eq("id", id);
+  const { error } = await client.rpc("revoke_collaboration_invite", { p_invite_id: id });
   if (error) throw error;
 }
 
@@ -141,6 +154,7 @@ export async function removeCollaborator(presentationId: string, userId: string)
     p_user_id: userId,
   });
   if (error) throw error;
+  await recordCollaborationActivity(presentationId, "member_removed", { userId });
 }
 
 export async function updateCollaboratorRole(
@@ -155,8 +169,8 @@ export async function updateCollaboratorRole(
     p_role: role,
   });
   if (error) throw error;
+  await recordCollaborationActivity(presentationId, "role_changed", { userId, role });
 }
-
 
 export async function addTeamReviewComment(
   presentationId: string,
@@ -172,6 +186,7 @@ export async function addTeamReviewComment(
     p_element_id: elementId ?? null,
   });
   if (error) throw error;
+  await recordCollaborationActivity(presentationId, "comment_added", { slideId, elementId });
   return data as ReviewComment;
 }
 
@@ -180,4 +195,32 @@ export async function listTeamReviewComments(presentationId: string): Promise<Re
   const { data, error } = await client.rpc("list_team_review_comments", { p_presentation_id: presentationId });
   if (error) throw error;
   return (data ?? []) as ReviewComment[];
+}
+
+
+export async function recordCollaborationActivity(
+  presentationId: string,
+  eventType: string,
+  details: Record<string, unknown> = {},
+) {
+  const client = requireCloud();
+  const { error } = await client.rpc("record_collaboration_activity", {
+    p_presentation_id: presentationId,
+    p_event_type: eventType,
+    p_details: details,
+  });
+  if (error) throw error;
+}
+
+export async function listCollaborationActivity(
+  presentationId: string,
+  limit = 30,
+): Promise<CollaborationActivity[]> {
+  const client = requireCloud();
+  const { data, error } = await client.rpc("list_collaboration_activity", {
+    p_presentation_id: presentationId,
+    p_limit: limit,
+  });
+  if (error) throw error;
+  return (data ?? []) as CollaborationActivity[];
 }

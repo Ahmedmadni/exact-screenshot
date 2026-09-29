@@ -1,4 +1,4 @@
-import { SLIDE_INTENTS, VISUAL_TYPES, type SlideIntent, type VisualType } from "@/lib/types";
+import { SLIDE_INTENTS, VISUAL_TYPES, type Slide, type SlideIntent, type SpeakerNotes, type VisualType } from "@/lib/types";
 import { supabase } from "@/lib/cloud/supabase";
 import { MockAIProvider, renumber } from "./mock-provider";
 import type {
@@ -41,6 +41,21 @@ function normalizeSlide(raw: any, index: number, fallback?: PlannedSlide): Plann
     bullets: strings(raw?.bullets).length ? strings(raw?.bullets) : fallback?.bullets,
     kpis: strings(raw?.kpis).length ? strings(raw?.kpis) : fallback?.kpis,
     ...(layoutId ? { layoutId } : {}),
+  };
+}
+
+function normalizeSpeakerNotes(raw: any, fallback: SpeakerNotes): SpeakerNotes {
+  const estimated = Number(raw?.estimatedSeconds);
+  return {
+    talkTrack: text(raw?.talkTrack, fallback.talkTrack),
+    keyPoints: strings(raw?.keyPoints).length ? strings(raw?.keyPoints) : fallback.keyPoints,
+    transition: text(raw?.transition, fallback.transition ?? "") || undefined,
+    anticipatedQuestions: strings(raw?.anticipatedQuestions).length ? strings(raw?.anticipatedQuestions) : fallback.anticipatedQuestions,
+    coachTips: strings(raw?.coachTips).length ? strings(raw?.coachTips) : fallback.coachTips,
+    sourceReminders: strings(raw?.sourceReminders).length ? strings(raw?.sourceReminders) : fallback.sourceReminders,
+    estimatedSeconds: Number.isFinite(estimated) ? Math.max(20, Math.min(300, Math.round(estimated))) : fallback.estimatedSeconds,
+    generatedBy: "cloud",
+    updatedAt: new Date().toISOString(),
   };
 }
 
@@ -113,6 +128,17 @@ export class HybridAIProvider implements AIProvider {
     } catch (error) {
       console.warn("Cloud AI reflowOutline fell back to local planner.", error);
       return this.fallback.reflowOutline(request, current, action);
+    }
+  }
+
+  async generateSpeakerNotes(request: PlanRequest, slide: Slide, next?: Slide): Promise<SpeakerNotes> {
+    const fallback = await this.fallback.generateSpeakerNotes(request, slide, next);
+    try {
+      const raw = await this.invoke<any>({ operation: "coachSlide", request, slide, next });
+      return normalizeSpeakerNotes(raw, fallback);
+    } catch (error) {
+      console.warn("Cloud AI speaker notes fell back to local coach.", error);
+      return fallback;
     }
   }
 }

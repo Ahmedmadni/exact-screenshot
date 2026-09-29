@@ -246,7 +246,7 @@ export interface PresentationVersion {
   label: string;
   createdAt: string;
   updatedAt: string;
-  snapshot: Pick<Presentation, "title" | "description" | "objective" | "coreMessage" | "visualDirection" | "storyArc" | "themeId" | "themeOverrides" | "brandKitId" | "sourceAssetIds" | "slides" | "status">;
+  snapshot: Omit<Presentation, "id" | "userId" | "createdAt" | "updatedAt" | "rehearsals">;
 }
 
 export interface ReviewComment {

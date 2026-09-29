@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Presentation, Slide } from "@/lib/types";
 import type { SlideElement } from "@/lib/editor/model";
 import { presentationRepository, versionRepository } from "@/lib/data/store";
-import { recordCollaborationActivity, saveLivePresentation } from "@/lib/collaboration";
+import { applyLiveElementChanges, recordCollaborationActivity, saveLivePresentation, type LiveElementChange } from "@/lib/collaboration";
 import { supabase } from "@/lib/cloud/supabase";
 import { materializeSlide } from "@/lib/editor/layouts";
 import { DEFAULT_THEME_ID } from "@/lib/editor/themes";
@@ -13,6 +13,48 @@ const HISTORY_LIMIT = 100;
 interface Doc {
   slides: Slide[];
   themeId: string;
+}
+
+interface PendingSave {
+  next: Doc;
+  base: Doc;
+}
+
+function elementOnlyChanges(base: Doc, next: Doc): { slideId: string; changes: LiveElementChange[] } | null {
+  if (base.themeId !== next.themeId || base.slides.length !== next.slides.length) return null;
+
+  let changedSlideId = "";
+  const changes: LiveElementChange[] = [];
+
+  for (let i = 0; i < base.slides.length; i++) {
+    const beforeSlide = base.slides[i]!;
+    const afterSlide = next.slides[i]!;
+    if (beforeSlide.id !== afterSlide.id) return null;
+
+    const { elements: beforeElements, updatedAt: _beforeUpdated, ...beforeMeta } = beforeSlide;
+    const { elements: afterElements, updatedAt: _afterUpdated, ...afterMeta } = afterSlide;
+    if (JSON.stringify(beforeMeta) !== JSON.stringify(afterMeta)) return null;
+
+    const beforeMap = new Map(beforeElements.map((element) => [element.id, element]));
+    const afterMap = new Map(afterElements.map((element) => [element.id, element]));
+    const ids = new Set([...beforeMap.keys(), ...afterMap.keys()]);
+    const slideChanges: LiveElementChange[] = [];
+
+    for (const id of ids) {
+      const before = beforeMap.get(id);
+      const after = afterMap.get(id);
+      if (JSON.stringify(before ?? null) === JSON.stringify(after ?? null)) continue;
+      slideChanges.push({ id, before: before ?? null, after: after ?? null });
+    }
+
+    if (slideChanges.length) {
+      if (changedSlideId && changedSlideId !== beforeSlide.id) return null;
+      changedSlideId = beforeSlide.id;
+      changes.push(...slideChanges);
+    }
+  }
+
+  return changedSlideId && changes.length ? { slideId: changedSlideId, changes } : null;
 }
 
 /**
@@ -40,10 +82,10 @@ export function useEditor(p: Presentation, initialSlideId?: string) {
   const current = useRef(doc);
   current.current = doc;
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const pending = useRef<Doc | null>(null);
+  const pending = useRef<PendingSave | null>(null);
 
   const write = useCallback(
-    async (d: Doc) => {
+    async (d: Doc, base?: Doc) => {
       presentationRepository.update(p.id, {
         slides: d.slides.map((s, i) => ({ ...s, slideNumber: i + 1, sortOrder: i })),
         recommendedSlideCount: d.slides.length,
@@ -64,13 +106,23 @@ export function useEditor(p: Presentation, initialSlideId?: string) {
 
       const payload = structuredClone(local);
       delete payload.collaboration;
+      const granular = base ? elementOnlyChanges(base, d) : null;
+      const baseRevision = revisionRef.current;
       liveSaving.current = true;
       try {
-        const result = await saveLivePresentation(p.id, revisionRef.current, payload);
+        const result = granular
+          ? await applyLiveElementChanges(p.id, baseRevision, granular.slideId, granular.changes)
+          : await saveLivePresentation(p.id, baseRevision, payload);
+
         if (result.conflict && result.presentation) {
           setConflict({ presentation: result.presentation, revision: result.revision, updatedAt: result.updatedAt });
           setSave("conflict");
-          void recordCollaborationActivity(p.id, "conflict_detected", { localRevision: revisionRef.current, remoteRevision: result.revision }).catch(console.error);
+          void recordCollaborationActivity(p.id, "conflict_detected", {
+            localRevision: baseRevision,
+            remoteRevision: result.revision,
+            reason: result.reason ?? "document_changed",
+            elementId: result.elementId,
+          }).catch(console.error);
           return;
         }
 
@@ -81,7 +133,35 @@ export function useEditor(p: Presentation, initialSlideId?: string) {
           liveUpdatedAt: result.updatedAt,
         };
         collaborationRef.current = nextCollaboration;
-        presentationRepository.update(p.id, { collaboration: nextCollaboration });
+
+        if (granular && result.merged && result.presentation) {
+          if (pending.current) {
+            setConflict({ presentation: result.presentation, revision: result.revision, updatedAt: result.updatedAt });
+            setSave("conflict");
+            void recordCollaborationActivity(p.id, "conflict_detected", {
+              localRevision: baseRevision,
+              remoteRevision: result.revision,
+              reason: "remote_merge_with_new_local_edits",
+            }).catch(console.error);
+            return;
+          }
+
+          const hydrated: Presentation = { ...result.presentation, collaboration: nextCollaboration };
+          presentationRepository.upsertCollaborative(hydrated);
+          const mergedDoc: Doc = {
+            slides: hydrated.slides.map(materializeSlide),
+            themeId: hydrated.themeId ?? DEFAULT_THEME_ID,
+          };
+          current.current = mergedDoc;
+          setDoc(mergedDoc);
+          past.current = [];
+          future.current = [];
+          setHistory({ past: 0, future: 0 });
+          setSelected((selection) => selection.filter((id) => mergedDoc.slides.some((slide) => slide.elements.some((element) => element.id === id))));
+        } else {
+          presentationRepository.update(p.id, { collaboration: nextCollaboration });
+        }
+
         setConflict(null);
         setSave("saved");
       } catch (error) {
@@ -97,16 +177,18 @@ export function useEditor(p: Presentation, initialSlideId?: string) {
   const flush = useCallback(() => {
     clearTimeout(timer.current);
     if (pending.current) {
-      const next = pending.current;
+      const saveJob = pending.current;
       pending.current = null;
-      void write(next);
+      void write(saveJob.next, saveJob.base);
     }
   }, [write]);
 
   const persist = useCallback(
-    (next: Doc) => {
+    (next: Doc, base: Doc) => {
       setSave("saving");
-      pending.current = next;
+      pending.current = pending.current
+        ? { base: pending.current.base, next }
+        : { base, next };
       clearTimeout(timer.current);
       timer.current = setTimeout(flush, 500);
     },
@@ -115,7 +197,7 @@ export function useEditor(p: Presentation, initialSlideId?: string) {
 
   useEffect(() => {
     // Persist migrated/repaired slides once so legacy decks gain elements.
-    if (p.slides.some((s, i) => s !== doc.slides[i])) write(doc);
+    if (p.slides.some((s, i) => s !== doc.slides[i])) void write(doc);
     const onUnload = () => flush();
     window.addEventListener("beforeunload", onUnload);
     return () => {
@@ -140,7 +222,8 @@ export function useEditor(p: Presentation, initialSlideId?: string) {
           const revision = Number(row.revision ?? 0);
           const remote = row.payload as Presentation | undefined;
           if (!remote || !Number.isFinite(revision) || revision <= revisionRef.current) return;
-          if (liveSaving.current || pending.current) {
+          if (liveSaving.current) return;
+          if (pending.current) {
             setConflict({
               presentation: remote,
               revision,
@@ -218,12 +301,13 @@ export function useEditor(p: Presentation, initialSlideId?: string) {
 
   const apply = useCallback(
     (next: Doc, base?: Doc) => {
-      past.current.push(base ?? current.current);
+      const historyBase = base ?? current.current;
+      past.current.push(historyBase);
       if (past.current.length > HISTORY_LIMIT) past.current.shift();
       future.current = [];
       current.current = next;
       setDoc(next);
-      persist(next);
+      persist(next, historyBase);
       syncHistory();
     },
     [persist],
@@ -243,10 +327,11 @@ export function useEditor(p: Presentation, initialSlideId?: string) {
   /** Automatic corrections (e.g. text auto-grow): saved, but not an undo step. */
   const silentUpdate = useCallback(
     (slides: Slide[]) => {
-      const next = { ...current.current, slides };
+      const base = current.current;
+      const next = { ...base, slides };
       current.current = next;
       setDoc(next);
-      persist(next);
+      persist(next, base);
     },
     [persist],
   );
@@ -257,10 +342,11 @@ export function useEditor(p: Presentation, initialSlideId?: string) {
     (from: React.MutableRefObject<Doc[]>, to: React.MutableRefObject<Doc[]>) => {
       const d = from.current.pop();
       if (!d) return;
-      to.current.push(current.current);
+      const base = current.current;
+      to.current.push(base);
       current.current = d;
       setDoc(d);
-      persist(d);
+      persist(d, base);
       setActiveIdState((id) => (d.slides.some((s) => s.id === id) ? id : (d.slides[0]?.id ?? "")));
       setSelected((sel) => sel.filter((id) => d.slides.some((s) => s.elements.some((e) => e.id === id))));
       syncHistory();

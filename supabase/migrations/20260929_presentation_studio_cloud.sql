@@ -813,7 +813,8 @@ begin
   if v_role is null then raise exception 'You do not have access to this presentation'; end if;
   if p_event_type not in (
     'conflict_detected','conflict_resolved','manual_snapshot','comment_added',
-    'opened_editor','opened_presenter'
+    'opened_editor','opened_presenter','invite_created','member_joined',
+    'member_removed','role_changed'
   ) then
     raise exception 'Unsupported client activity event';
   end if;

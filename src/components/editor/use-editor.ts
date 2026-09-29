@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Presentation, Slide } from "@/lib/types";
 import type { SlideElement } from "@/lib/editor/model";
 import { presentationRepository, versionRepository } from "@/lib/data/store";
-import { saveLivePresentation } from "@/lib/collaboration";
+import { recordCollaborationActivity, saveLivePresentation } from "@/lib/collaboration";
 import { supabase } from "@/lib/cloud/supabase";
 import { materializeSlide } from "@/lib/editor/layouts";
 import { DEFAULT_THEME_ID } from "@/lib/editor/themes";
@@ -70,6 +70,7 @@ export function useEditor(p: Presentation, initialSlideId?: string) {
         if (result.conflict && result.presentation) {
           setConflict({ presentation: result.presentation, revision: result.revision, updatedAt: result.updatedAt });
           setSave("conflict");
+          void recordCollaborationActivity(p.id, "conflict_detected", { localRevision: revisionRef.current, remoteRevision: result.revision }).catch(console.error);
           return;
         }
 
@@ -127,6 +128,7 @@ export function useEditor(p: Presentation, initialSlideId?: string) {
   useEffect(() => {
     const collaboration = collaborationRef.current;
     if (!collaboration?.enabled || !supabase) return;
+    void recordCollaborationActivity(p.id, "opened_editor", { role: collaboration.role }).catch(console.error);
 
     const channel = supabase
       .channel("live-document-" + p.id)
@@ -145,6 +147,7 @@ export function useEditor(p: Presentation, initialSlideId?: string) {
               updatedAt: typeof row.updated_at === "string" ? row.updated_at : undefined,
             });
             setSave("conflict");
+            void recordCollaborationActivity(p.id, "conflict_detected", { localRevision: revisionRef.current, remoteRevision: revision }).catch(console.error);
             return;
           }
 
@@ -208,6 +211,7 @@ export function useEditor(p: Presentation, initialSlideId?: string) {
     setActiveIdState((id) => nextDoc.slides.some((slide) => slide.id === id) ? id : (nextDoc.slides[0]?.id ?? ""));
     setConflict(null);
     setSave("saved");
+    void recordCollaborationActivity(p.id, "conflict_resolved", { revision: conflict.revision }).catch(console.error);
   }, [conflict, p.id]);
 
   const syncHistory = () => setHistory({ past: past.current.length, future: future.current.length });

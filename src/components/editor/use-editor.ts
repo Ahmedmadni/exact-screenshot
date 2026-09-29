@@ -85,7 +85,7 @@ export function useEditor(p: Presentation, initialSlideId?: string) {
         setSave("saved");
       } catch (error) {
         console.error("Live collaboration save failed", error);
-        setSave("conflict");
+        setSave("error");
       } finally {
         liveSaving.current = false;
       }

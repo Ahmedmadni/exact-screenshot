@@ -643,6 +643,104 @@ $;
 grant execute on function public.remove_presentation_collaborator(text,uuid) to authenticated;
 grant execute on function public.update_presentation_collaborator_role(text,uuid,text) to authenticated;
 
+create or replace function public.add_team_review_comment(
+  p_presentation_id text,
+  p_comment_body text,
+  p_slide_id text default null,
+  p_element_id text default null
+) returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $
+declare
+  v_user uuid := auth.uid();
+  v_email text := coalesce(auth.jwt()->>'email','Team reviewer');
+  v_owner uuid;
+  v_role text;
+  v_id text := encode(gen_random_bytes(12), 'hex');
+  v_stamp timestamptz := now();
+  v_payload jsonb;
+begin
+  if v_user is null then raise exception 'Authentication required'; end if;
+  select owner_user_id into v_owner from public.presentation_live_documents where presentation_id = p_presentation_id;
+  if v_owner is null then raise exception 'Live presentation not found'; end if;
+
+  if v_owner = v_user then
+    v_role := 'owner';
+  else
+    select role into v_role from public.presentation_collaborators
+    where presentation_id = p_presentation_id and user_id = v_user;
+  end if;
+
+  if v_role not in ('owner','editor','reviewer') then
+    raise exception 'Your role cannot add review comments';
+  end if;
+  if length(trim(coalesce(p_comment_body,''))) < 1 or length(p_comment_body) > 4000 then
+    raise exception 'Comment must be between 1 and 4000 characters';
+  end if;
+
+  v_payload := jsonb_build_object(
+    'id', v_id,
+    'presentationId', p_presentation_id,
+    'slideId', p_slide_id,
+    'elementId', p_element_id,
+    'authorName', left(v_email, 120),
+    'authorUserId', v_user,
+    'body', trim(p_comment_body),
+    'resolved', false,
+    'team', true,
+    'createdAt', to_char(v_stamp at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+    'updatedAt', to_char(v_stamp at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
+  );
+
+  insert into public.review_comments(id, user_id, payload, updated_at)
+  values (v_id, v_owner, v_payload, v_stamp);
+
+  return v_payload;
+end;
+$;
+
+create or replace function public.list_team_review_comments(p_presentation_id text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $
+declare
+  v_user uuid := auth.uid();
+  v_owner uuid;
+  v_role text;
+  v_comments jsonb;
+begin
+  if v_user is null then raise exception 'Authentication required'; end if;
+  select owner_user_id into v_owner from public.presentation_live_documents where presentation_id = p_presentation_id;
+  if v_owner is null then return '[]'::jsonb; end if;
+
+  if v_owner = v_user then
+    v_role := 'owner';
+  else
+    select role into v_role from public.presentation_collaborators
+    where presentation_id = p_presentation_id and user_id = v_user;
+  end if;
+
+  if v_role not in ('owner','editor','reviewer') then
+    raise exception 'Your role cannot access team review comments';
+  end if;
+
+  select coalesce(jsonb_agg(payload order by updated_at asc), '[]'::jsonb)
+  into v_comments
+  from public.review_comments
+  where payload->>'presentationId' = p_presentation_id
+    and coalesce((payload->>'team')::boolean, false) = true;
+
+  return v_comments;
+end;
+$;
+
+grant execute on function public.add_team_review_comment(text,text,text,text) to authenticated;
+grant execute on function public.list_team_review_comments(text) to authenticated;
+
 do $$
 begin
   if not exists (

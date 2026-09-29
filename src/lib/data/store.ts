@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { toast } from "sonner";
 import { queueCloudDelete } from "@/lib/cloud/delete-queue";
-import type { AssetRecord, BrandKit, Presentation, SavedTemplate, Slide, ThemeRecord } from "@/lib/types";
+import type { AssetRecord, BrandKit, Presentation, PresentationVersion, ReviewComment, ReviewDecision, SavedTemplate, Slide, ThemeRecord } from "@/lib/types";
 import { SEED_ASSETS, SEED_BRAND_KITS, SEED_PRESENTATIONS, SEED_THEMES } from "./seed";
 
 const STORAGE_KEY = "aps.db.v1";
@@ -11,6 +11,9 @@ export interface Database {
   themes: ThemeRecord[];
   brandKits: BrandKit[];
   savedTemplates: SavedTemplate[];
+  versions: PresentationVersion[];
+  reviewComments: ReviewComment[];
+  reviewDecisions: ReviewDecision[];
   assets: AssetRecord[];
 }
 
@@ -19,6 +22,9 @@ const initial = (): Database => ({
   themes: SEED_THEMES,
   brandKits: SEED_BRAND_KITS,
   savedTemplates: [],
+  versions: [],
+  reviewComments: [],
+  reviewDecisions: [],
   assets: SEED_ASSETS,
 });
 
@@ -78,6 +84,9 @@ function hydrate() {
         savedTemplates: Array.isArray(parsed.savedTemplates)
           ? parsed.savedTemplates.filter((t) => t && typeof t.id === "string" && typeof t.name === "string" && t.snapshot)
           : [],
+        versions: Array.isArray(parsed.versions) ? parsed.versions.filter((v) => v && typeof v.id === "string" && v.snapshot) : [],
+        reviewComments: Array.isArray(parsed.reviewComments) ? parsed.reviewComments.filter((c) => c && typeof c.id === "string") : [],
+        reviewDecisions: Array.isArray(parsed.reviewDecisions) ? parsed.reviewDecisions.filter((d) => d && typeof d.id === "string") : [],
         assets: Array.isArray(parsed.assets)
           ? parsed.assets.filter((a) => a && typeof a.id === "string" && typeof a.name === "string")
           : initial().assets,
@@ -174,6 +183,52 @@ export const presentationRepository: PresentationRepository = {
       sortOrder: index,
     }));
     this.update(id, { slides: normalised, recommendedSlideCount: normalised.length });
+  },
+};
+
+export const versionRepository = {
+  list: (presentationId: string) => db.versions.filter((v) => v.presentationId === presentationId).sort((a,b) => b.createdAt.localeCompare(a.createdAt)),
+  create(presentation: Presentation, label = "Snapshot") {
+    const stamp = new Date().toISOString();
+    const snapshot = structuredClone({
+      title: presentation.title, description: presentation.description, objective: presentation.objective,
+      coreMessage: presentation.coreMessage, visualDirection: presentation.visualDirection, storyArc: presentation.storyArc,
+      themeId: presentation.themeId, themeOverrides: presentation.themeOverrides, brandKitId: presentation.brandKitId,
+      sourceAssetIds: presentation.sourceAssetIds, slides: presentation.slides, status: presentation.status,
+    });
+    const version: PresentationVersion = { id: uid(), presentationId: presentation.id, label, createdAt: stamp, updatedAt: stamp, snapshot };
+    mutate((d) => ({ ...d, versions: [version, ...d.versions] }));
+    return version;
+  },
+  restore(id: string) {
+    const version = db.versions.find((v) => v.id === id);
+    if (!version) return;
+    presentationRepository.update(version.presentationId, structuredClone(version.snapshot));
+  },
+};
+
+export const reviewCommentRepository = {
+  list: (presentationId: string) => db.reviewComments.filter((c) => c.presentationId === presentationId).sort((a,b) => b.createdAt.localeCompare(a.createdAt)),
+  add(input: Omit<ReviewComment,"id"|"createdAt"|"updatedAt"|"resolved">) {
+    const stamp = new Date().toISOString();
+    const record: ReviewComment = { ...input, id: uid(), resolved: false, createdAt: stamp, updatedAt: stamp };
+    mutate((d) => ({ ...d, reviewComments: [record, ...d.reviewComments] }));
+    return record;
+  },
+  update(id: string, patch: Partial<ReviewComment>) {
+    mutate((d) => ({ ...d, reviewComments: d.reviewComments.map((c) => c.id===id ? { ...c, ...patch, updatedAt:new Date().toISOString() } : c) }));
+  },
+};
+
+export const reviewDecisionRepository = {
+  list: (presentationId: string) => db.reviewDecisions.filter((d) => d.presentationId === presentationId).sort((a,b) => b.createdAt.localeCompare(a.createdAt)),
+  apply(presentation: Presentation, action: ReviewDecision["action"], note = "", actorName = "Reviewer") {
+    const stamp = new Date().toISOString();
+    const status = action === "submitted" ? "Under Review" : action === "changes_requested" ? "Changes Requested" : "Approved";
+    versionRepository.create(presentation, action === "submitted" ? "Submitted for review" : action === "approved" ? "Approved version" : "Changes requested");
+    const decision: ReviewDecision = { id:uid(), presentationId:presentation.id, action, note, actorName, createdAt:stamp, updatedAt:stamp };
+    mutate((d) => ({ ...d, reviewDecisions:[decision,...d.reviewDecisions], presentations:d.presentations.map((p)=>p.id===presentation.id?{...p,status,updatedAt:stamp}:p) }));
+    return decision;
   },
 };
 

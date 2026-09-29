@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ArrowLeft, BarChart3, ChevronLeft, ChevronRight, Circle, Download, ImagePlus, Loader2, Minus, MoveRight, Network, Play, Redo2, Shapes, Smile, Sparkles, Square, Table2, Triangle, Type, Undo2, WandSparkles, X, ZoomIn, ZoomOut, RectangleHorizontal,
+  ArrowLeft, BarChart3, ChevronLeft, ChevronRight, Circle, Download, ImagePlus, Loader2, LockKeyhole, Minus, MoveRight, Network, Play, Redo2, Shapes, Smile, Sparkles, Square, Table2, Triangle, Type, Undo2, WandSparkles, X, ZoomIn, ZoomOut, RectangleHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -20,7 +20,7 @@ import { IconPicker } from "@/components/editor/icon-picker";
 import { readImage } from "@/components/editor/image-upload";
 import { SlideStage, SlideThumb, useFitScale } from "@/components/editor/slide-renderer";
 import { useEditor, type EditorApi } from "@/components/editor/use-editor";
-import { assetRepository, usePresentation } from "@/lib/data/store";
+import { assetRepository, reviewDecisionRepository, usePresentation } from "@/lib/data/store";
 import { SHAPE_LABELS, TEXT_PRESETS, chartEl, cloneElement, diagramEl, iconEl, imageEl, instantiate, shapeEl, tableEl, textEl } from "@/lib/editor/elements";
 import { SLIDE_H, SLIDE_W, type DraftElement, type ShapeKind, type SlideElement } from "@/lib/editor/model";
 import { getTheme } from "@/lib/editor/themes";
@@ -68,7 +68,43 @@ function EditorPage() {
       </div>
     );
   }
+  if (p.status === "Approved") return <ApprovedEditorLock p={p} />;
   return <Editor key={p.id} p={p} initialSlide={slide} />;
+}
+
+function ApprovedEditorLock({ p }: { p: Presentation }) {
+  const reopen = () => {
+    reviewDecisionRepository.apply(p, "reopened", "Reopened from the editor.", "Editor");
+    toast.success("Approved version snapshotted. Editing is unlocked.");
+  };
+  return (
+    <div className="min-h-screen bg-background">
+      <header className="flex flex-wrap items-center gap-3 border-b border-border bg-card px-5 py-4">
+        <Button asChild size="icon" variant="ghost"><Link to="/presentations/$presentationId" params={{ presentationId: p.id }}><ArrowLeft className="size-4" /></Link></Button>
+        <div>
+          <div className="flex items-center gap-2"><LockKeyhole className="size-4 text-emerald-600" /><span className="eyebrow">Approved · read only</span></div>
+          <h1 className="mt-1 text-lg text-foreground">{p.title}</h1>
+        </div>
+        <div className="ms-auto flex gap-2">
+          <Button asChild variant="outline"><Link to="/presentations/$presentationId/presenter" params={{ presentationId: p.id }}><Play className="size-4" /> Presenter</Link></Button>
+          <Button variant="outline" onClick={reopen}><LockKeyhole className="size-4" /> Reopen for editing</Button>
+        </div>
+      </header>
+      <main className="mx-auto max-w-6xl p-6">
+        <div className="mb-5 rounded-lg border border-emerald-500/25 bg-emerald-500/5 p-4 text-sm text-muted-foreground">
+          This approved version is locked against accidental edits. Reopening creates a snapshot of the approved state before editing resumes.
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {p.slides.map((item) => (
+            <div key={item.id} className="overflow-hidden rounded-md border border-border">
+              <SlideThumb slide={item} themeId={p.themeId} themeOverrides={p.themeOverrides} />
+              <div className="border-t border-border bg-card px-3 py-2 text-xs text-muted-foreground">{item.slideNumber}. {item.title}</div>
+            </div>
+          ))}
+        </div>
+      </main>
+    </div>
+  );
 }
 
 const SHAPE_ICONS: Record<ShapeKind, typeof Square> = { rect: Square, roundRect: RectangleHorizontal, ellipse: Circle, line: Minus, arrow: MoveRight, triangle: Triangle };

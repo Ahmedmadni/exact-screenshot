@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  AlertTriangle, ArrowLeft, BarChart3, ChevronLeft, ChevronRight, Circle, Download, Eye, ImagePlus, Loader2, LockKeyhole, Minus, MoveRight, Network, Play, Redo2, Shapes, Smile, Sparkles, Square, Table2, Triangle, Type, Undo2, Users, WandSparkles, X, ZoomIn, ZoomOut, RectangleHorizontal,
+  AlertTriangle, ArrowLeft, BarChart3, ChevronLeft, ChevronRight, Circle, Download, Eye, ImagePlus, Loader2, LocateFixed, LockKeyhole, Minus, MoveRight, Network, Play, Redo2, Shapes, Smile, Sparkles, Square, Table2, Triangle, Type, Undo2, Users, WandSparkles, X, ZoomIn, ZoomOut, RectangleHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -29,7 +29,7 @@ import { rebuildGeneratedContent, smartComposeSlide, tryAnotherDesign } from "@/
 import { exportPresentationToPdf, exportPresentationToPptx, validatePresentationForExport } from "@/lib/export";
 import type { AssetRecord, Presentation } from "@/lib/types";
 import { sourceContextFromAssets } from "@/lib/documents/analyze";
-import { useCollaborationPresence } from "@/lib/collaboration-presence";
+import { useCollaborationPresence, type PresenceParticipant } from "@/lib/collaboration-presence";
 import { useReadOnlyLivePresentation } from "@/lib/collaboration-live";
 import {
   addEvidenceToSlide,
@@ -118,6 +118,7 @@ function ApprovedEditorLock({ p }: { p: Presentation }) {
 function CollaborativeReadOnlyEditor({ p }: { p: Presentation }) {
   useReadOnlyLivePresentation(p.id, p.collaboration);
   const [activeId, setActiveId] = useState(p.slides[0]?.id ?? "");
+  const [followUserId, setFollowUserId] = useState<string | null>(null);
   const active = p.slides.find((slide) => slide.id === activeId) ?? p.slides[0];
   const participants = useCollaborationPresence({
     presentationId: p.id,
@@ -125,6 +126,14 @@ function CollaborativeReadOnlyEditor({ p }: { p: Presentation }) {
     role: p.collaboration?.role ?? "viewer",
     activeSlideId: active?.id,
   });
+  const followed = participants.find((participant) => participant.userId === followUserId);
+
+  useEffect(() => {
+    if (!followed?.activeSlideId || followed.activeSlideId === activeId) return;
+    if (p.slides.some((slide) => slide.id === followed.activeSlideId)) setActiveId(followed.activeSlideId);
+  }, [followed?.activeSlideId, followUserId, p.slides]);
+
+  const liveActive = active ? applyPresenceTextDrafts(active, participants) : active;
   return (
     <div className="min-h-screen bg-background">
       <header className="flex flex-wrap items-center gap-3 border-b border-border bg-card px-5 py-4">
@@ -134,6 +143,7 @@ function CollaborativeReadOnlyEditor({ p }: { p: Presentation }) {
           <h1 className="mt-1 text-lg text-foreground">{p.title}</h1>
         </div>
         <div className="ms-auto flex items-center gap-3">
+          <FollowMenu participants={participants} followUserId={followUserId} onFollow={setFollowUserId} />
           <PresenceStack participants={participants} />
           <TeamReviewPanel
             presentationId={p.id}
@@ -148,7 +158,7 @@ function CollaborativeReadOnlyEditor({ p }: { p: Presentation }) {
         <aside className="border-e border-border bg-card p-3">
           <div className="space-y-2">
             {p.slides.map((slide) => (
-              <button key={slide.id} onClick={() => setActiveId(slide.id)} className={"w-full overflow-hidden rounded-md border text-start " + (slide.id === active?.id ? "border-primary ring-1 ring-primary" : "border-border")}>
+              <button key={slide.id} onClick={() => { setFollowUserId(null); setActiveId(slide.id); }} className={"w-full overflow-hidden rounded-md border text-start " + (slide.id === active?.id ? "border-primary ring-1 ring-primary" : "border-border")}>
                 <SlideThumb slide={slide} themeId={p.themeId} themeOverrides={p.themeOverrides} />
                 <div className="truncate border-t border-border px-2 py-1.5 text-[11px] text-muted-foreground">{slide.slideNumber}. {slide.title}</div>
               </button>
@@ -156,7 +166,7 @@ function CollaborativeReadOnlyEditor({ p }: { p: Presentation }) {
           </div>
         </aside>
         <main className="grid place-items-center overflow-hidden p-6">
-          {active && <div className="w-full max-w-5xl overflow-hidden rounded-lg border border-border shadow-sm"><SlideThumb slide={active} themeId={p.themeId} themeOverrides={p.themeOverrides} /></div>}
+          {liveActive && <div className="w-full max-w-5xl overflow-hidden rounded-lg border border-border shadow-sm"><SlideThumb slide={liveActive} themeId={p.themeId} themeOverrides={p.themeOverrides} /></div>}
         </main>
       </div>
     </div>
@@ -175,6 +185,8 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
   const [notesBusy, setNotesBusy] = useState(false);
   const [exporting, setExporting] = useState<"pptx" | "pdf" | null>(null);
   const [liveCursor, setLiveCursor] = useState<{ x: number; y: number } | undefined>(undefined);
+  const [liveTextEdit, setLiveTextEdit] = useState<{ elementId: string; draft: string; caretStart?: number; caretEnd?: number } | undefined>(undefined);
+  const [followUserId, setFollowUserId] = useState<string | null>(null);
   const smartLabel = aiProvider().name === "mock-planner" ? "Smart" : "AI";
   const clipboard = useRef<SlideElement[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -183,12 +195,27 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
     enabled: Boolean(p.collaboration?.enabled),
     role: p.collaboration?.role ?? "owner",
     activeSlideId: api.activeId,
-    editingElementId: api.selected.length === 1 ? api.selected[0] : undefined,
+    editingElementId: liveTextEdit?.elementId ?? (api.selected.length === 1 ? api.selected[0] : undefined),
+    selectedElementIds: api.selected,
+    editingKind: liveTextEdit ? "text" : api.selected.length === 1 ? "element" : undefined,
+    textDraft: liveTextEdit?.draft,
+    textCaretStart: liveTextEdit?.caretStart,
+    textCaretEnd: liveTextEdit?.caretEnd,
     cursor: liveCursor,
   });
   const remoteLockedIds = participants
     .filter((participant) => !participant.isSelf && participant.activeSlideId === api.activeId && participant.editingElementId)
     .map((participant) => participant.editingElementId!);
+  const followed = participants.find((participant) => participant.userId === followUserId);
+
+  useEffect(() => {
+    if (!followed?.activeSlideId || followed.activeSlideId === api.activeId) return;
+    if (api.slides.some((slide) => slide.id === followed.activeSlideId)) api.setActiveId(followed.activeSlideId);
+  }, [followed?.activeSlideId, followUserId, api.activeId, api.slides]);
+
+  useEffect(() => {
+    setLiveTextEdit(undefined);
+  }, [api.activeId]);
 
   useEffect(() => {
     if (!remoteLockedIds.length || !api.selected.some((id) => remoteLockedIds.includes(id))) return;
@@ -506,6 +533,7 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
         </div>
 
         <div className="flex items-center gap-1">
+          {p.collaboration?.enabled && <FollowMenu participants={participants} followUserId={followUserId} onFollow={setFollowUserId} />}
           {p.collaboration?.enabled && <PresenceStack participants={participants} />}
           <Button size="icon" variant="ghost" aria-label="Zoom out" onClick={() => setZoom(Math.max(0.25, +(zoomNum - 0.25).toFixed(2)))}><ZoomOut className="size-4" /></Button>
           <DropdownMenu>
@@ -590,12 +618,73 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
           zoom={zoom}
           collaborators={participants}
           onCursorMove={setLiveCursor}
+          onTextEditingChange={setLiveTextEdit}
         />
         <PropertiesPanel api={api} theme={theme} onTheme={api.setTheme} />
       </div>
 
       {previewing && <Preview api={api} themeId={api.themeId} themeOverrides={p.themeOverrides} onClose={() => setPreviewing(false)} />}
     </div>
+  );
+}
+
+function applyPresenceTextDrafts(slide: Presentation["slides"][number], participants: PresenceParticipant[]) {
+  const drafts = participants.filter(
+    (participant) =>
+      !participant.isSelf &&
+      participant.activeSlideId === slide.id &&
+      participant.editingKind === "text" &&
+      participant.editingElementId &&
+      typeof participant.textDraft === "string",
+  );
+  if (!drafts.length) return slide;
+  return {
+    ...slide,
+    elements: slide.elements.map((element) => {
+      const editor = drafts.find((participant) => participant.editingElementId === element.id);
+      if (!editor || element.type !== "text") return element;
+      return { ...element, properties: { ...element.properties, text: editor.textDraft ?? element.properties.text } };
+    }),
+  };
+}
+
+function FollowMenu({
+  participants,
+  followUserId,
+  onFollow,
+}: {
+  participants: PresenceParticipant[];
+  followUserId: string | null;
+  onFollow: (userId: string | null) => void;
+}) {
+  const others = participants
+    .filter((participant) => !participant.isSelf)
+    .sort((a, b) => (a.role === "owner" ? -1 : b.role === "owner" ? 1 : a.email.localeCompare(b.email)));
+  if (!others.length) return null;
+  const followed = others.find((participant) => participant.userId === followUserId);
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button size="sm" variant={followed ? "secondary" : "ghost"}>
+          <LocateFixed className="size-4" />
+          {followed ? "Following " + (followed.role === "owner" ? "owner" : followed.email.split("@")[0]) : "Follow"}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-64">
+        {followed && (
+          <DropdownMenuItem onClick={() => onFollow(null)}>
+            <X className="size-4" /> Stop following
+          </DropdownMenuItem>
+        )}
+        {others.map((participant) => (
+          <DropdownMenuItem key={participant.userId} onClick={() => onFollow(participant.userId)}>
+            <LocateFixed className="size-4" />
+            <span className="min-w-0 flex-1 truncate">{participant.email}</span>
+            <span className="text-[10px] capitalize text-muted-foreground">{participant.role}</span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

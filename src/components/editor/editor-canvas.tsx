@@ -343,8 +343,16 @@ export function EditorCanvas({
                   className="absolute outline outline-2 outline-amber-500"
                   style={{ left: el.x * scale, top: el.y * scale, width: el.width * scale, height: el.height * scale, transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined }}
                 >
-                  <span className="absolute -top-6 start-0 max-w-40 truncate rounded bg-amber-500 px-1.5 py-0.5 text-[10px] font-medium text-white shadow">
-                    {participant.email} · {participant.editingKind === "text" ? "typing" : "editing"}
+                  <span className="absolute -top-6 start-0 max-w-56 truncate rounded bg-amber-500 px-1.5 py-0.5 text-[10px] font-medium text-white shadow">
+                    {participant.email} · {participant.editingKind === "text"
+                      ? "typing" + (
+                          typeof participant.textCaretStart === "number" &&
+                          typeof participant.textCaretEnd === "number" &&
+                          participant.textCaretEnd > participant.textCaretStart
+                            ? " · " + (participant.textCaretEnd - participant.textCaretStart) + " chars selected"
+                            : ""
+                        )
+                      : "editing"}
                   </span>
                 </div>
               );

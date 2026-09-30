@@ -24,12 +24,14 @@ export function EditorCanvas({
   zoom,
   collaborators = [],
   onCursorMove,
+  onTextEditingChange,
 }: {
   api: EditorApi;
   theme: SlideTheme;
   zoom: Zoom;
   collaborators?: PresenceParticipant[];
   onCursorMove?: (cursor?: { x: number; y: number }) => void;
+  onTextEditingChange?: (state?: { elementId: string; draft: string; caretStart?: number; caretEnd?: number }) => void;
 }) {
   const { ref, scale: fit, fillScale } = useFitScale(40);
   const scale = zoom === "fill" ? fillScale : fit * zoom;
@@ -41,6 +43,8 @@ export function EditorCanvas({
   const slide = api.active;
   const remoteOnSlide = collaborators.filter((participant) => !participant.isSelf && participant.activeSlideId === slide?.id);
   const remoteLock = (elementId: string) => remoteOnSlide.find((participant) => participant.editingElementId === elementId);
+  const remoteDraft = (elementId: string) =>
+    remoteOnSlide.find((participant) => participant.editingElementId === elementId && participant.editingKind === "text" && typeof participant.textDraft === "string");
 
   // Text never silently disappears: boxes grow to fit their content.
   useLayoutEffect(() => {
@@ -208,6 +212,7 @@ export function EditorCanvas({
   const startMarquee = (e: RPointerEvent) => {
     if (e.button !== 0) return;
     setEditingId(null);
+    onTextEditingChange?.(undefined);
     const o = toLogical(e);
     const additive = e.shiftKey;
     const prior = api.selected;
@@ -251,23 +256,39 @@ export function EditorCanvas({
           onPointerLeave={() => onCursorMove?.(undefined)}
         >
           <div style={{ position: "absolute", top: 0, left: 0, width: SLIDE_W, height: SLIDE_H, transform: `scale(${scale})`, transformOrigin: "top left", background: slideBackground(slide, theme), overflow: "hidden" }}>
-            {[...slide.elements].sort((a, b) => a.zIndex - b.zIndex).filter((x) => x.visible).map((el) => (
-              <div
-                key={el.id}
-                style={{ ...elementBoxStyle(el), cursor: remoteLock(el.id) ? "not-allowed" : el.locked ? "default" : "move" }}
-                onPointerDown={(e) => startMove(e, el)}
-                onDoubleClick={() => el.type === "text" && !el.locked && !remoteLock(el.id) && setEditingId(el.id)}
-              >
-                {editingId === el.id && el.type === "text" ? (
-                  <TextEditor el={el} theme={theme} onDone={(text) => {
-                    setEditingId(null);
-                    if (text !== el.properties.text) api.updateElements([el.id], (x) => (x.type === "text" ? { ...x, properties: { ...x.properties, text } } : x));
-                  }} />
-                ) : (
-                  <ElementBody el={el} theme={theme} />
-                )}
-              </div>
-            ))}
+            {[...slide.elements].sort((a, b) => a.zIndex - b.zIndex).filter((x) => x.visible).map((el) => {
+              const teammateDraft = remoteDraft(el.id);
+              const displayEl = teammateDraft && el.type === "text"
+                ? { ...el, properties: { ...el.properties, text: teammateDraft.textDraft ?? el.properties.text } }
+                : el;
+              return (
+                <div
+                  key={el.id}
+                  style={{ ...elementBoxStyle(el), cursor: remoteLock(el.id) ? "not-allowed" : el.locked ? "default" : "move" }}
+                  onPointerDown={(e) => startMove(e, el)}
+                  onDoubleClick={() => {
+                    if (el.type !== "text" || el.locked || remoteLock(el.id)) return;
+                    setEditingId(el.id);
+                    onTextEditingChange?.({ elementId: el.id, draft: el.properties.text });
+                  }}
+                >
+                  {editingId === el.id && el.type === "text" ? (
+                    <TextEditor
+                      el={el}
+                      theme={theme}
+                      onLive={(draft, caretStart, caretEnd) => onTextEditingChange?.({ elementId: el.id, draft, caretStart, caretEnd })}
+                      onDone={(text) => {
+                        setEditingId(null);
+                        onTextEditingChange?.(undefined);
+                        if (text !== el.properties.text) api.updateElements([el.id], (x) => (x.type === "text" ? { ...x, properties: { ...x.properties, text } } : x));
+                      }}
+                    />
+                  ) : (
+                    <ElementBody el={displayEl} theme={theme} />
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           {/* Overlay in screen space so handles stay a constant size. */}
@@ -298,6 +319,21 @@ export function EditorCanvas({
                 )}
               </div>
             ))}
+            {remoteOnSlide.flatMap((participant) =>
+              (participant.selectedElementIds ?? [])
+                .filter((elementId) => elementId !== participant.editingElementId)
+                .map((elementId) => ({ participant, elementId }))
+            ).map(({ participant, elementId }) => {
+              const el = slide.elements.find((element) => element.id === elementId);
+              if (!el) return null;
+              return (
+                <div
+                  key={"remote-selection-" + participant.userId + "-" + elementId}
+                  className="absolute border border-dashed border-sky-400/80"
+                  style={{ left: el.x * scale, top: el.y * scale, width: el.width * scale, height: el.height * scale, transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined }}
+                />
+              );
+            })}
             {remoteOnSlide.filter((participant) => participant.editingElementId).map((participant) => {
               const el = slide.elements.find((element) => element.id === participant.editingElementId);
               if (!el) return null;
@@ -308,7 +344,7 @@ export function EditorCanvas({
                   style={{ left: el.x * scale, top: el.y * scale, width: el.width * scale, height: el.height * scale, transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined }}
                 >
                   <span className="absolute -top-6 start-0 max-w-40 truncate rounded bg-amber-500 px-1.5 py-0.5 text-[10px] font-medium text-white shadow">
-                    {participant.email} · editing
+                    {participant.email} · {participant.editingKind === "text" ? "typing" : "editing"}
                   </span>
                 </div>
               );
@@ -338,8 +374,40 @@ export function EditorCanvas({
   );
 }
 
-function TextEditor({ el, theme, onDone }: { el: Extract<SlideElement, { type: "text" }>; theme: SlideTheme; onDone: (t: string) => void }) {
+function TextEditor({
+  el,
+  theme,
+  onDone,
+  onLive,
+}: {
+  el: Extract<SlideElement, { type: "text" }>;
+  theme: SlideTheme;
+  onDone: (t: string) => void;
+  onLive?: (text: string, caretStart?: number, caretEnd?: number) => void;
+}) {
   const p = el.properties;
+  const lastLiveAt = useRef(0);
+  const selectionOffsets = (root: HTMLElement) => {
+    const selection = window.getSelection();
+    if (!selection?.rangeCount) return {};
+    const range = selection.getRangeAt(0);
+    if (!root.contains(range.startContainer) || !root.contains(range.endContainer)) return {};
+    const startRange = range.cloneRange();
+    startRange.selectNodeContents(root);
+    startRange.setEnd(range.startContainer, range.startOffset);
+    const endRange = range.cloneRange();
+    endRange.selectNodeContents(root);
+    endRange.setEnd(range.endContainer, range.endOffset);
+    return { caretStart: startRange.toString().length, caretEnd: endRange.toString().length };
+  };
+  const emitLive = (root: HTMLElement, force = false) => {
+    const now = performance.now();
+    if (!force && now - lastLiveAt.current < 90) return;
+    lastLiveAt.current = now;
+    const text = root.innerText.replace(/\n$/, "");
+    const { caretStart, caretEnd } = selectionOffsets(root);
+    onLive?.(text, caretStart, caretEnd);
+  };
   return (
     <div
       dir={p.dir}
@@ -355,11 +423,17 @@ function TextEditor({ el, theme, onDone }: { el: Extract<SlideElement, { type: "
         }
       }}
       onPointerDown={(e) => e.stopPropagation()}
+      onInput={(e) => emitLive(e.currentTarget)}
+      onKeyUp={(e) => emitLive(e.currentTarget)}
+      onClick={(e) => emitLive(e.currentTarget, true)}
       onKeyDown={(e) => {
         e.stopPropagation();
         if (e.key === "Escape") (e.target as HTMLElement).blur();
       }}
-      onBlur={(e) => onDone(e.currentTarget.innerText.replace(/\n$/, ""))}
+      onBlur={(e) => {
+        emitLive(e.currentTarget, true);
+        onDone(e.currentTarget.innerText.replace(/\n$/, ""));
+      }}
       style={{
         width: "100%",
         minHeight: "100%",

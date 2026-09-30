@@ -8,6 +8,11 @@ export interface PresenceParticipant {
   role: CollaborationRole;
   activeSlideId?: string;
   editingElementId?: string;
+  selectedElementIds?: string[];
+  editingKind?: "element" | "text";
+  textDraft?: string;
+  textCaretStart?: number;
+  textCaretEnd?: number;
   cursorX?: number;
   cursorY?: number;
   isSelf?: boolean;
@@ -20,6 +25,11 @@ export function useCollaborationPresence({
   role,
   activeSlideId,
   editingElementId,
+  selectedElementIds,
+  editingKind,
+  textDraft,
+  textCaretStart,
+  textCaretEnd,
   cursor,
 }: {
   presentationId: string;
@@ -27,6 +37,11 @@ export function useCollaborationPresence({
   role: CollaborationRole;
   activeSlideId?: string;
   editingElementId?: string;
+  selectedElementIds?: string[];
+  editingKind?: "element" | "text";
+  textDraft?: string;
+  textCaretStart?: number;
+  textCaretEnd?: number;
   cursor?: { x: number; y: number };
 }) {
   const [participants, setParticipants] = useState<PresenceParticipant[]>([]);
@@ -66,6 +81,11 @@ export function useCollaborationPresence({
               role: (typeof entry.role === "string" ? entry.role : "viewer") as CollaborationRole,
               activeSlideId: typeof entry.activeSlideId === "string" ? entry.activeSlideId : undefined,
               editingElementId: typeof entry.editingElementId === "string" ? entry.editingElementId : undefined,
+              selectedElementIds: Array.isArray(entry.selectedElementIds) ? entry.selectedElementIds.filter((value): value is string => typeof value === "string").slice(0, 40) : undefined,
+              editingKind: entry.editingKind === "text" || entry.editingKind === "element" ? entry.editingKind : undefined,
+              textDraft: typeof entry.textDraft === "string" ? entry.textDraft.slice(0, 4000) : undefined,
+              textCaretStart: typeof entry.textCaretStart === "number" ? entry.textCaretStart : undefined,
+              textCaretEnd: typeof entry.textCaretEnd === "number" ? entry.textCaretEnd : undefined,
               cursorX: typeof entry.cursorX === "number" ? entry.cursorX : undefined,
               cursorY: typeof entry.cursorY === "number" ? entry.cursorY : undefined,
               isSelf: entry.userId === identityRef.current?.userId,
@@ -89,6 +109,11 @@ export function useCollaborationPresence({
             ...identityRef.current,
             activeSlideId,
             editingElementId,
+            selectedElementIds: selectedElementIds?.slice(0, 40),
+            editingKind,
+            textDraft: textDraft?.slice(0, 4000),
+            textCaretStart,
+            textCaretEnd,
             cursorX: cursor?.x,
             cursorY: cursor?.y,
             onlineAt: new Date().toISOString(),
@@ -114,11 +139,26 @@ export function useCollaborationPresence({
       ...identity,
       activeSlideId,
       editingElementId,
+      selectedElementIds: selectedElementIds?.slice(0, 40),
+      editingKind,
+      textDraft: textDraft?.slice(0, 4000),
+      textCaretStart,
+      textCaretEnd,
       cursorX: cursor?.x,
       cursorY: cursor?.y,
       onlineAt: new Date().toISOString(),
     });
-  }, [activeSlideId, editingElementId, cursor?.x, cursor?.y]);
+  }, [
+    activeSlideId,
+    editingElementId,
+    selectedElementIds?.join("|"),
+    editingKind,
+    textDraft,
+    textCaretStart,
+    textCaretEnd,
+    cursor?.x,
+    cursor?.y,
+  ]);
 
   return participants;
 }

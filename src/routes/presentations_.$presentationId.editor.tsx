@@ -611,7 +611,13 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
       )}
 
       <div className="hidden min-h-0 flex-1 lg:flex">
-        <SlideRail api={api} themeId={api.themeId} themeOverrides={p.themeOverrides} presentationId={p.id} />
+        <SlideRail
+          api={api}
+          themeId={api.themeId}
+          themeOverrides={p.themeOverrides}
+          presentationId={p.id}
+          collaborators={participants}
+        />
         <EditorCanvas
           api={api}
           theme={theme}

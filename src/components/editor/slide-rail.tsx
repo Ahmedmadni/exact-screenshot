@@ -8,13 +8,26 @@ import type { PresentationThemeOverrides, Slide } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { SlideThumb } from "./slide-renderer";
 import type { EditorApi } from "./use-editor";
+import type { PresenceParticipant } from "@/lib/collaboration-presence";
 
 export function duplicateSlide(s: Slide): Slide {
   const id = uid();
   return { ...structuredClone(s), id, title: `${s.title}`, elements: s.elements.map((e) => ({ ...structuredClone(e), id: uid(), slideId: id })) };
 }
 
-export function SlideRail({ api, themeId, themeOverrides, presentationId }: { api: EditorApi; themeId?: string | undefined; themeOverrides?: PresentationThemeOverrides | undefined; presentationId: string }) {
+export function SlideRail({
+  api,
+  themeId,
+  themeOverrides,
+  presentationId,
+  collaborators = [],
+}: {
+  api: EditorApi;
+  themeId?: string | undefined;
+  themeOverrides?: PresentationThemeOverrides | undefined;
+  presentationId: string;
+  collaborators?: PresenceParticipant[];
+}) {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
   const slides = api.slides;
@@ -61,8 +74,24 @@ export function SlideRail({ api, themeId, themeOverrides, presentationId }: { ap
               className={cn("group relative flex cursor-pointer gap-2 rounded-md p-1.5", s.id === api.activeId ? "bg-accent/15" : "hover:bg-muted", dragIndex === i && "opacity-40")}
             >
               <span className="w-4 pt-1 text-end text-[11px] text-muted-foreground">{i + 1}</span>
-              <div className={cn("flex-1 overflow-hidden rounded border", s.id === api.activeId ? "border-primary ring-1 ring-primary" : "border-border")}>
+              <div className={cn("relative flex-1 overflow-hidden rounded border", s.id === api.activeId ? "border-primary ring-1 ring-primary" : "border-border")}>
                 <SlideThumb slide={s} themeId={themeId} themeOverrides={themeOverrides} />
+                {collaborators.some((participant) => !participant.isSelf && participant.activeSlideId === s.id) && (
+                  <div className="absolute bottom-1 end-1 flex -space-x-1.5">
+                    {collaborators
+                      .filter((participant) => !participant.isSelf && participant.activeSlideId === s.id)
+                      .slice(0, 3)
+                      .map((participant) => (
+                        <span
+                          key={participant.userId}
+                          className="grid size-5 place-items-center rounded-full border border-background bg-foreground text-[8px] font-semibold text-background shadow"
+                          title={participant.email + " · " + participant.role}
+                        >
+                          {participant.email.slice(0, 1).toUpperCase()}
+                        </span>
+                      ))}
+                  </div>
+                )}
               </div>
               <div className="absolute end-2 top-2 hidden gap-0.5 group-hover:flex">
                 <button className="rounded bg-background/90 p-1 text-muted-foreground shadow hover:text-foreground" aria-label="Duplicate slide" onClick={(e) => { e.stopPropagation(); const copy = duplicateSlide(s); const next = [...slides]; next.splice(i + 1, 0, copy); api.commit(next); api.setActiveId(copy.id); }}>

@@ -63,6 +63,8 @@ export interface TextProps {
 
 export interface ImageProps {
   src: string;
+  /** Reusable Asset Vault reference. When present, renderers resolve the source from the asset catalog instead of duplicating image bytes in every slide. */
+  assetId?: string;
   fit: "cover" | "contain";
   radius: number;
   /** Reserved for crop tooling: fractional source window. */

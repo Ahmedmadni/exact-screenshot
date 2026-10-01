@@ -3,39 +3,67 @@ import { applyLayout, buildLayout, contentFromSlide } from "./layouts";
 import type { SlideElement } from "./model";
 
 const BY_INTENT: Record<string, string[]> = {
-  Cover: ["cover-minimal", "cover-split", "cover-bold"],
+  Cover: ["hero-editorial", "cover-split", "cover-minimal", "full-bleed-story", "cover-bold"],
   Agenda: ["four-cards", "title-content", "section-divider"],
-  "Executive Summary": ["four-cards", "title-content", "three-cards"],
-  "Section Divider": ["section-divider", "cover-bold"],
-  "Big Number": ["big-number", "kpi-metrics", "title-content"],
-  Problem: ["three-cards", "title-content", "image-text"],
-  Solution: ["three-cards", "image-text", "title-content"],
-  Opportunity: ["image-text", "three-cards", "big-number"],
-  Comparison: ["comparison", "title-content"],
-  Timeline: ["timeline", "four-cards", "title-content"],
-  Process: ["timeline", "four-cards", "title-content"],
-  Roadmap: ["timeline", "four-cards", "title-content"],
-  Portfolio: ["four-cards", "three-cards", "title-content"],
-  Dashboard: ["kpi-metrics", "big-number", "comparison"],
-  "Data Story": ["kpi-metrics", "big-number", "comparison"],
-  Financial: ["kpi-metrics", "comparison", "title-content"],
-  Quote: ["section-divider", "big-number"],
-  "Case Study": ["image-text", "title-content", "three-cards"],
-  "Before / After": ["comparison", "title-content"],
+  "Executive Summary": ["executive-metrics-band", "four-cards", "title-content", "three-cards"],
+  "Section Divider": ["hero-editorial", "section-divider", "full-bleed-story", "cover-bold"],
+  "Big Number": ["image-stat-overlay", "big-number", "executive-metrics-band"],
+  Problem: ["title-content", "three-cards", "hero-editorial", "image-text"],
+  Solution: ["diagram-focus", "image-text", "three-cards", "title-content"],
+  Opportunity: ["image-stat-overlay", "hero-editorial", "strategy-matrix", "big-number"],
+  Comparison: ["strategy-matrix", "comparison", "finance-table", "title-content"],
+  Timeline: ["roadmap-staircase", "timeline", "process-ribbon"],
+  Process: ["process-ribbon", "diagram-focus", "timeline", "four-cards"],
+  Roadmap: ["roadmap-staircase", "process-ribbon", "timeline", "four-cards"],
+  Portfolio: ["strategy-matrix", "four-cards", "three-cards"],
+  Dashboard: ["chart-story", "executive-metrics-band", "kpi-metrics", "finance-table"],
+  "Data Story": ["chart-story", "image-stat-overlay", "executive-metrics-band", "big-number"],
+  Financial: ["finance-table", "chart-story", "executive-metrics-band", "comparison"],
+  Quote: ["quote-editorial", "full-bleed-story", "section-divider", "big-number"],
+  "Case Study": ["image-stat-overlay", "hero-editorial", "image-text", "full-bleed-story"],
+  "Before / After": ["comparison", "strategy-matrix", "image-text"],
   Team: ["three-cards", "image-text", "four-cards"],
-  "Call to Action": ["closing-cta", "cover-bold", "section-divider"],
-  Closing: ["closing-cta", "cover-bold", "section-divider"],
+  "Call to Action": ["decision-focus", "closing-cta", "full-bleed-story"],
+  Closing: ["quote-editorial", "decision-focus", "closing-cta", "full-bleed-story"],
 };
 
 function candidateLayouts(slide: Slide) {
   const preferred = [...(BY_INTENT[slide.slideIntent] ?? ["title-content"])];
   const bulletCount = slide.bullets?.length ?? 0;
   const kpiCount = slide.kpis?.length ?? 0;
+  const messageLength = slide.keyMessage.trim().length;
+  const summaryLength = slide.contentSummary.trim().length;
 
-  if (kpiCount >= 3 && !preferred.includes("kpi-metrics")) preferred.unshift("kpi-metrics");
-  if (bulletCount >= 4 && !preferred.includes("four-cards")) preferred.unshift("four-cards");
-  if (bulletCount === 3 && !preferred.includes("three-cards")) preferred.unshift("three-cards");
-  if (bulletCount <= 1 && slide.keyMessage.length > 90 && !preferred.includes("title-content")) preferred.push("title-content");
+  const promote = (id: string) => {
+    const current = preferred.indexOf(id);
+    if (current >= 0) preferred.splice(current, 1);
+    preferred.unshift(id);
+  };
+
+  if (slide.visualType === "Chart") promote("chart-story");
+  if (slide.visualType === "Table") promote("finance-table");
+  if (slide.visualType === "Matrix") promote("strategy-matrix");
+  if (slide.visualType === "Diagram" || slide.visualType === "Process") promote("diagram-focus");
+  if (slide.visualType === "Timeline") promote("roadmap-staircase");
+  if (slide.visualType === "Full Bleed Image") promote("full-bleed-story");
+  if (slide.visualType === "Hero Image") promote("hero-editorial");
+  if (slide.visualType === "Image + Text") promote(kpiCount ? "image-stat-overlay" : "image-text");
+
+  if (kpiCount >= 4) promote("executive-metrics-band");
+  else if (kpiCount >= 2 && ["Dashboard", "Financial", "Data Story"].includes(slide.slideIntent)) promote("chart-story");
+  else if (kpiCount === 1 && ["Opportunity", "Big Number", "Case Study"].includes(slide.slideIntent)) promote("image-stat-overlay");
+
+  if (bulletCount >= 4 && ["Process", "Roadmap", "Timeline"].includes(slide.slideIntent)) promote("process-ribbon");
+  else if (bulletCount >= 4 && ["Portfolio", "Comparison", "Opportunity"].includes(slide.slideIntent)) promote("strategy-matrix");
+  else if (bulletCount >= 4) promote("four-cards");
+  else if (bulletCount === 3 && ["Problem", "Solution", "Team"].includes(slide.slideIntent)) promote("three-cards");
+
+  if (messageLength > 110 && bulletCount <= 2) promote("hero-editorial");
+  if (summaryLength > 320 && !["Financial", "Dashboard"].includes(slide.slideIntent)) {
+    const i = preferred.indexOf("title-content");
+    if (i >= 0) preferred.splice(i, 1);
+    preferred.push("title-content");
+  }
 
   return [...new Set(preferred)];
 }
@@ -90,11 +118,26 @@ export function rebuildGeneratedContent(
  */
 export function composeDeck(slides: Slide[]): Slide[] {
   let previous = "";
-  return slides.map((slide) => {
+  let previousFamily = "";
+  const family = (id: string) => {
+    if (id.includes("chart") || id.includes("metric") || id.includes("table") || id === "big-number") return "data";
+    if (id.includes("image") || id.includes("hero") || id.includes("bleed") || id.includes("editorial")) return "image";
+    if (id.includes("card") || id.includes("matrix")) return "cards";
+    if (id.includes("timeline") || id.includes("roadmap") || id.includes("ribbon") || id.includes("diagram")) return "flow";
+    if (id.includes("decision") || id.includes("closing")) return "close";
+    return "text";
+  };
+
+  return slides.map((slide, index) => {
     const candidates = candidateLayouts(slide);
-    const chosen = candidates.find((id) => id !== previous) ?? candidates[0] ?? "title-content";
+    const chosen =
+      candidates.find((id) => id !== previous && (index < 2 || family(id) !== previousFamily)) ??
+      candidates.find((id) => id !== previous) ??
+      candidates[0] ??
+      "title-content";
     const composed = applyLayout(slide, chosen);
     previous = chosen;
+    previousFamily = family(chosen);
     return composed;
   });
 }

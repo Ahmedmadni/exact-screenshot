@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   importLicensedAsset,
+  licensedProviderLabel,
   searchLicensedAssets,
   type LicensedAssetSearchResult,
 } from "@/lib/assets/licensed-provider";
@@ -212,7 +213,7 @@ function AssetsPage() {
                   <div className="p-3">
                     <div className="line-clamp-2 text-xs font-medium text-foreground">{result.title}</div>
                     <div className="mt-1 text-[10px] text-muted-foreground">
-                      {result.creator ? `Pexels · ${result.creator}` : "Pexels"}
+                      {result.creator ? `${licensedProviderLabel(result.provider)} · ${result.creator}` : licensedProviderLabel(result.provider)}
                     </div>
                     <div className="mt-3 flex items-center justify-between gap-2">
                       <a

@@ -25,7 +25,7 @@ import { materializeSlide } from "@/lib/editor/layouts";
 import { composeDeck } from "@/lib/editor/composer";
 import { SLIDE_THEMES, getTheme } from "@/lib/editor/themes";
 import { applyBrandKit, clearBrandKit } from "@/lib/brand";
-import { TEMPLATE_FAMILIES, applyTemplateFamilyToSlides } from "@/lib/templates";
+import { TEMPLATE_FAMILIES, applyTemplateFamilyToSlides, templatePreviewSlides } from "@/lib/templates";
 import { ingestSourceFiles } from "@/lib/documents/ingest";
 import { sourceContextFromAssets } from "@/lib/documents/analyze";
 import { applySourceVisuals } from "@/lib/documents/visualize";
@@ -355,6 +355,7 @@ function Blueprint({ p, update, save }: { p: Presentation; update: (patch: Parti
 function DesignOverview({ p }: { p: Presentation }) {
   const { brandKits } = useDatabase();
   const active = getTheme(p.themeId, p.themeOverrides);
+  const previewSlide = p.slides[0] ? materializeSlide(p.slides[0]) : undefined;
   const activeKit = p.brandKitId ? brandKitRepository.get(p.brandKitId) : undefined;
 
   const applyKit = (kitId: string) => {
@@ -438,33 +439,44 @@ function DesignOverview({ p }: { p: Presentation }) {
           </div>
           <Button asChild variant="outline" size="sm"><Link to="/templates">Browse templates</Link></Button>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {TEMPLATE_FAMILIES.map((template) => (
-            <div key={template.id} className="panel p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-sm font-medium text-foreground">{template.name}</div>
-                  <div className="mt-1 text-xs text-muted-foreground">{template.category} · {template.tone}</div>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {TEMPLATE_FAMILIES.map((template) => {
+            const preview = templatePreviewSlides(template)[0];
+            const theme = getTheme(template.themeId);
+            return (
+              <div key={template.id} className="panel overflow-hidden transition hover:-translate-y-0.5 hover:shadow-md">
+                <div className="relative aspect-video overflow-hidden" style={{ background: theme.colors.background }}>
+                  {preview && <SlideThumb slide={preview} themeId={template.themeId} />}
+                  <div className="absolute start-3 top-3 rounded-full border border-white/20 bg-black/25 px-2 py-1 text-[9px] font-semibold text-white backdrop-blur">
+                    {template.badge}
+                  </div>
                 </div>
-                <span className="rounded-full bg-muted px-2 py-1 text-[10px] text-muted-foreground">{template.badge}</span>
+                <div className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-medium text-foreground">{template.name}</div>
+                      <div className="mt-1 text-xs text-muted-foreground">{template.category} · {template.tone}</div>
+                    </div>
+                    {template.featured && <span className="rounded-full bg-accent/10 px-2 py-1 text-[9px] font-semibold text-accent">Signature</span>}
+                  </div>
+                  <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{template.signature}</p>
+                  <Button
+                    size="sm"
+                    className="mt-4 w-full"
+                    onClick={() => {
+                      presentationRepository.update(p.id, {
+                        themeId: template.themeId,
+                        slides: applyTemplateFamilyToSlides(p.slides.map(materializeSlide), template),
+                      });
+                      toast.success(`${template.name} applied.`);
+                    }}
+                  >
+                    Apply design system
+                  </Button>
+                </div>
               </div>
-              <p className="mt-3 line-clamp-2 text-xs text-muted-foreground">{template.description}</p>
-              <Button
-                size="sm"
-                variant="outline"
-                className="mt-3 w-full"
-                onClick={() => {
-                  presentationRepository.update(p.id, {
-                    themeId: template.themeId,
-                    slides: applyTemplateFamilyToSlides(p.slides.map(materializeSlide), template),
-                  });
-                  toast.success(`${template.name} applied.`);
-                }}
-              >
-                Apply template
-              </Button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
@@ -473,20 +485,35 @@ function DesignOverview({ p }: { p: Presentation }) {
           <h3 className="text-base text-foreground">Base theme</h3>
           <p className="text-sm text-muted-foreground">The brand kit sits above this visual system, so you can change layout mood without losing company identity.</p>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {SLIDE_THEMES.map((theme) => (
             <button
               key={theme.id}
               onClick={() => presentationRepository.update(p.id, { themeId: theme.id })}
-              className={`panel p-4 text-start transition-all hover:-translate-y-0.5 hover:shadow-sm ${(p.themeId ?? "executive-light") === theme.id ? "ring-2 ring-primary" : ""}`}
+              className={`panel overflow-hidden text-start transition-all hover:-translate-y-0.5 hover:shadow-md ${(p.themeId ?? "executive-light") === theme.id ? "ring-2 ring-primary" : ""}`}
             >
-              <div className="mb-4 flex h-20 overflow-hidden rounded-md border border-border">
-                <div className="flex-1" style={{ background: theme.colors.background }} />
-                <div className="w-1/4" style={{ background: theme.colors.surface }} />
-                <div className="w-1/5" style={{ background: theme.colors.accent }} />
+              <div className="relative aspect-video overflow-hidden" style={{ background: theme.colors.background }}>
+                {previewSlide ? (
+                  <SlideThumb slide={previewSlide} themeId={theme.id} />
+                ) : (
+                  <div className="flex h-full">
+                    <div className="flex-1" style={{ background: theme.colors.background }} />
+                    <div className="w-1/4" style={{ background: theme.colors.surface }} />
+                    <div className="w-1/5" style={{ background: theme.colors.accent }} />
+                  </div>
+                )}
               </div>
-              <div className="text-sm font-medium text-foreground">{theme.name}</div>
-              <div className="mt-1 text-xs text-muted-foreground">{theme.fonts.heading} · {theme.fonts.body}</div>
+              <div className="p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-sm font-medium text-foreground">{theme.name}</div>
+                  <div className="flex gap-1">
+                    {[theme.colors.background, theme.colors.primary, theme.colors.accent].map((color) => (
+                      <span key={color} className="size-3 rounded-full border border-border" style={{ background: color }} />
+                    ))}
+                  </div>
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground">{theme.fonts.heading} · {theme.fonts.body}</div>
+              </div>
             </button>
           ))}
         </div>

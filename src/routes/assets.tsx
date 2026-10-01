@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import {
-  CheckCircle2, FileText, FolderOpen, Grid2X2, Image as ImageIcon, Loader2, Search, Star, Trash2, Upload,
+  CheckCircle2, ExternalLink, FileText, FolderOpen, Grid2X2, Image as ImageIcon, Loader2, Search, Sparkles, Star, Trash2, Upload,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { EmptyState } from "@/components/empty-state";
@@ -17,6 +17,12 @@ import {
 } from "@/lib/assets/catalog";
 import type { AssetCategory, AssetClass, AssetRecord } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import {
+  importLicensedAsset,
+  searchLicensedAssets,
+  type LicensedAssetSearchResult,
+} from "@/lib/assets/licensed-provider";
 
 export const Route = createFileRoute("/assets")({
   head: () => ({
@@ -50,6 +56,40 @@ function AssetsPage() {
   const [category, setCategory] = useState<AssetCategory | "all">("all");
   const [assetClass, setAssetClass] = useState<AssetClass | "all">("all");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [licensedQuery, setLicensedQuery] = useState("");
+  const [licensedResults, setLicensedResults] = useState<LicensedAssetSearchResult[]>([]);
+  const [licensedBusy, setLicensedBusy] = useState(false);
+  const [importingId, setImportingId] = useState<string | null>(null);
+
+  const runLicensedSearch = async () => {
+    const q = licensedQuery.trim();
+    if (q.length < 2 || licensedBusy) return;
+    setLicensedBusy(true);
+    try {
+      const result = await searchLicensedAssets(q, { orientation: "landscape" });
+      setLicensedResults(result.results);
+      if (!result.results.length) toast.info("No licensed media matched that search.");
+    } catch (error) {
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : "Licensed media search failed.");
+    } finally {
+      setLicensedBusy(false);
+    }
+  };
+
+  const importResult = async (result: LicensedAssetSearchResult) => {
+    if (importingId) return;
+    setImportingId(result.id);
+    try {
+      await importLicensedAsset(result);
+      toast.success("Imported into Asset Vault.");
+    } catch (error) {
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : "Could not import the selected media.");
+    } finally {
+      setImportingId(null);
+    }
+  };
 
   const upload = async (files: FileList | null) => {
     if (!files?.length) return;
@@ -127,6 +167,72 @@ function AssetsPage() {
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      <section className="mb-7 overflow-hidden rounded-xl border border-border bg-card">
+        <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border p-5">
+          <div>
+            <div className="flex items-center gap-2">
+              <Sparkles className="size-4 text-accent" />
+              <span className="eyebrow">Licensed sources</span>
+            </div>
+            <h2 className="mt-1 text-lg font-medium text-foreground">Search external licensed media without leaving Meridian</h2>
+            <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">
+              Results stay inside the studio. Importing a visual copies it into your reusable Asset Vault and retains its provenance metadata.
+            </p>
+          </div>
+          <span className="rounded-full border border-border bg-muted/30 px-2.5 py-1 text-[10px] text-muted-foreground">Provider adapters</span>
+        </div>
+
+        <div className="p-5">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={licensedQuery}
+                onChange={(event) => setLicensedQuery(event.target.value)}
+                onKeyDown={(event) => { if (event.key === "Enter") void runLicensedSearch(); }}
+                placeholder="Search: Saudi city skyline, boardroom, logistics, technology, finance…"
+                className="ps-9"
+              />
+            </div>
+            <Button onClick={() => void runLicensedSearch()} disabled={licensedBusy || licensedQuery.trim().length < 2}>
+              {licensedBusy ? <Loader2 className="size-4 animate-spin" /> : <Search className="size-4" />} Search library
+            </Button>
+          </div>
+
+          {licensedResults.length > 0 && (
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {licensedResults.map((result) => (
+                <article key={result.provider + "-" + result.id} className="overflow-hidden rounded-lg border border-border bg-background">
+                  <div className="aspect-[4/3] overflow-hidden bg-muted">
+                    <img src={result.previewUrl} alt="" className="h-full w-full object-cover" />
+                  </div>
+                  <div className="p-3">
+                    <div className="line-clamp-2 text-xs font-medium text-foreground">{result.title}</div>
+                    <div className="mt-1 text-[10px] text-muted-foreground">
+                      {result.creator ? `Pexels · ${result.creator}` : "Pexels"}
+                    </div>
+                    <div className="mt-3 flex items-center justify-between gap-2">
+                      <a
+                        href={result.sourceUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-[9px] text-muted-foreground hover:text-foreground"
+                      >
+                        Source <ExternalLink className="size-3" />
+                      </a>
+                      <Button size="sm" className="h-7 text-[10px]" disabled={Boolean(importingId)} onClick={() => void importResult(result)}>
+                        {importingId === result.id ? <Loader2 className="size-3 animate-spin" /> : <Upload className="size-3" />}
+                        Import
+                      </Button>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

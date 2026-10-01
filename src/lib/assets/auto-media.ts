@@ -78,7 +78,7 @@ export function applyVaultMedia(
       sourceAssetIds: [...new Set([...(slide.sourceAssetIds ?? []), selected.id])],
       elements: slide.elements.map((element) =>
         element.id === media.id && element.type === "image"
-          ? { ...element, properties: { ...element.properties, src: selected.imageDataUrl! } }
+          ? { ...element, properties: { ...element.properties, src: "", assetId: selected.id } }
           : element,
       ),
       updatedAt: new Date().toISOString(),

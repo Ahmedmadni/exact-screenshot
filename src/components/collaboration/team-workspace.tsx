@@ -286,6 +286,8 @@ function activityLabel(event: CollaborationActivity) {
     case "conflict_resolved": return "A revision conflict was resolved using the latest team version.";
     case "opened_editor": return "The collaborative editor was opened.";
     case "opened_presenter": return "Presenter View was opened.";
+    case "live_session_started": return "A live presentation session was started.";
+    case "live_session_ended": return "A live presentation session was ended.";
     default: return event.eventType.replaceAll("_", " ");
   }
 }

@@ -163,7 +163,7 @@ function applySourceImages(slides: Slide[], assets: AssetRecord[]): Slide[] {
       sourceAssetIds: [...new Set([...(base.sourceAssetIds ?? []), asset.id])],
       elements: base.elements.map((el) =>
         el.id === media!.id && el.type === "image"
-          ? { ...el, properties: { ...el.properties, src: asset.imageDataUrl! } }
+          ? { ...el, properties: { ...el.properties, src: "", assetId: asset.id } }
           : el,
       ),
       updatedAt: new Date().toISOString(),

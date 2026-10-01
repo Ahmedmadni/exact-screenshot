@@ -1,6 +1,7 @@
 import type { LengthPreset, PresentationType, Slide, SlideIntent, Tone } from "@/lib/types";
 import { applyLayout, buildLayout, getLayout, layoutsForIntent } from "@/lib/editor/layouts";
 import { getTheme } from "@/lib/editor/themes";
+import { instantiate, shapeEl, textEl } from "@/lib/editor/elements";
 
 export interface TemplateFamily {
   id: string;
@@ -457,6 +458,108 @@ function layoutVisualFamily(id: string) {
   return "text";
 }
 
+function applyTemplateSignature(slide: Slide, template: TemplateFamily, index: number): Slide {
+  const drafts = (() => {
+    const page = String(index + 1).padStart(2, "0");
+    switch (template.id) {
+      case "boardroom-strategy":
+        return [
+          shapeEl("Boardroom top rule", "rect", [100, 42, 1400, 2], { fill: "theme:line" }),
+          textEl("Boardroom folio", page, [1430, 815, 70, 28], { fontSize: 13, color: "theme:secondary", align: "end" }, "decor"),
+        ];
+      case "financial-review":
+        return [
+          shapeEl("Finance top accent", "rect", [0, 0, 1600, 8], { fill: "theme:accent" }),
+          textEl("Finance folio", "FINANCE  ·  " + page, [1230, 824, 270, 24], { fontSize: 12, fontWeight: 700, color: "theme:secondary", align: "end", letterSpacing: 1 }, "decor"),
+        ];
+      case "technology-vision":
+        return [
+          { ...shapeEl("Technology orbit", "ellipse", [1360, -100, 330, 330], { fill: "transparent", stroke: "theme:accent", strokeWidth: 2 }), opacity: 0.34 },
+          { ...shapeEl("Technology node", "ellipse", [1490, 72, 22, 22], { fill: "theme:accent" }), opacity: 0.9 },
+          textEl("Technology folio", page, [1450, 824, 50, 24], { fontSize: 12, color: "theme:secondary", align: "end" }, "decor"),
+        ];
+      case "minimal-proposal":
+        return [
+          shapeEl("Minimal footer rule", "rect", [100, 842, 1400, 1], { fill: "theme:line" }),
+          textEl("Minimal folio", page, [100, 808, 60, 24], { fontSize: 11, color: "theme:secondary" }, "decor"),
+        ];
+      case "investor-pitch":
+        return [
+          shapeEl("Investor signal", "rect", [0, 0, 18, 900], { fill: "theme:accent" }),
+          textEl("Investor folio", "INVESTOR  ·  " + page, [1260, 824, 240, 24], { fontSize: 11, fontWeight: 700, color: "theme:secondary", align: "end", letterSpacing: 1.1 }, "decor"),
+        ];
+      case "government-brief":
+        return [
+          shapeEl("Government header", "rect", [100, 38, 1400, 3], { fill: "theme:accent" }),
+          shapeEl("Government footer", "rect", [100, 844, 1400, 1], { fill: "theme:line" }),
+          textEl("Government folio", "EXECUTIVE BRIEF  ·  " + page, [1180, 812, 320, 25], { fontSize: 11, fontWeight: 600, color: "theme:secondary", align: "end", letterSpacing: 0.8 }, "decor"),
+        ];
+      case "strategy-consulting":
+        return [
+          shapeEl("Consulting red rail", "rect", [0, 0, 1600, 10], { fill: "theme:accent" }),
+          textEl("Consulting section mark", "STRATEGY", [100, 45, 180, 28], { fontSize: 11, fontWeight: 800, color: "theme:accent", letterSpacing: 1.8 }, "decor"),
+          textEl("Consulting folio", page, [1440, 45, 60, 28], { fontSize: 11, fontWeight: 700, color: "theme:secondary", align: "end" }, "decor"),
+        ];
+      case "sovereign-vision":
+        return [
+          shapeEl("Sovereign gold rail", "rect", [0, 0, 12, 900], { fill: "theme:accent" }),
+          shapeEl("Sovereign top rule", "rect", [100, 42, 1400, 2], { fill: "theme:line" }),
+          textEl("Sovereign folio", "VISION  ·  " + page, [1260, 812, 240, 24], { fontSize: 11, fontWeight: 700, color: "theme:accent", align: "end", letterSpacing: 1.2 }, "decor"),
+        ];
+      case "luxury-investment":
+        return [
+          shapeEl("Luxury frame", "roundRect", [42, 42, 1516, 816], { fill: "transparent", stroke: "theme:accent", strokeWidth: 1, radius: 2 }),
+          textEl("Luxury folio", page, [1458, 802, 54, 26], { fontFamily: "theme:heading", fontSize: 14, color: "theme:accent", align: "end" }, "decor"),
+        ];
+      case "editorial-report":
+        return [
+          shapeEl("Editorial spine", "rect", [68, 100, 2, 700], { fill: "theme:accent" }),
+          textEl("Editorial folio", page, [30, 812, 78, 26], { fontFamily: "theme:heading", fontSize: 14, color: "theme:accent", align: "center" }, "decor"),
+        ];
+      case "cfo-performance":
+        return [
+          shapeEl("CFO top line", "rect", [100, 42, 1400, 2], { fill: "theme:line" }),
+          shapeEl("CFO metric tick", "rect", [100, 42, 170, 5], { fill: "theme:accent" }),
+          textEl("CFO folio", "CFO BOOK  ·  " + page, [1250, 812, 250, 25], { fontSize: 11, fontWeight: 700, color: "theme:secondary", align: "end", letterSpacing: 1 }, "decor"),
+        ];
+      case "ai-innovation":
+        return [
+          { ...shapeEl("AI orbit one", "ellipse", [1320, -150, 420, 420], { fill: "transparent", stroke: "theme:accent", strokeWidth: 2 }), opacity: 0.36 },
+          { ...shapeEl("AI orbit two", "ellipse", [1390, -80, 280, 280], { fill: "transparent", stroke: "theme:accentSoft", strokeWidth: 5 }), opacity: 0.6 },
+          shapeEl("AI node", "ellipse", [1500, 88, 20, 20], { fill: "theme:accent" }),
+          textEl("AI folio", "AI / " + page, [1400, 818, 100, 24], { fontSize: 11, fontWeight: 700, color: "theme:secondary", align: "end", letterSpacing: 1.1 }, "decor"),
+        ];
+      case "arabic-executive":
+        return [
+          shapeEl("Arabic executive rail", "rect", [1588, 0, 12, 900], { fill: "theme:accent" }),
+          shapeEl("Arabic top rule", "rect", [100, 42, 1400, 2], { fill: "theme:line" }),
+          textEl("Arabic folio", page + "  ·  تنفيذي", [100, 812, 220, 26], { fontFamily: "theme:body", fontSize: 12, fontWeight: 600, color: "theme:secondary", dir: "rtl" }, "decor"),
+        ];
+      case "capital-markets":
+        return [
+          shapeEl("Markets top signal", "rect", [0, 0, 1600, 7], { fill: "theme:accent" }),
+          shapeEl("Markets bottom rail", "rect", [100, 838, 1400, 1], { fill: "theme:line" }),
+          textEl("Markets folio", "MARKETS  ·  " + page, [1250, 808, 250, 24], { fontSize: 11, fontWeight: 700, color: "theme:secondary", align: "end", letterSpacing: 1.2 }, "decor"),
+        ];
+      case "esg-impact":
+        return [
+          { ...shapeEl("Impact halo", "ellipse", [1390, -80, 280, 280], { fill: "theme:accentSoft" }), opacity: 0.55 },
+          { ...shapeEl("Impact seed", "ellipse", [1495, 35, 48, 48], { fill: "theme:accent" }), opacity: 0.85 },
+          textEl("Impact folio", "IMPACT  ·  " + page, [1250, 814, 250, 24], { fontSize: 11, fontWeight: 700, color: "theme:secondary", align: "end", letterSpacing: 1.1 }, "decor"),
+        ];
+      default:
+        return [];
+    }
+  })();
+
+  if (!drafts.length) return slide;
+  const signature = instantiate(drafts, slide.id, slide.elements.length).map((element, offset) => ({
+    ...element,
+    zIndex: slide.elements.length + offset,
+  }));
+  return { ...slide, elements: [...slide.elements, ...signature] };
+}
+
 export function applyTemplateFamilyToSlides(slides: Slide[], template: TemplateFamily): Slide[] {
   let previous = "";
   let previousFamily = "";
@@ -487,7 +590,7 @@ export function applyTemplateFamilyToSlides(slides: Slide[], template: TemplateF
     familyStreak = family === previousFamily ? familyStreak + 1 : 1;
     previousFamily = family;
     previous = chosen;
-    return applyLayout(slide, chosen);
+    return applyTemplateSignature(applyLayout(slide, chosen), template, index);
   });
 }
 

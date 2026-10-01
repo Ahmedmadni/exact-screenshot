@@ -163,11 +163,20 @@ export function rebuildGeneratedContent(
   const next: Slide = { ...slide, ...patch, speakerNotes: undefined };
   const layoutId = recommendedLayoutId(next);
   let generated = buildLayout(layoutId, contentFromSlide(next), next.id, slideIsRtl(next));
-  const existingMedia = slide.elements.find((e) => e.type === "image" && e.role === "media" && e.properties.src);
+  const existingMedia = slide.elements.find(
+    (e) => e.type === "image" && e.role === "media" && (e.properties.src || e.properties.assetId),
+  );
   if (existingMedia?.type === "image") {
     generated = generated.map((e) =>
       e.type === "image" && e.role === "media"
-        ? { ...e, properties: { ...e.properties, src: existingMedia.properties.src } }
+        ? {
+            ...e,
+            properties: {
+              ...e.properties,
+              src: existingMedia.properties.src,
+              assetId: existingMedia.properties.assetId,
+            },
+          }
         : e,
     );
   }

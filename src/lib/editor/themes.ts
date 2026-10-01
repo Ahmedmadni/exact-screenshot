@@ -76,7 +76,7 @@ export const SLIDE_THEMES: SlideTheme[] = [
     id: "sovereign-green",
     name: "Sovereign Green",
     colors: { background: "#F7F7F2", surface: "#FFFFFF", primary: "#143D2D", secondary: "#69726C", accent: "#9B7A33", accentSoft: "#EEE7D8", onAccent: "#FFFFFF", line: "#DADDD4" },
-    fonts: { heading: "IBM Plex Sans Arabic", body: "IBM Plex Sans Arabic" },
+    fonts: { heading: "Noto Kufi Arabic", body: "IBM Plex Sans Arabic" },
     shape: { radius: 10 },
   },
   {
@@ -125,7 +125,7 @@ export const SLIDE_THEMES: SlideTheme[] = [
     id: "desert-sand",
     name: "Desert Sand",
     colors: { background: "#EEE5D5", surface: "#F8F3E8", primary: "#3D3024", secondary: "#766A5C", accent: "#B66A3C", accentSoft: "#E8D2C1", onAccent: "#FFFFFF", line: "#D7C8B3" },
-    fonts: { heading: "IBM Plex Sans Arabic", body: "IBM Plex Sans Arabic" },
+    fonts: { heading: "Noto Kufi Arabic", body: "IBM Plex Sans Arabic" },
     shape: { radius: 18 },
   },
   {

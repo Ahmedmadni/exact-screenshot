@@ -14,6 +14,7 @@ import {
 } from "@/lib/assets/auto-media";
 import {
   importLicensedAsset,
+  licensedProviderLabel,
   searchLicensedAssets,
   type LicensedAssetSearchResult,
 } from "@/lib/assets/licensed-provider";
@@ -220,7 +221,7 @@ export function SmartMediaPanel({
                         </div>
                         <div className="p-2.5">
                           <div className="line-clamp-2 text-[10px] font-semibold text-foreground">{result.title}</div>
-                          <div className="mt-1 truncate text-[8px] text-muted-foreground">{result.creator || "Licensed source"}</div>
+                          <div className="mt-1 truncate text-[8px] text-muted-foreground">{result.creator ? `${licensedProviderLabel(result.provider)} · ${result.creator}` : licensedProviderLabel(result.provider)}</div>
                           <Button
                             size="sm"
                             className="mt-2 h-7 w-full text-[9px]"

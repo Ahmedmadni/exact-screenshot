@@ -1,5 +1,5 @@
 import type { LengthPreset, PresentationType, Slide, SlideIntent, Tone } from "@/lib/types";
-import { applyLayout, buildLayout, getLayout } from "@/lib/editor/layouts";
+import { applyLayout, buildLayout, getLayout, layoutsForIntent } from "@/lib/editor/layouts";
 import { getTheme } from "@/lib/editor/themes";
 
 export interface TemplateFamily {
@@ -431,10 +431,63 @@ export function getTemplateFamily(id?: string | null): TemplateFamily | undefine
   return id ? TEMPLATE_FAMILIES.find((template) => template.id === id) : undefined;
 }
 
+const PREMIUM_LAYOUT_VARIANTS: Record<string, string[]> = {
+  "hero-editorial": ["hero-editorial", "image-text", "full-bleed-story"],
+  "full-bleed-story": ["full-bleed-story", "hero-editorial", "quote-editorial"],
+  "executive-metrics-band": ["executive-metrics-band", "chart-story", "four-cards", "kpi-metrics"],
+  "chart-story": ["chart-story", "executive-metrics-band", "finance-table", "image-stat-overlay"],
+  "finance-table": ["finance-table", "chart-story", "executive-metrics-band", "comparison"],
+  "strategy-matrix": ["strategy-matrix", "comparison", "four-cards"],
+  "roadmap-staircase": ["roadmap-staircase", "process-ribbon", "timeline"],
+  "process-ribbon": ["process-ribbon", "diagram-focus", "roadmap-staircase", "timeline"],
+  "diagram-focus": ["diagram-focus", "process-ribbon", "image-text"],
+  "image-stat-overlay": ["image-stat-overlay", "big-number", "hero-editorial", "chart-story"],
+  "decision-focus": ["decision-focus", "closing-cta", "quote-editorial"],
+  "title-content": ["title-content", "three-cards", "image-text"],
+  "four-cards": ["four-cards", "title-content", "three-cards"],
+  "three-cards": ["three-cards", "four-cards", "title-content"],
+};
+
+function layoutVisualFamily(id: string) {
+  if (id.includes("chart") || id.includes("metric") || id.includes("table") || id === "big-number") return "data";
+  if (id.includes("image") || id.includes("hero") || id.includes("bleed") || id.includes("editorial")) return "image";
+  if (id.includes("matrix") || id.includes("card")) return "cards";
+  if (id.includes("roadmap") || id.includes("ribbon") || id.includes("timeline") || id.includes("diagram")) return "flow";
+  if (id.includes("decision") || id.includes("closing") || id.includes("quote")) return "statement";
+  return "text";
+}
+
 export function applyTemplateFamilyToSlides(slides: Slide[], template: TemplateFamily): Slide[] {
-  return slides.map((slide) => {
-    const layoutId = template.layoutMap[slide.slideIntent];
-    return layoutId ? applyLayout(slide, layoutId) : slide;
+  let previous = "";
+  let previousFamily = "";
+  let familyStreak = 0;
+
+  return slides.map((slide, index) => {
+    const preferred = template.layoutMap[slide.slideIntent];
+    if (!preferred) return slide;
+
+    const compatible = (id: string) => getLayout(id)?.intents.includes(slide.slideIntent) ?? false;
+    const candidates = [
+      preferred,
+      ...(PREMIUM_LAYOUT_VARIANTS[preferred] ?? []),
+      ...layoutsForIntent(slide.slideIntent).map((layout) => layout.id),
+    ].filter((id, candidateIndex, all) => all.indexOf(id) === candidateIndex && compatible(id));
+
+    let chosen = candidates[0] ?? preferred;
+    if (index > 0) {
+      const varied = candidates.find((id) => {
+        if (id === previous) return false;
+        const family = layoutVisualFamily(id);
+        return familyStreak < 2 || family !== previousFamily;
+      });
+      if (varied) chosen = varied;
+    }
+
+    const family = layoutVisualFamily(chosen);
+    familyStreak = family === previousFamily ? familyStreak + 1 : 1;
+    previousFamily = family;
+    previous = chosen;
+    return applyLayout(slide, chosen);
   });
 }
 

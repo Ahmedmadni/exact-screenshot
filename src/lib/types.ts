@@ -320,6 +320,23 @@ export interface ReviewDecision {
 }
 
 export type AssetExtractionStatus = "pending" | "ready" | "failed" | "unsupported";
+export type AssetOrigin = "upload" | "licensed-import" | "generated" | "source-document";
+export type AssetClass = "source" | "photo" | "illustration" | "icon" | "logo" | "background" | "brand" | "other";
+export type AssetCategory =
+  | "business"
+  | "finance"
+  | "technology"
+  | "government"
+  | "saudi"
+  | "people"
+  | "places"
+  | "industry"
+  | "health"
+  | "education"
+  | "abstract"
+  | "data"
+  | "brand"
+  | "general";
 
 export interface AssetDataTable {
   name: string;
@@ -344,6 +361,22 @@ export interface AssetRecord {
   dataTables?: AssetDataTable[];
   imageDataUrl?: string;
   warnings?: string[];
+  /** Internal library metadata. External source information is retained for provenance, not as a required user journey. */
+  origin?: AssetOrigin;
+  assetClass?: AssetClass;
+  category?: AssetCategory;
+  tags?: string[];
+  favorite?: boolean;
+  description?: string;
+  sourceProvider?: string;
+  sourceItemId?: string;
+  sourceUrl?: string;
+  licenseLabel?: string;
+  licenseReference?: string;
+  attribution?: string;
+  mimeType?: string;
+  width?: number;
+  height?: number;
 }
 
 export interface BrandKit {

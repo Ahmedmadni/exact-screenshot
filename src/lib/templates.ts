@@ -460,33 +460,59 @@ function previewMedia(template: TemplateFamily) {
 
 export function templatePreviewSlides(template: TemplateFamily): Slide[] {
   const media = previewMedia(template);
+  const arabic = template.id === "arabic-executive";
+  const arabicTitles = ["رؤية تنفيذية واضحة", "الأرقام التي تقود القرار", "الخطوات القادمة"] as const;
   return template.previewLayouts.slice(0, 3).map((layoutId, index) => {
     const layout = getLayout(layoutId);
     const intent = layout?.intents[0] ?? "Executive Summary";
     const id = "preview-" + template.id + "-" + index;
-    const content = {
-      title: PREVIEW_TITLES[index] ?? PREVIEW_TITLES[0],
-      subtitle:
-        index === 0
-          ? template.signature
-          : index === 1
-            ? "Performance is moving in the right direction, but the decision depends on three critical drivers."
-            : "Align the team around the priority actions, owners and timing.",
-      body:
-        index === 0
-          ? template.description
-          : index === 1
-            ? "The strongest signal comes from the combination of growth, execution quality and disciplined resource allocation."
-            : "Move from recommendation to execution with a clear decision, sequenced work and visible accountability.",
-      items: [
-        { title: "Priority one", text: "Concentrate effort where impact and confidence are highest." },
-        { title: "Priority two", text: "Make the trade-offs explicit and easy to discuss." },
-        { title: "Priority three", text: "Translate the narrative into measurable action." },
-        { title: "Priority four", text: "Protect momentum with a simple governance rhythm." },
-      ],
-      kpis: ["24%", "1.8×", "SAR 42m", "90d"],
-      media,
-    };
+    const content = arabic
+      ? {
+          title: arabicTitles[index] ?? arabicTitles[0],
+          subtitle:
+            index === 0
+              ? "عرض تنفيذي عربي متوازن يضع الرسالة والقرار في مقدمة المشهد."
+              : index === 1
+                ? "الأداء يتحسن، لكن القرار يعتمد على ثلاثة محركات رئيسية يجب متابعتها."
+                : "تحويل التوصيات إلى أولويات واضحة ومسؤوليات ومواعيد تنفيذ.",
+          body:
+            index === 0
+              ? "تصميم عربي احترافي بمساحات هادئة وهوية بصرية مناسبة للعروض التنفيذية ومجالس الإدارة."
+              : index === 1
+                ? "تتضح الصورة عند ربط النمو بجودة التنفيذ والانضباط في تخصيص الموارد."
+                : "التركيز على القرار المطلوب ثم ترجمة الخطة إلى إجراءات قابلة للقياس والمتابعة.",
+          items: [
+            { title: "الأولوية الأولى", text: "تركيز الموارد على المبادرات الأعلى أثراً وثقة." },
+            { title: "الأولوية الثانية", text: "توضيح المفاضلات والخيارات أمام أصحاب القرار." },
+            { title: "الأولوية الثالثة", text: "ربط كل توصية بمؤشر ومالك واضح." },
+            { title: "الأولوية الرابعة", text: "حماية الزخم بإيقاع متابعة بسيط ومنتظم." },
+          ],
+          kpis: ["24%", "1.8×", "42م ر.س", "90 يوم"],
+          media,
+        }
+      : {
+          title: PREVIEW_TITLES[index] ?? PREVIEW_TITLES[0],
+          subtitle:
+            index === 0
+              ? template.signature
+              : index === 1
+                ? "Performance is moving in the right direction, but the decision depends on three critical drivers."
+                : "Align the team around the priority actions, owners and timing.",
+          body:
+            index === 0
+              ? template.description
+              : index === 1
+                ? "The strongest signal comes from the combination of growth, execution quality and disciplined resource allocation."
+                : "Move from recommendation to execution with a clear decision, sequenced work and visible accountability.",
+          items: [
+            { title: "Priority one", text: "Concentrate effort where impact and confidence are highest." },
+            { title: "Priority two", text: "Make the trade-offs explicit and easy to discuss." },
+            { title: "Priority three", text: "Translate the narrative into measurable action." },
+            { title: "Priority four", text: "Protect momentum with a simple governance rhythm." },
+          ],
+          kpis: ["24%", "1.8×", "SAR 42m", "90d"],
+          media,
+        };
     const stamp = "2026-01-01T00:00:00.000Z";
     return {
       id,
@@ -500,7 +526,7 @@ export function templatePreviewSlides(template: TemplateFamily): Slide[] {
       contentSummary: content.body,
       visualType: layoutId.includes("chart") ? "Chart" : layoutId.includes("table") ? "Table" : layoutId.includes("image") || layoutId.includes("bleed") || layoutId.includes("hero") ? "Image + Text" : "Cards",
       isOptional: false,
-      elements: buildLayout(layoutId, content, id),
+      elements: buildLayout(layoutId, content, id, arabic),
       layoutId,
       bullets: content.items.map((entry) => entry.title + ": " + entry.text),
       kpis: content.kpis,

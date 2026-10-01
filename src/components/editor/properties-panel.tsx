@@ -15,6 +15,7 @@ import type { ChartProps, DiagramProps, SlideElement, TableProps, TextProps } fr
 import { SLIDE_H, SLIDE_W } from "@/lib/editor/model";
 import { FONT_CHOICES, SLIDE_THEMES, THEME_COLOR_KEYS, resolveColor, type SlideTheme } from "@/lib/editor/themes";
 import { LAYOUTS, applyLayout, layoutsForIntent } from "@/lib/editor/layouts";
+import { SlideStage, useFitScale } from "@/components/editor/slide-renderer";
 import { cloneElement } from "@/lib/editor/elements";
 import { cn } from "@/lib/utils";
 import { chartToText, diagramToText, recommendChartType, tableToText, textToChart, textToDiagram, textToTable } from "@/lib/editor/data-utils";
@@ -135,19 +136,57 @@ export function PropertiesPanel({ api, theme, onTheme }: { api: EditorApi; theme
           <p className="text-xs text-muted-foreground">{slide.slideIntent} · {slide.purpose}</p>
         </Section>
         <Section title="Layout">
-          <div className="grid grid-cols-2 gap-2">
-            {[...LAYOUTS].sort((a, b) => Number(suggested.includes(b.id)) - Number(suggested.includes(a.id))).map((l) => (
-              <button
-                key={l.id}
-                onClick={() => api.commit(api.snapshot().map((s) => (s.id === slide.id ? applyLayout(s, l.id) : s)))}
-                className={cn("rounded-md border px-2 py-2 text-start text-xs", slide.layoutId === l.id ? "border-primary bg-primary/10 text-foreground" : "border-border text-muted-foreground hover:border-foreground/40")}
-              >
-                {l.name}
-                {suggested.includes(l.id) && <span className="block text-[10px] text-accent">Suggested</span>}
-              </button>
-            ))}
+          <div className="space-y-3">
+            <div>
+              <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Recommended</div>
+              <div className="grid grid-cols-2 gap-2">
+                {LAYOUTS.filter((layout) => suggested.includes(layout.id)).slice(0, 6).map((layout) => {
+                  const preview = applyLayout(slide, layout.id);
+                  return (
+                    <button
+                      key={layout.id}
+                      onClick={() => api.commit(api.snapshot().map((candidate) => (candidate.id === slide.id ? preview : candidate)))}
+                      className={cn(
+                        "overflow-hidden rounded-md border bg-background text-start transition hover:-translate-y-0.5 hover:shadow-sm",
+                        slide.layoutId === layout.id ? "border-primary ring-1 ring-primary" : "border-border hover:border-foreground/40",
+                      )}
+                    >
+                      <LayoutPreview slide={preview} theme={theme} />
+                      <div className="border-t border-border px-2 py-1.5">
+                        <div className="truncate text-[10px] font-medium text-foreground">{layout.name}</div>
+                        <div className="text-[9px] text-accent">Suggested</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <details>
+              <summary className="cursor-pointer select-none text-[10px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground">
+                Browse all layouts · {LAYOUTS.length}
+              </summary>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                {LAYOUTS.filter((layout) => !suggested.includes(layout.id)).map((layout) => {
+                  const preview = applyLayout(slide, layout.id);
+                  return (
+                    <button
+                      key={layout.id}
+                      onClick={() => api.commit(api.snapshot().map((candidate) => (candidate.id === slide.id ? preview : candidate)))}
+                      className={cn(
+                        "overflow-hidden rounded-md border bg-background text-start transition hover:-translate-y-0.5 hover:shadow-sm",
+                        slide.layoutId === layout.id ? "border-primary ring-1 ring-primary" : "border-border hover:border-foreground/40",
+                      )}
+                    >
+                      <LayoutPreview slide={preview} theme={theme} />
+                      <div className="truncate border-t border-border px-2 py-1.5 text-[10px] text-muted-foreground">{layout.name}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </details>
           </div>
-          <p className="text-[11px] text-muted-foreground">Switching layouts keeps your text, images and added elements.</p>
+          <p className="text-[11px] text-muted-foreground">Every preview uses this slide’s real content. Switching layouts preserves your text, images and free elements.</p>
         </Section>
         <Section title="Slide background">
           <div className="flex items-center gap-2">
@@ -276,6 +315,28 @@ export function PropertiesPanel({ api, theme, onTheme }: { api: EditorApi; theme
         </div>
       </Section>
     </aside>
+  );
+}
+
+function LayoutPreview({ slide, theme }: { slide: ReturnType<typeof applyLayout>; theme: SlideTheme }) {
+  const { ref, scale } = useFitScale();
+  return (
+    <div ref={ref} className="relative aspect-video w-full overflow-hidden bg-muted">
+      <div
+        style={{
+          position: "absolute",
+          left: 0,
+          top: 0,
+          width: SLIDE_W,
+          height: SLIDE_H,
+          transform: `scale(${scale})`,
+          transformOrigin: "top left",
+        }}
+        dir="ltr"
+      >
+        <SlideStage slide={slide} theme={theme} />
+      </div>
+    </div>
   );
 }
 

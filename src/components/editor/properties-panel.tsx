@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Pencil } from "lucide-react";
+import { Pencil, Sparkles } from "lucide-react";
 import {
   AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignStartHorizontal, AlignStartVertical,
   ArrowDownToLine, ArrowUpToLine, Bold, ChevronDown, ChevronUp, Copy, Eye, EyeOff, Italic, Lock, Trash2, Underline, Unlock,
@@ -15,6 +15,7 @@ import type { ChartProps, DiagramProps, SlideElement, TableProps, TextProps } fr
 import { SLIDE_H, SLIDE_W } from "@/lib/editor/model";
 import { FONT_CHOICES, SLIDE_THEMES, THEME_COLOR_KEYS, resolveColor, type SlideTheme } from "@/lib/editor/themes";
 import { LAYOUTS, applyLayout, layoutsForIntent } from "@/lib/editor/layouts";
+import { magicDesignVariants } from "@/lib/editor/composer";
 import { SlideStage, useFitScale } from "@/components/editor/slide-renderer";
 import { cloneElement } from "@/lib/editor/elements";
 import { cn } from "@/lib/utils";
@@ -134,6 +135,36 @@ export function PropertiesPanel({ api, theme, onTheme }: { api: EditorApi; theme
         <Section title="Slide">
           <p className="text-sm text-foreground">{slide.title}</p>
           <p className="text-xs text-muted-foreground">{slide.slideIntent} · {slide.purpose}</p>
+        </Section>
+        <Section title="Magic Design">
+          <div className="mb-2 flex items-center gap-2">
+            <Sparkles className="size-4 text-accent" />
+            <div>
+              <div className="text-xs font-medium text-foreground">Four directions from the same content</div>
+              <div className="text-[10px] text-muted-foreground">Choose a different visual personality without rewriting the slide.</div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {magicDesignVariants(slide).map((variant) => (
+              <button
+                key={variant.id}
+                onClick={() => api.commit(api.snapshot().map((candidate) => (candidate.id === slide.id ? variant.slide : candidate)))}
+                className={cn(
+                  "overflow-hidden rounded-md border bg-background text-start transition hover:-translate-y-0.5 hover:shadow-md",
+                  slide.layoutId === variant.layoutId ? "border-primary ring-1 ring-primary" : "border-border hover:border-foreground/40",
+                )}
+              >
+                <LayoutPreview slide={variant.slide} theme={theme} />
+                <div className="border-t border-border px-2 py-2">
+                  <div className="flex items-center justify-between gap-1">
+                    <div className="truncate text-[10px] font-semibold text-foreground">{variant.label}</div>
+                    {variant.label === "Best fit" && <Sparkles className="size-3 text-accent" />}
+                  </div>
+                  <div className="mt-0.5 line-clamp-2 text-[9px] leading-relaxed text-muted-foreground">{variant.description}</div>
+                </div>
+              </button>
+            ))}
+          </div>
         </Section>
         <Section title="Layout">
           <div className="space-y-3">

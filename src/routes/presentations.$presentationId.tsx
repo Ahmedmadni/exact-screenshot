@@ -1,12 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, BookmarkPlus, Download, FileText, Loader2, Minimize2, Play, Plus, RefreshCw, Trash2, Maximize2, Upload, ArrowLeft } from "lucide-react";
+import { ArrowDown, ArrowUp, BookmarkPlus, Download, FileText, Loader2, Minimize2, Play, Plus, Radio, RefreshCw, Trash2, Maximize2, Upload, ArrowLeft } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { EmptyState } from "@/components/empty-state";
 import { SaveIndicator, type SaveState } from "@/components/save-indicator";
 import { StatusBadge } from "@/components/status-badge";
 import { QualityChecker } from "@/components/quality-checker";
 import { PresentationCoachOverview } from "@/components/presenter/coach-overview";
+import { PresentationSessionsOverview } from "@/components/presenter/session-history";
 import { ReviewWorkspace } from "@/components/review-workspace";
 import { TeamWorkspace } from "@/components/collaboration/team-workspace";
 import { Button } from "@/components/ui/button";
@@ -142,6 +143,11 @@ function Detail() {
         <div className="flex items-center gap-2">
           <SaveIndicator state={state} />
           <QualityChecker presentation={{ ...p, slides: p.slides.map(materializeSlide) }} />
+          {p.collaboration?.enabled && (
+            <Button asChild variant="outline">
+              <Link to="/presentations/$presentationId/session" params={{ presentationId: p.id }}><Radio className="size-4" /> Live Room</Link>
+            </Button>
+          )}
           <Button asChild variant="outline">
             <Link to="/presentations/$presentationId/presenter" params={{ presentationId: p.id }}><Play className="size-4" /> Presenter</Link>
           </Button>
@@ -179,6 +185,7 @@ function Detail() {
           <TabsTrigger value="slides">{t("tab.slides")}</TabsTrigger>
           <TabsTrigger value="design">{t("tab.design")}</TabsTrigger>
           <TabsTrigger value="coach">Coach</TabsTrigger>
+          <TabsTrigger value="sessions">Sessions</TabsTrigger>
           <TabsTrigger value="review">Review</TabsTrigger>
           <TabsTrigger value="team">Team</TabsTrigger>
           <TabsTrigger value="files">{t("tab.files")}</TabsTrigger>
@@ -206,6 +213,9 @@ function Detail() {
         </TabsContent>
         <TabsContent value="coach" className="mt-6">
           <PresentationCoachOverview presentation={{ ...p, slides: p.slides.map(materializeSlide) }} />
+        </TabsContent>
+        <TabsContent value="sessions" className="mt-6">
+          <PresentationSessionsOverview presentation={{ ...p, slides: p.slides.map(materializeSlide) }} />
         </TabsContent>
         <TabsContent value="review" className="mt-6">
           <ReviewWorkspace presentation={{ ...p, slides: p.slides.map(materializeSlide) }} />

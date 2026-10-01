@@ -25,6 +25,7 @@ import { ingestSourceFiles } from "@/lib/documents/ingest";
 import { sourceContextFromAssets } from "@/lib/documents/analyze";
 import { applySourceVisuals } from "@/lib/documents/visualize";
 import { groundSlidesFromSources } from "@/lib/evidence";
+import { applyVaultMedia } from "@/lib/assets/auto-media";
 
 export const Route = createFileRoute("/new")({
   validateSearch: z.object({ topic: z.string().optional(), template: z.string().optional(), source: z.string().optional() }),
@@ -175,7 +176,12 @@ function Setup() {
     const composed = composeDeck(generatedSlides);
     const templated = template ? applyTemplateFamilyToSlides(composed, template) : composed;
     const visualized = applySourceVisuals(templated, selectedSources);
-    const finalSlides = groundSlidesFromSources(visualized, selectedSources);
+    const withVaultMedia = applyVaultMedia(
+      visualized,
+      assets,
+      [topic, type, audience, ...(template?.keywords ?? [])],
+    );
+    const finalSlides = groundSlidesFromSources(withVaultMedia, selectedSources);
     presentationRepository.replaceSlides(created.id, finalSlides);
     if (brandKitId !== "__none") {
       const kit = brandKitRepository.get(brandKitId);

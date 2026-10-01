@@ -1,7 +1,7 @@
 import type { Slide, SlideIntent } from "@/lib/types";
 import type { DraftElement, SlideElement } from "./model";
 import { SLIDE_W } from "./model";
-import { TEXT_DEFAULTS, iconEl, imageEl, instantiate, shapeEl, textEl } from "./elements";
+import { TEXT_DEFAULTS, chartEl, diagramEl, iconEl, imageEl, instantiate, shapeEl, tableEl, textEl } from "./elements";
 
 export interface LayoutContent {
   title: string;
@@ -213,6 +213,222 @@ export const LAYOUTS: LayoutDefinition[] = [
       textEl("Key message", c.subtitle, [300, 480, 1000, 110], { ...SEC, fontSize: 28, align: "center" }, "subtitle"),
       shapeEl("Button", "roundRect", [600, 640, 400, 76], { radius: 38 }),
       textEl("Call to action", c.body || "Decision required today", [600, 640, 400, 76], { fontSize: 22, fontWeight: 600, color: "theme:onAccent", align: "center", vAlign: "middle" }, "body"),
+    ],
+  },
+  {
+    id: "hero-editorial",
+    name: "Editorial Hero",
+    intents: ["Cover", "Section Divider", "Opportunity", "Case Study"],
+    build: (c) => [
+      imageEl("Hero image", [900, 0, 700, 900], { src: c.media, radius: 0 }),
+      shapeEl("Editorial rule", "rect", [100, 110, 110, 4]),
+      textEl("Eyebrow", item(c, 0).title || "Perspective", [100, 145, 660, 36], { ...SEC, fontSize: 17, uppercase: true, letterSpacing: 2 }, "decor"),
+      textEl("Title", c.title, [100, 225, 700, 300], { ...H, fontSize: 78, lineHeight: 0.98, vAlign: "bottom" }, "title"),
+      textEl("Key message", c.subtitle, [100, 570, 690, 150], { fontSize: 29, fontWeight: 500, lineHeight: 1.25 }, "subtitle"),
+      textEl("Footer", c.body, [100, 790, 690, 56], { ...SEC, fontSize: 16 }, "body"),
+    ],
+  },
+  {
+    id: "full-bleed-story",
+    name: "Full Bleed Story",
+    intents: ["Cover", "Section Divider", "Quote", "Case Study", "Closing"],
+    build: (c) => [
+      imageEl("Background image", [0, 0, 1600, 900], { src: c.media, radius: 0 }),
+      shapeEl("Dark overlay", "rect", [0, 0, 1600, 900], { fill: "#111111" }),
+      shapeEl("Accent tag", "roundRect", [110, 120, 230, 52], { fill: "theme:accent", radius: 26 }),
+      textEl("Tag", item(c, 0).title || "Key perspective", [110, 120, 230, 52], { fontSize: 17, fontWeight: 700, color: "theme:onAccent", align: "center", vAlign: "middle" }, "decor"),
+      textEl("Title", c.title, [110, 300, 1180, 270], { ...H, fontSize: 86, color: "#FFFFFF", lineHeight: 1.02, vAlign: "bottom" }, "title"),
+      textEl("Key message", c.subtitle, [110, 610, 1040, 120], { fontSize: 28, fontWeight: 500, color: "#FFFFFF" }, "subtitle"),
+      textEl("Footer", c.body, [110, 795, 1180, 42], { fontSize: 15, color: "#D5D5D5" }, "body"),
+    ],
+  },
+  {
+    id: "executive-metrics-band",
+    name: "Executive Metrics Band",
+    intents: ["Executive Summary", "Dashboard", "Financial", "Data Story"],
+    build: (c) => [
+      ...titleBlock(c),
+      textEl("Key message", c.subtitle, [100, 210, 1100, 64], { fontSize: 26, fontWeight: 500 }, "subtitle"),
+      shapeEl("Metrics band", "roundRect", [100, 315, 1400, 230], { fill: "theme:surface", stroke: "theme:line", strokeWidth: 1, radius: 18 }),
+      ...[0, 1, 2, 3].flatMap((i) => {
+        const x = 145 + i * 335;
+        return [
+          textEl(`KPI value ${i + 1}`, c.kpis[i] ?? "[Value]", [x, 350, 280, 92], { ...H, fontSize: 62, color: i === 0 ? "theme:accent" : "theme:primary" }, "kpiValue"),
+          textEl(`KPI label ${i + 1}`, item(c, i).title, [x, 452, 280, 55], { ...SEC, fontSize: 17, fontWeight: 600 }, "itemTitle"),
+        ];
+      }),
+      textEl("Narrative", c.body, [100, 620, 930, 155], { ...SEC, fontSize: 21, lineHeight: 1.4 }, "body"),
+      shapeEl("Insight panel", "roundRect", [1090, 610, 410, 180], { fill: "theme:accentSoft", radius: 14 }),
+      iconEl("Insight icon", "TrendingUp", [1130, 646, 42, 42]),
+      textEl("Insight title", item(c, 0).title || "Management view", [1190, 642, 260, 42], { fontSize: 20, fontWeight: 700 }, "itemTitle"),
+      textEl("Insight", item(c, 0).text || c.subtitle, [1130, 700, 320, 64], { ...SEC, fontSize: 16 }, "item"),
+    ],
+  },
+  {
+    id: "chart-story",
+    name: "Chart + Insight Story",
+    intents: ["Dashboard", "Data Story", "Financial", "Comparison"],
+    build: (c) => [
+      ...titleBlock(c),
+      textEl("Key message", c.subtitle, [100, 205, 980, 60], { fontSize: 25, fontWeight: 500 }, "subtitle"),
+      chartEl("Primary chart", [100, 300, 930, 470], {
+        label: c.title,
+        chartType: "column",
+        showLegend: true,
+        showValues: true,
+        showGrid: true,
+      }),
+      shapeEl("Insight panel", "roundRect", [1085, 300, 415, 470], { fill: "theme:surface", stroke: "theme:line", strokeWidth: 1, radius: 18 }),
+      textEl("Insight eyebrow", "KEY TAKEAWAYS", [1125, 340, 330, 32], { color: "theme:accent", fontSize: 15, fontWeight: 700, letterSpacing: 1.5 }, "decor"),
+      ...[0, 1, 2].flatMap((i) => [
+        textEl(`Takeaway ${i + 1} title`, item(c, i).title, [1125, 400 + i * 112, 325, 38], { fontSize: 21, fontWeight: 700 }, "itemTitle"),
+        textEl(`Takeaway ${i + 1}`, item(c, i).text, [1125, 440 + i * 112, 325, 58], { ...SEC, fontSize: 15 }, "item"),
+      ]),
+    ],
+  },
+  {
+    id: "finance-table",
+    name: "Financial Table + Insight",
+    intents: ["Financial", "Dashboard", "Comparison", "Data Story"],
+    build: (c) => [
+      ...titleBlock(c),
+      textEl("Key message", c.subtitle, [100, 205, 1400, 55], { ...SEC, fontSize: 23 }, "subtitle"),
+      tableEl("Financial table", [100, 300, 980, 500], {
+        label: c.title,
+        rows: [
+          ["Metric", "Current", "Plan", "Δ"],
+          [item(c, 0).title || "Revenue", c.kpis[0] ?? "120", c.kpis[1] ?? "135", "+12%"],
+          [item(c, 1).title || "Margin", c.kpis[2] ?? "24%", c.kpis[3] ?? "28%", "+4pp"],
+          [item(c, 2).title || "Cash", "86", "92", "+7%"],
+          [item(c, 3).title || "Runway", "14m", "16m", "+2m"],
+        ],
+        headerRow: true,
+        bandedRows: true,
+        headerFill: "theme:accent",
+      }),
+      shapeEl("Commentary panel", "roundRect", [1130, 300, 370, 500], { fill: "theme:accentSoft", radius: 18 }),
+      textEl("Commentary label", "MANAGEMENT COMMENTARY", [1170, 345, 290, 34], { color: "theme:accent", fontSize: 14, fontWeight: 700, letterSpacing: 1.2 }, "decor"),
+      textEl("Commentary headline", item(c, 0).title || c.subtitle, [1170, 410, 290, 120], { ...H, fontSize: 31 }, "itemTitle"),
+      textEl("Commentary", c.body || item(c, 0).text, [1170, 560, 290, 190], { ...SEC, fontSize: 18, lineHeight: 1.45 }, "body"),
+    ],
+  },
+  {
+    id: "strategy-matrix",
+    name: "Strategy 2×2 Matrix",
+    intents: ["Portfolio", "Comparison", "Opportunity", "Strategy", "Executive Summary"],
+    build: (c) => [
+      ...titleBlock(c),
+      textEl("Key message", c.subtitle, [100, 210, 1400, 55], { ...SEC, fontSize: 23 }, "subtitle"),
+      textEl("High value", "HIGH VALUE", [100, 320, 90, 28], { ...SEC, fontSize: 12, fontWeight: 700, letterSpacing: 1.4 }, "decor"),
+      textEl("Low value", "LOW VALUE", [100, 760, 90, 28], { ...SEC, fontSize: 12, fontWeight: 700, letterSpacing: 1.4 }, "decor"),
+      textEl("Low effort", "LOW EFFORT", [250, 800, 120, 28], { ...SEC, fontSize: 12, fontWeight: 700, letterSpacing: 1.4 }, "decor"),
+      textEl("High effort", "HIGH EFFORT", [1280, 800, 120, 28], { ...SEC, fontSize: 12, fontWeight: 700, letterSpacing: 1.4 }, "decor"),
+      shapeEl("Matrix", "roundRect", [220, 300, 1180, 470], { fill: "theme:surface", stroke: "theme:line", strokeWidth: 1, radius: 14 }),
+      shapeEl("Vertical axis", "rect", [808, 300, 1, 470], { fill: "theme:line" }),
+      shapeEl("Horizontal axis", "rect", [220, 534, 1180, 1], { fill: "theme:line" }),
+      ...[0, 1, 2, 3].flatMap((i) => {
+        const positions = [[300, 355], [900, 355], [300, 590], [900, 590]] as const;
+        const [x, y] = positions[i]!;
+        return [
+          shapeEl(`Matrix dot ${i + 1}`, "ellipse", [x, y, 22, 22]),
+          textEl(`Matrix item ${i + 1}`, item(c, i).title, [x + 40, y - 4, 380, 38], { fontSize: 22, fontWeight: 700 }, "itemTitle"),
+          textEl(`Matrix detail ${i + 1}`, item(c, i).text, [x + 40, y + 38, 380, 70], { ...SEC, fontSize: 15 }, "item"),
+        ];
+      }),
+    ],
+  },
+  {
+    id: "roadmap-staircase",
+    name: "Roadmap Staircase",
+    intents: ["Roadmap", "Timeline", "Process"],
+    build: (c) => [
+      ...titleBlock(c),
+      textEl("Key message", c.subtitle, [100, 205, 1400, 55], { ...SEC, fontSize: 23 }, "subtitle"),
+      ...[0, 1, 2, 3].flatMap((i) => {
+        const x = 100 + i * 355;
+        const y = 560 - i * 85;
+        return [
+          shapeEl(`Stage ${i + 1}`, "roundRect", [x, y, 315, 230], { fill: i === 3 ? "theme:accent" : "theme:surface", stroke: i === 3 ? "transparent" : "theme:line", strokeWidth: 1, radius: 16 }),
+          textEl(`Stage number ${i + 1}`, String(i + 1).padStart(2, "0"), [x + 28, y + 28, 60, 40], { ...H, fontSize: 30, color: i === 3 ? "theme:onAccent" : "theme:accent" }, "decor"),
+          textEl(`Stage title ${i + 1}`, item(c, i).title, [x + 28, y + 88, 250, 62], { fontSize: 24, fontWeight: 700, color: i === 3 ? "theme:onAccent" : "theme:primary" }, "itemTitle"),
+          textEl(`Stage detail ${i + 1}`, item(c, i).text, [x + 28, y + 154, 250, 50], { fontSize: 15, color: i === 3 ? "theme:onAccent" : "theme:secondary" }, "item"),
+        ];
+      }),
+    ],
+  },
+  {
+    id: "process-ribbon",
+    name: "Process Ribbon",
+    intents: ["Process", "Roadmap", "Timeline"],
+    build: (c) => [
+      ...titleBlock(c),
+      textEl("Key message", c.subtitle, [100, 205, 1400, 55], { ...SEC, fontSize: 23 }, "subtitle"),
+      ...[0, 1, 2, 3].flatMap((i) => {
+        const y = 300 + i * 125;
+        return [
+          shapeEl(`Ribbon ${i + 1}`, "roundRect", [100 + i * 55, y, 1260 - i * 70, 92], { fill: i === 0 ? "theme:accent" : "theme:surface", stroke: i === 0 ? "transparent" : "theme:line", strokeWidth: 1, radius: 46 }),
+          textEl(`Ribbon number ${i + 1}`, String(i + 1).padStart(2, "0"), [135 + i * 55, y + 22, 60, 45], { ...H, fontSize: 29, color: i === 0 ? "theme:onAccent" : "theme:accent" }, "decor"),
+          textEl(`Ribbon title ${i + 1}`, item(c, i).title, [220 + i * 55, y + 18, 330, 48], { fontSize: 22, fontWeight: 700, color: i === 0 ? "theme:onAccent" : "theme:primary" }, "itemTitle"),
+          textEl(`Ribbon text ${i + 1}`, item(c, i).text, [570 + i * 55, y + 22, 650 - i * 70, 42], { fontSize: 15, color: i === 0 ? "theme:onAccent" : "theme:secondary" }, "item"),
+        ];
+      }),
+    ],
+  },
+  {
+    id: "diagram-focus",
+    name: "Diagram Focus",
+    intents: ["Process", "Solution", "Strategy", "Portfolio", "Roadmap"],
+    build: (c) => [
+      ...titleBlock(c),
+      textEl("Key message", c.subtitle, [100, 205, 1400, 55], { ...SEC, fontSize: 23 }, "subtitle"),
+      diagramEl("Strategic diagram", [100, 315, 980, 470], {
+        label: c.title,
+        diagramType: "process",
+        nodes: [0, 1, 2, 3].map((i) => ({ title: item(c, i).title, text: item(c, i).text })),
+        accent: "theme:accent",
+      }),
+      shapeEl("Narrative panel", "roundRect", [1130, 315, 370, 470], { fill: "theme:surface", stroke: "theme:line", strokeWidth: 1, radius: 18 }),
+      textEl("Narrative title", "WHY THIS MATTERS", [1170, 360, 290, 30], { color: "theme:accent", fontSize: 14, fontWeight: 700, letterSpacing: 1.2 }, "decor"),
+      textEl("Narrative", c.body, [1170, 420, 290, 270], { ...SEC, fontSize: 19, lineHeight: 1.45 }, "body"),
+    ],
+  },
+  {
+    id: "image-stat-overlay",
+    name: "Image + Stat Overlay",
+    intents: ["Opportunity", "Case Study", "Big Number", "Data Story"],
+    build: (c) => [
+      imageEl("Story image", [0, 0, 900, 900], { src: c.media, radius: 0 }),
+      shapeEl("Stat card", "roundRect", [650, 540, 360, 220], { fill: "theme:accent", radius: 18 }),
+      textEl("Stat", c.kpis[0] ?? "[Value]", [690, 575, 280, 95], { ...H, fontSize: 72, color: "theme:onAccent" }, "kpiValue"),
+      textEl("Stat label", item(c, 0).title, [690, 675, 280, 50], { fontSize: 17, fontWeight: 600, color: "theme:onAccent" }, "itemTitle"),
+      textEl("Title", c.title, [1030, 170, 470, 220], { ...H, fontSize: 56, lineHeight: 1.05 }, "title"),
+      textEl("Key message", c.subtitle, [1030, 420, 470, 140], { fontSize: 25, fontWeight: 500 }, "subtitle"),
+      textEl("Body", c.body, [1030, 610, 470, 150], { ...SEC, fontSize: 18 }, "body"),
+    ],
+  },
+  {
+    id: "quote-editorial",
+    name: "Editorial Quote",
+    intents: ["Quote", "Section Divider", "Closing"],
+    build: (c) => [
+      textEl("Quote mark", "“", [100, 115, 260, 180], { ...H, fontSize: 180, color: "theme:accent" }, "decor"),
+      textEl("Quote", c.subtitle || c.title, [250, 245, 1100, 330], { ...H, fontSize: 62, lineHeight: 1.12, align: "center", vAlign: "middle" }, "subtitle"),
+      shapeEl("Rule", "rect", [690, 635, 220, 2], { fill: "theme:line" }),
+      textEl("Attribution", c.body || c.title, [400, 675, 800, 70], { ...SEC, fontSize: 20, align: "center" }, "body"),
+    ],
+  },
+  {
+    id: "decision-focus",
+    name: "Decision Focus",
+    intents: ["Call to Action", "Closing", "Executive Summary", "Proposal"],
+    build: (c) => [
+      shapeEl("Decision rail", "rect", [0, 0, 26, 900], { fill: "theme:accent" }),
+      textEl("Decision label", "DECISION REQUIRED", [110, 120, 400, 36], { color: "theme:accent", fontSize: 16, fontWeight: 800, letterSpacing: 1.5 }, "decor"),
+      textEl("Title", c.title, [110, 220, 1180, 210], { ...H, fontSize: 72, lineHeight: 1.02 }, "title"),
+      textEl("Key message", c.subtitle, [110, 475, 1050, 115], { fontSize: 29, fontWeight: 500 }, "subtitle"),
+      shapeEl("Decision panel", "roundRect", [110, 650, 1380, 145], { fill: "theme:accentSoft", radius: 18 }),
+      iconEl("Decision icon", "CheckCircle2", [155, 695, 48, 48]),
+      textEl("Decision", c.body || item(c, 0).text || "Approve the recommended path and authorize next steps.", [235, 678, 1185, 85], { fontSize: 22, fontWeight: 600, vAlign: "middle" }, "body"),
     ],
   },
 ];

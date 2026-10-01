@@ -224,6 +224,10 @@ Set this Edge Function secret before using licensed search:
 
 - `PEXELS_API_KEY` — required for Pexels search/import
 - `PEXELS_LICENSE_LABEL` — optional internal label stored with imported asset metadata
+- `PIXABAY_API_KEY` — optional second provider for merged licensed search
+- `PIXABAY_LICENSE_LABEL` — optional internal label for imported Pixabay assets
+
+The migration `20261002_licensed_asset_search_cache.sql` creates a server-only provider cache. Pixabay searches are cached for 24 hours before the Edge Function requests them again.
 
 Deploy the `supabase/functions/licensed-assets` Edge Function after setting secrets.
 

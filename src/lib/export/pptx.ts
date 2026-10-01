@@ -6,6 +6,7 @@ import { SLIDE_H, SLIDE_W } from "@/lib/editor/model";
 import { getTheme, resolveColor, type SlideTheme } from "@/lib/editor/themes";
 import { getIcon } from "@/lib/editor/icons";
 import { safeExportFilename } from "./validate";
+import { resolveImageSource } from "@/lib/assets/resolve";
 
 const PPT_W = 13.333333;
 const PPT_H = 7.5;
@@ -144,10 +145,11 @@ function addShape(pptx: any, pptxSlide: any, el: Extract<SlideElement, { type: "
 }
 
 function addImage(pptxSlide: any, el: Extract<SlideElement, { type: "image" }>) {
-  if (!el.properties.src) return;
+  const src = resolveImageSource(el.properties);
+  if (!src) return;
   const box = pos(el);
   pptxSlide.addImage({
-    data: normalizeImageData(el.properties.src),
+    data: normalizeImageData(src),
     ...box,
     sizing: { type: el.properties.fit, w: box.w, h: box.h },
     rotate: Math.round(el.rotation),

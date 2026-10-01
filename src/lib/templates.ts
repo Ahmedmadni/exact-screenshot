@@ -511,7 +511,7 @@ export const TEMPLATE_FAMILIES: TemplateFamily[] = [
     category: "Proposal",
     description: "A persuasive client proposal for context, value proposition, solution, proof, commercial logic and next steps.",
     themeId: "warm-minimal",
-    presentationType: "Sales Deck",
+    presentationType: "Sales Presentation",
     tone: "Persuasive",
     lengthPreset: "Standard",
     badge: "Client-ready",

@@ -135,7 +135,7 @@ function applySourceImages(slides: Slide[], assets: AssetRecord[]): Slide[] {
   for (const asset of images) {
     let index = next.findIndex((slide, i) =>
       i >= cursor &&
-      slide.elements.some((el) => el.type === "image" && el.role === "media" && !el.properties.src),
+      slide.elements.some((el) => el.type === "image" && el.role === "media" && !el.properties.src && !el.properties.assetId),
     );
 
     if (index < 0) {

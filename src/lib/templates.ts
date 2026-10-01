@@ -1176,7 +1176,6 @@ const TEMPLATE_PREVIEW_PROFILES: Record<string, TemplatePreviewProfile> = {
     chartCategories: ["2024", "2025", "2026", "2027E"],
     chartSeries: [{ name: "Intensity index", values: [100, 91, 82, 74] }],
   },
-};
 
   "company-profile": {
     titles: ["Built to deliver at scale", "Capabilities that connect end to end", "Proof across the portfolio"],
@@ -1296,6 +1295,7 @@ const TEMPLATE_PREVIEW_PROFILES: Record<string, TemplatePreviewProfile> = {
     chartCategories: ["Jan", "Mar", "May", "Jul", "Sep"],
     chartSeries: [{ name: "Milestones on time", values: [62, 67, 72, 76, 81] }],
   },
+};
 
 const DEFAULT_PREVIEW_PROFILE: TemplatePreviewProfile = {
   titles: ["A clear point of view", "The evidence behind the decision", "What happens next"],

@@ -14,7 +14,10 @@ import { generateSmartSpeakerNotes, presentationTiming } from "@/lib/presenter/c
 import type { AssetRecord, Presentation, PresentationRehearsal, PresentationSession, Slide } from "@/lib/types";
 import { SLIDE_H, SLIDE_W } from "@/lib/editor/model";
 import { toast } from "sonner";
-import { getActivePresentationSession, startPresentationSession, updatePresentationSessionSlide } from "@/lib/presentation-session";
+import { getActivePresentationSession, listPresentationSessionItems, startPresentationSession, updatePresentationSessionSlide } from "@/lib/presentation-session";
+import { usePresentationSessionPresence } from "@/lib/presentation-session-presence";
+import { supabase } from "@/lib/cloud/supabase";
+import type { PresentationSessionItem } from "@/lib/types";
 
 export const Route = createFileRoute("/presentations_/$presentationId/presenter")({
   head: () => ({
@@ -55,6 +58,7 @@ function Presenter({ p }: { p: Presentation }) {
   const [preparing, setPreparing] = useState(false);
   const [audienceConnected, setAudienceConnected] = useState(false);
   const [liveSession, setLiveSession] = useState<PresentationSession | null>(null);
+  const [liveItems, setLiveItems] = useState<PresentationSessionItem[]>([]);
   const [sessionBusy, setSessionBusy] = useState(false);
   const audienceChannel = useRef<BroadcastChannel | null>(null);
   const currentIndex = useRef(index);
@@ -63,6 +67,14 @@ function Presenter({ p }: { p: Presentation }) {
   const theme = getTheme(p.themeId, p.themeOverrides);
   const slide = p.slides[index];
   const next = p.slides[index + 1];
+  const sessionParticipants = usePresentationSessionPresence({
+    sessionId: liveSession?.status === "live" ? liveSession.id : undefined,
+    role: "owner",
+    activeSlideId: slide?.id,
+    raisedHand: false,
+  });
+  const raisedHands = sessionParticipants.filter((participant) => participant.raisedHand);
+  const openQuestions = liveItems.filter((item) => item.kind === "question" && item.status === "open");
 
   const sourceAssets = (p.sourceAssetIds ?? [])
     .map((id) => assetRepository.get(id))
@@ -92,9 +104,30 @@ function Presenter({ p }: { p: Presentation }) {
   useEffect(() => {
     if (!p.collaboration?.enabled || p.collaboration.role !== "owner") return;
     void getActivePresentationSession(p.id)
-      .then((active) => setLiveSession(active))
+      .then(async (active) => {
+        setLiveSession(active);
+        if (active) setLiveItems(await listPresentationSessionItems(active.id));
+      })
       .catch((error) => console.error("Could not load active session", error));
   }, [p.id, p.collaboration?.enabled, p.collaboration?.role]);
+
+  useEffect(() => {
+    if (!liveSession?.id || !supabase) return;
+    const refresh = () => {
+      void listPresentationSessionItems(liveSession.id)
+        .then(setLiveItems)
+        .catch((error) => console.error("Could not refresh live session items", error));
+    };
+    const channel = supabase
+      .channel("presenter-session-items-" + liveSession.id)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "presentation_session_items", filter: "session_id=eq." + liveSession.id },
+        refresh,
+      )
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [liveSession?.id]);
 
   useEffect(() => {
     if (!running) return;
@@ -251,6 +284,7 @@ function Presenter({ p }: { p: Presentation }) {
         index,
       );
       setLiveSession({ ...active, role: "owner" });
+      setLiveItems([]);
       toast.success("Live Room started. Team members can join now.");
     } catch (error) {
       console.error(error);
@@ -366,6 +400,35 @@ function Presenter({ p }: { p: Presentation }) {
 
         <aside className="min-h-0 overflow-y-auto bg-slate-900/70">
           <div className="space-y-5 p-5">
+            {liveSession?.status === "live" && (
+              <section className="rounded-lg border border-emerald-400/20 bg-emerald-400/5 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="size-2 animate-pulse rounded-full bg-emerald-400" />
+                    <span className="text-xs font-medium text-emerald-100">Live Room</span>
+                  </div>
+                  <Button asChild size="sm" variant="ghost" className="h-7 text-white/70 hover:bg-white/10 hover:text-white">
+                    <Link to="/presentations/$presentationId/session" params={{ presentationId: p.id }}>Open room</Link>
+                  </Button>
+                </div>
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  <div className="rounded bg-white/5 p-2 text-center"><div className="text-lg font-semibold text-white">{sessionParticipants.length}</div><div className="text-[9px] text-white/40">people</div></div>
+                  <div className="rounded bg-white/5 p-2 text-center"><div className="text-lg font-semibold text-amber-200">{raisedHands.length}</div><div className="text-[9px] text-white/40">hands</div></div>
+                  <div className="rounded bg-white/5 p-2 text-center"><div className="text-lg font-semibold text-cyan-100">{openQuestions.length}</div><div className="text-[9px] text-white/40">open Qs</div></div>
+                </div>
+                {raisedHands.length > 0 && (
+                  <div className="mt-2 text-[10px] text-amber-100/75">
+                    Raised: {raisedHands.slice(0, 3).map((participant) => participant.email.split("@")[0]).join(", ")}
+                    {raisedHands.length > 3 ? " +" + (raisedHands.length - 3) : ""}
+                  </div>
+                )}
+                {openQuestions[0] && (
+                  <div className="mt-2 rounded bg-black/20 p-2 text-[11px] leading-4 text-white/65">
+                    Latest question: {openQuestions[openQuestions.length - 1]?.body}
+                  </div>
+                )}
+              </section>
+            )}
             <section>
               <div className="mb-2 flex items-center justify-between gap-3">
                 <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45">Current notes</div>

@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, ChevronLeft, ChevronRight, Clock3, Flag, Maximize2, MonitorUp, Pause, Play, RefreshCw, Sparkles } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Clock3, Flag, Maximize2, MonitorUp, Pause, Play, Radio, RefreshCw, Sparkles, Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -11,9 +11,10 @@ import { sourceContextFromAssets } from "@/lib/documents/analyze";
 import { materializeSlide } from "@/lib/editor/layouts";
 import { getTheme } from "@/lib/editor/themes";
 import { generateSmartSpeakerNotes, presentationTiming } from "@/lib/presenter/coach";
-import type { AssetRecord, Presentation, PresentationRehearsal, Slide } from "@/lib/types";
+import type { AssetRecord, Presentation, PresentationRehearsal, PresentationSession, Slide } from "@/lib/types";
 import { SLIDE_H, SLIDE_W } from "@/lib/editor/model";
 import { toast } from "sonner";
+import { getActivePresentationSession, startPresentationSession, updatePresentationSessionSlide } from "@/lib/presentation-session";
 
 export const Route = createFileRoute("/presentations_/$presentationId/presenter")({
   head: () => ({
@@ -53,6 +54,8 @@ function Presenter({ p }: { p: Presentation }) {
   const [report, setReport] = useState<PresentationRehearsal | null>(null);
   const [preparing, setPreparing] = useState(false);
   const [audienceConnected, setAudienceConnected] = useState(false);
+  const [liveSession, setLiveSession] = useState<PresentationSession | null>(null);
+  const [sessionBusy, setSessionBusy] = useState(false);
   const audienceChannel = useRef<BroadcastChannel | null>(null);
   const currentIndex = useRef(index);
   currentIndex.current = index;
@@ -85,6 +88,13 @@ function Presenter({ p }: { p: Presentation }) {
   const timing = presentationTiming(p.slides);
   const targetSeconds = Math.max(60, p.estimatedDuration * 60);
   const progress = p.slides.length ? ((index + 1) / p.slides.length) * 100 : 0;
+
+  useEffect(() => {
+    if (!p.collaboration?.enabled || p.collaboration.role !== "owner") return;
+    void getActivePresentationSession(p.id)
+      .then((active) => setLiveSession(active))
+      .catch((error) => console.error("Could not load active session", error));
+  }, [p.id, p.collaboration?.enabled, p.collaboration?.role]);
 
   useEffect(() => {
     if (!running) return;
@@ -122,6 +132,23 @@ function Presenter({ p }: { p: Presentation }) {
   const move = useCallback((delta: number) => {
     setIndex((value) => Math.max(0, Math.min(p.slides.length - 1, value + delta)));
   }, [p.slides.length]);
+
+  useEffect(() => {
+    if (!liveSession || liveSession.status !== "live" || p.collaboration?.role !== "owner") return;
+    const current = p.slides[index];
+    if (!current) return;
+    if (liveSession.currentSlideId === current.id && liveSession.currentSlideIndex === index) return;
+
+    const timeout = window.setTimeout(() => {
+      void updatePresentationSessionSlide(liveSession.id, current.id, index)
+        .then((updated) => setLiveSession((existing) => existing ? { ...updated, role: existing.role } : existing))
+        .catch((error) => {
+          console.error(error);
+          toast.error("Live Room could not follow this slide.");
+        });
+    }, 80);
+    return () => window.clearTimeout(timeout);
+  }, [index, liveSession?.id, liveSession?.status, p.collaboration?.role]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -209,6 +236,30 @@ function Presenter({ p }: { p: Presentation }) {
     setReport(session);
   };
 
+  const startLiveRoom = async () => {
+    if (!p.collaboration?.enabled || p.collaboration.role !== "owner") {
+      toast.error("Enable Team Collaboration before starting a Live Room.");
+      return;
+    }
+    const current = p.slides[index];
+    setSessionBusy(true);
+    try {
+      const active = await startPresentationSession(
+        p.id,
+        p.title + " — Live session",
+        current?.id,
+        index,
+      );
+      setLiveSession({ ...active, role: "owner" });
+      toast.success("Live Room started. Team members can join now.");
+    } catch (error) {
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : "Could not start Live Room.");
+    } finally {
+      setSessionBusy(false);
+    }
+  };
+
     const fullscreen = () => {
     document.documentElement.requestFullscreen?.().catch(() => {});
   };
@@ -245,6 +296,20 @@ function Presenter({ p }: { p: Presentation }) {
             </span>
             <span className="text-white/40"> / {formatTime(targetSeconds)}</span>
           </div>
+          {p.collaboration?.enabled && p.collaboration.role === "owner" && (
+            liveSession?.status === "live" ? (
+              <Button asChild size="sm" variant="ghost" className="text-white hover:bg-white/10 hover:text-white">
+                <Link to="/presentations/$presentationId/session" params={{ presentationId: p.id }}>
+                  <Radio className="size-4" /> Live Room
+                  <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" />
+                </Link>
+              </Button>
+            ) : (
+              <Button size="sm" variant="ghost" className="text-white hover:bg-white/10 hover:text-white" onClick={() => void startLiveRoom()} disabled={sessionBusy}>
+                {sessionBusy ? <RefreshCw className="size-4 animate-spin" /> : <Users className="size-4" />} Start Live
+              </Button>
+            )
+          )}
           <Button size="sm" variant="ghost" className="text-white hover:bg-white/10 hover:text-white" onClick={openAudience}>
             <MonitorUp className="size-4" /> Audience
             <span className={"size-1.5 rounded-full " + (audienceConnected ? "bg-emerald-400" : "bg-white/30")} />

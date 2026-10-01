@@ -1186,6 +1186,18 @@ begin
     v_id, p_presentation_id, v_user, v_title, p_current_slide_id, greatest(0, p_current_slide_index), v_user
   );
 
+  insert into public.collaboration_activity(
+    id, presentation_id, owner_user_id, actor_user_id, actor_email, event_type, details
+  ) values (
+    encode(gen_random_bytes(12), 'hex'),
+    p_presentation_id,
+    v_user,
+    v_user,
+    coalesce(auth.jwt()->>'email','Owner'),
+    'live_session_started',
+    jsonb_build_object('sessionId', v_id, 'title', v_title)
+  );
+
   return jsonb_build_object(
     'id', v_id,
     'presentationId', p_presentation_id,
@@ -1363,6 +1375,18 @@ begin
   update public.presentation_sessions
   set status = 'ended', ended_at = coalesce(ended_at, now()), updated_at = now()
   where id = p_session_id;
+
+  insert into public.collaboration_activity(
+    id, presentation_id, owner_user_id, actor_user_id, actor_email, event_type, details
+  ) values (
+    encode(gen_random_bytes(12), 'hex'),
+    v_session.presentation_id,
+    v_session.owner_user_id,
+    v_user,
+    coalesce(auth.jwt()->>'email','Owner'),
+    'live_session_ended',
+    jsonb_build_object('sessionId', p_session_id, 'title', v_session.title)
+  );
 
   return jsonb_build_object(
     'id', p_session_id,

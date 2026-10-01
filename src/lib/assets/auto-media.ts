@@ -86,6 +86,33 @@ export function visualSearchQuery(slide: Slide, context: string[] = []) {
   return [...new Set([...raw, ...intentTerms])].slice(0, 8).join(" ");
 }
 
+
+const ARABIC_VISUAL_CONCEPTS: Array<[RegExp, string[]]> = [
+  [/السعود|المملكة|الرياض|جدة|رؤية\\s*2030/i, ["saudi arabia", "riyadh"]],
+  [/مال|مالي|مالية|استثمار|مستثمر|سوق|بنك|تمويل|ميزانية/i, ["finance", "investment"]],
+  [/تقني|تقنية|رقمي|رقمية|ذكاء|بيانات|سحابي|برمج/i, ["technology", "digital"]],
+  [/حكوم|وزارة|هيئة|بلدية|جهة|قطاع عام/i, ["government", "institution"]],
+  [/صناع|مصنع|لوجست|محجر|كسارة|إنشاء|طاقة/i, ["industry", "operations"]],
+  [/فريق|موظف|قياد|عميل|أشخاص|موارد بشرية/i, ["people", "leadership"]],
+  [/نمو|فرصة|توسع|سوق جديد|مبيعات/i, ["growth", "business"]],
+  [/استراتيج|تحول|خارطة|طريق|تنفيذ/i, ["strategy", "transformation"]],
+  [/مدينة|مبنى|موقع|مشروع|عقار|أرض/i, ["city", "architecture"]],
+  [/صحة|طبي|مستشفى|رعاية/i, ["healthcare", "medical"]],
+  [/تعليم|جامعة|مدرسة|تدريب/i, ["education", "learning"]],
+];
+
+export function externalVisualSearchQuery(slide: Slide, context: string[] = []) {
+  const source = [slide.title, slide.keyMessage, slide.purpose, ...context].join(" ");
+  const base = visualSearchQuery(slide, context);
+  if (!/[\\u0600-\\u06FF]/.test(source)) return base;
+
+  const mapped = ARABIC_VISUAL_CONCEPTS.flatMap(([pattern, terms]) => pattern.test(source) ? terms : []);
+  const latin = tokens(base).filter((token) => /^[a-z0-9]+$/i.test(token));
+  const intentTerms = INTENT_SEARCH_TERMS[slide.slideIntent] ?? [];
+  const query = [...new Set([...mapped, ...latin, ...intentTerms])].slice(0, 8).join(" ");
+  return query || intentTerms.join(" ") || "professional business";
+}
+
 export interface VaultMediaSuggestion {
   asset: AssetRecord;
   score: number;

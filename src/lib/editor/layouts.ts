@@ -441,6 +441,111 @@ export const LAYOUTS: LayoutDefinition[] = [
       textEl("Decision", c.body || item(c, 0).text || "Approve the recommended path and authorize next steps.", [235, 678, 1185, 85], { fontSize: 22, fontWeight: 600, vAlign: "middle" }, "body"),
     ],
   },
+  {
+    id: "cover-architectural",
+    name: "Architectural Cover",
+    intents: ["Cover", "Section Divider"],
+    build: (c) => [
+      imageEl("Architectural image", [610, 0, 990, 900], { src: c.media, radius: 0 }),
+      { ...shapeEl("Image wash", "rect", [610, 0, 990, 900], { fill: "theme:primary" }), opacity: 0.14 },
+      shapeEl("Vertical rail", "rect", [0, 0, 24, 900], { fill: "theme:accent" }),
+      textEl("Index", "01", [105, 105, 160, 100], { ...H, fontSize: 78, color: "theme:accent" }, "decor"),
+      textEl("Title", c.title, [105, 290, 430, 300], { ...H, fontSize: adaptiveType(c.title, 70, 46, 30), lineHeight: 0.98, vAlign: "bottom" }, "title"),
+      textEl("Subtitle", c.subtitle, [105, 625, 420, 135], { ...SEC, fontSize: 23, lineHeight: 1.35 }, "subtitle"),
+      shapeEl("Footer rule", "rect", [105, 805, 350, 2], { fill: "theme:line" }),
+      textEl("Footer", c.body, [105, 820, 420, 40], { ...SEC, fontSize: 13 }, "body"),
+    ],
+  },
+  {
+    id: "cover-index",
+    name: "Indexed Statement Cover",
+    intents: ["Cover", "Section Divider"],
+    build: (c) => [
+      textEl("Large index", "01", [1020, 80, 460, 370], { ...H, fontSize: 290, color: "theme:accentSoft", align: "end", vAlign: "top" }, "decor"),
+      shapeEl("Accent rule", "rect", [105, 155, 120, 5], { fill: "theme:accent" }),
+      textEl("Eyebrow", item(c, 0).title || "Executive perspective", [105, 185, 620, 36], { fontSize: 14, fontWeight: 800, color: "theme:accent", letterSpacing: 1.6, uppercase: true }, "decor"),
+      textEl("Title", c.title, [105, 290, 1080, 250], { ...H, fontSize: adaptiveType(c.title, 82, 50, 38), lineHeight: 1 }, "title"),
+      textEl("Subtitle", c.subtitle, [105, 585, 980, 125], { fontSize: 28, fontWeight: 500, lineHeight: 1.28 }, "subtitle"),
+      textEl("Footer", c.body, [105, 805, 1180, 42], { ...SEC, fontSize: 15 }, "body"),
+    ],
+  },
+  {
+    id: "image-caption",
+    name: "Image + Editorial Caption",
+    intents: ["Opportunity", "Case Study", "Problem", "Solution", "Team"],
+    build: (c) => [
+      imageEl("Editorial image", [100, 90, 1400, 530], { src: c.media, radius: 12 }),
+      shapeEl("Caption rail", "rect", [100, 665, 6, 150], { fill: "theme:accent" }),
+      textEl("Title", c.title, [145, 655, 620, 90], { ...H, fontSize: adaptiveType(c.title, 42, 32, 48) }, "title"),
+      textEl("Key message", c.subtitle, [145, 752, 620, 70], { fontSize: 20, fontWeight: 500 }, "subtitle"),
+      textEl("Body", c.body, [830, 665, 670, 155], { ...SEC, fontSize: 18, lineHeight: 1.4 }, "body"),
+    ],
+  },
+  {
+    id: "data-pulse",
+    name: "Data Pulse",
+    intents: ["Dashboard", "Data Story", "Financial"],
+    build: (c) => [
+      ...titleBlock(c),
+      textEl("Key message", c.subtitle, [100, 210, 1400, 55], { fontSize: 24, fontWeight: 500 }, "subtitle"),
+      chartEl("Trend chart", [100, 315, 980, 440], {
+        label: "",
+        chartType: "line",
+        showLegend: true,
+        showValues: false,
+        showGrid: true,
+      }, "media"),
+      ...[0, 1, 2].flatMap((i) => [
+        shapeEl(`Metric panel ${i + 1}`, "roundRect", [1135, 315 + i * 145, 365, 120], { fill: i === 0 ? "theme:accentSoft" : "theme:surface", stroke: "theme:line", strokeWidth: i === 0 ? 0 : 1, radius: 14 }),
+        textEl(`Metric value ${i + 1}`, c.kpis[i] ?? "[Value]", [1170, 340 + i * 145, 130, 58], { ...H, fontSize: 40, color: i === 0 ? "theme:accent" : "theme:primary" }, "kpiValue"),
+        textEl(`Metric label ${i + 1}`, item(c, i).title, [1320, 344 + i * 145, 140, 50], { ...SEC, fontSize: 15, fontWeight: 600 }, "itemTitle"),
+      ]),
+      textEl("Source note", c.body, [100, 792, 1400, 35], { ...SEC, fontSize: 14 }, "body"),
+    ],
+  },
+  {
+    id: "financial-scorecard",
+    name: "Financial Scorecard",
+    intents: ["Financial", "Dashboard", "Executive Summary"],
+    build: (c) => [
+      ...titleBlock(c),
+      ...[0, 1, 2, 3].flatMap((i) => {
+        const x = 100 + i * 350;
+        return [
+          textEl(`Score value ${i + 1}`, c.kpis[i] ?? "[Value]", [x, 245, 300, 80], { ...H, fontSize: 54, color: i === 0 ? "theme:accent" : "theme:primary" }, "kpiValue"),
+          textEl(`Score label ${i + 1}`, item(c, i).title, [x, 330, 300, 42], { ...SEC, fontSize: 15, fontWeight: 600 }, "itemTitle"),
+          shapeEl(`Score rule ${i + 1}`, "rect", [x, 390, 300, 1], { fill: "theme:line" }),
+        ];
+      }),
+      tableEl("Scorecard table", [100, 455, 1400, 330], {
+        rows: [
+          ["Performance", "Actual", "Plan", "Variance"],
+          [item(c, 0).title || "Revenue", c.kpis[0] ?? "120", c.kpis[1] ?? "128", "+6%"],
+          [item(c, 1).title || "Margin", c.kpis[2] ?? "31%", c.kpis[3] ?? "30%", "+1pp"],
+          [item(c, 2).title || "Cash", "86", "92", "-7%"],
+        ],
+        headerRow: true,
+        bandedRows: false,
+        headerFill: "theme:primary",
+      }, "media"),
+      textEl("Commentary", c.body, [100, 810, 1400, 34], { ...SEC, fontSize: 14 }, "body"),
+    ],
+  },
+  {
+    id: "executive-two-column",
+    name: "Executive Two-column",
+    intents: ["Executive Summary", "Problem", "Solution", "Opportunity", "Comparison"],
+    build: (c) => [
+      ...titleBlock(c),
+      textEl("Governing thought", c.subtitle, [100, 230, 1400, 120], { ...H, fontSize: 34, lineHeight: 1.18 }, "subtitle"),
+      shapeEl("Left panel", "roundRect", [100, 405, 670, 340], { fill: "theme:surface", stroke: "theme:line", strokeWidth: 1, radius: 14 }),
+      shapeEl("Right panel", "roundRect", [830, 405, 670, 340], { fill: "theme:accentSoft", radius: 14 }),
+      textEl("Left heading", item(c, 0).title, [145, 455, 570, 54], { fontSize: 24, fontWeight: 700 }, "itemTitle"),
+      textEl("Left body", item(c, 0).text || c.body, [145, 530, 570, 165], { ...SEC, fontSize: 19, lineHeight: 1.4 }, "item"),
+      textEl("Right heading", item(c, 1).title, [875, 455, 570, 54], { fontSize: 24, fontWeight: 700 }, "itemTitle"),
+      textEl("Right body", item(c, 1).text || c.body, [875, 530, 570, 165], { ...SEC, fontSize: 19, lineHeight: 1.4 }, "item"),
+    ],
+  },
 ];
 
 export function getLayout(id?: string): LayoutDefinition | undefined {
@@ -488,12 +593,16 @@ export function contentFromElements(elements: SlideElement[], fallback: LayoutCo
 
 const RTL_MIRRORABLE_LAYOUTS = new Set([
   "cover-split",
+  "cover-architectural",
   "hero-editorial",
   "title-content",
   "image-text",
+  "image-caption",
   "image-stat-overlay",
   "chart-story",
+  "data-pulse",
   "finance-table",
+  "financial-scorecard",
   "diagram-focus",
   "decision-focus",
 ]);

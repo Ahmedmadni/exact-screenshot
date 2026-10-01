@@ -17,7 +17,7 @@ function aspect(asset: AssetRecord) {
   return asset.width / Math.max(1, asset.height);
 }
 
-function scoreAsset(asset: AssetRecord, slide: Slide, context: string[]) {
+export function scoreAsset(asset: AssetRecord, slide: Slide, context: string[]) {
   const haystack = assetSearchText(asset);
   const wanted = tokens([slide.title, slide.keyMessage, slide.purpose, ...context].join(" "));
   let score = 0;
@@ -34,6 +34,97 @@ function scoreAsset(asset: AssetRecord, slide: Slide, context: string[]) {
   if (slide.slideIntent === "Financial" && asset.category === "finance") score += 5;
   if (["Solution", "Process"].includes(slide.slideIntent) && asset.category === "technology") score += 2;
   return score;
+}
+
+
+const INTENT_SEARCH_TERMS: Partial<Record<Slide["slideIntent"], string[]>> = {
+  Cover: ["executive", "hero", "premium"],
+  "Executive Summary": ["business", "leadership"],
+  Problem: ["challenge", "business problem"],
+  Solution: ["solution", "innovation"],
+  Opportunity: ["growth", "opportunity"],
+  Financial: ["finance", "investment", "market"],
+  Dashboard: ["business", "analytics"],
+  "Data Story": ["data", "analytics"],
+  "Case Study": ["business", "team", "project"],
+  Team: ["people", "leadership", "team"],
+  Process: ["workflow", "operations"],
+  Roadmap: ["strategy", "transformation"],
+  Portfolio: ["business", "portfolio"],
+  Closing: ["vision", "future"],
+};
+
+const STOPWORDS = new Set([
+  "this","that","with","from","into","over","under","your","their","about","will","have","has","the","and","for","are",
+  "على","من","في","إلى","الى","عن","مع","هذا","هذه","التي","الذي","أو","او","هو","هي","تم","يتم","خلال",
+]);
+
+export function visualSearchQuery(slide: Slide, context: string[] = []) {
+  const raw = tokens([slide.title, slide.keyMessage, ...context].join(" "))
+    .filter((token) => !STOPWORDS.has(token))
+    .slice(0, 6);
+  const intentTerms = INTENT_SEARCH_TERMS[slide.slideIntent] ?? [];
+  return [...new Set([...raw, ...intentTerms])].slice(0, 8).join(" ");
+}
+
+export interface VaultMediaSuggestion {
+  asset: AssetRecord;
+  score: number;
+  reasons: string[];
+}
+
+function suggestionReasons(asset: AssetRecord, slide: Slide, context: string[]) {
+  const reasons: string[] = [];
+  const wanted = tokens([slide.title, slide.keyMessage, ...context].join(" "));
+  const haystack = assetSearchText(asset);
+  const matched = wanted.filter((token) => haystack.includes(token)).slice(0, 3);
+  if (matched.length) reasons.push("Matches " + matched.join(", "));
+  if (asset.favorite) reasons.push("Favorite");
+  if (slide.slideIntent === "Cover" && aspect(asset) >= 1.25) reasons.push("Landscape cover fit");
+  if (slide.slideIntent === "Team" && asset.category === "people") reasons.push("People-focused");
+  if (slide.slideIntent === "Financial" && asset.category === "finance") reasons.push("Finance category");
+  if (["Solution", "Process"].includes(slide.slideIntent) && asset.category === "technology") reasons.push("Technology fit");
+  if (asset.origin === "licensed-import") reasons.push("Licensed vault asset");
+  return reasons.slice(0, 3);
+}
+
+export function suggestVaultMedia(
+  slide: Slide,
+  assets: AssetRecord[],
+  context: string[] = [],
+  limit = 8,
+): VaultMediaSuggestion[] {
+  return assets
+    .filter(
+      (asset) =>
+        asset.presentationId === null &&
+        asset.kind === "image" &&
+        asset.extractionStatus === "ready" &&
+        Boolean(asset.imageDataUrl),
+    )
+    .map((asset) => ({
+      asset,
+      score: scoreAsset(asset, slide, context),
+      reasons: suggestionReasons(asset, slide, context),
+    }))
+    .sort((a, b) => b.score - a.score || Number(Boolean(b.asset.favorite)) - Number(Boolean(a.asset.favorite)))
+    .slice(0, limit);
+}
+
+export function applyVaultAssetToSlide(slide: Slide, asset: AssetRecord): Slide {
+  if (!asset.imageDataUrl) return slide;
+  const media = slide.elements.find((element) => element.type === "image" && element.role === "media");
+  if (!media || media.type !== "image") return slide;
+  return {
+    ...slide,
+    sourceAssetIds: [...new Set([...(slide.sourceAssetIds ?? []), asset.id])],
+    elements: slide.elements.map((element) =>
+      element.id === media.id && element.type === "image"
+        ? { ...element, properties: { ...element.properties, src: "", assetId: asset.id } }
+        : element,
+    ),
+    updatedAt: new Date().toISOString(),
+  };
 }
 
 /**

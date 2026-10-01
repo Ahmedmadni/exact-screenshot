@@ -8,9 +8,9 @@ import {
 } from "@/components/ui/sheet";
 import {
   applyVaultAssetToSlide,
+  externalVisualSearchQuery,
   recommendedMediaOrientation,
   suggestVaultMedia,
-  visualSearchQuery,
 } from "@/lib/assets/auto-media";
 import {
   importLicensedAsset,
@@ -37,7 +37,7 @@ export function SmartMediaPanel({
 }) {
   const { assets } = useDatabase();
   const [open, setOpen] = useState(false);
-  const automaticQuery = slide ? visualSearchQuery(slide, context) : "";
+  const automaticQuery = slide ? externalVisualSearchQuery(slide, context) : "";
   const [query, setQuery] = useState(automaticQuery);
   const [licensed, setLicensed] = useState<LicensedAssetSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -45,7 +45,7 @@ export function SmartMediaPanel({
 
   useEffect(() => {
     if (!open || !slide) return;
-    setQuery(visualSearchQuery(slide, context));
+    setQuery(externalVisualSearchQuery(slide, context));
     setLicensed([]);
   }, [open, slide?.id]);
 

@@ -17,6 +17,19 @@ function aspect(asset: AssetRecord) {
   return asset.width / Math.max(1, asset.height);
 }
 
+function mediaSlotAspect(slide: Slide) {
+  const media = slide.elements.find((element) => element.type === "image" && element.role === "media");
+  if (!media) return slide.slideIntent === "Cover" ? 1.65 : 1.35;
+  return media.width / Math.max(1, media.height);
+}
+
+export function recommendedMediaOrientation(slide: Slide): "landscape" | "portrait" | "square" {
+  const ratio = mediaSlotAspect(slide);
+  if (ratio >= 1.2) return "landscape";
+  if (ratio <= 0.82) return "portrait";
+  return "square";
+}
+
 export function scoreAsset(asset: AssetRecord, slide: Slide, context: string[]) {
   const haystack = assetSearchText(asset);
   const wanted = tokens([slide.title, slide.keyMessage, slide.purpose, ...context].join(" "));
@@ -28,7 +41,13 @@ export function scoreAsset(asset: AssetRecord, slide: Slide, context: string[]) 
 
   if (asset.favorite) score += 4;
   if (asset.origin === "licensed-import") score += 1;
-  if (slide.slideIntent === "Cover" && aspect(asset) >= 1.25) score += 4;
+
+  const slotRatio = mediaSlotAspect(slide);
+  const assetRatio = aspect(asset);
+  const ratioDistance = Math.abs(Math.log(Math.max(0.1, assetRatio) / Math.max(0.1, slotRatio)));
+  score += Math.max(-4, Math.round(7 - ratioDistance * 10));
+
+  if (slide.slideIntent === "Cover" && assetRatio >= 1.25) score += 4;
   if (["Case Study", "Opportunity", "Problem", "Solution"].includes(slide.slideIntent) && asset.assetClass === "photo") score += 2;
   if (slide.slideIntent === "Team" && asset.category === "people") score += 5;
   if (slide.slideIntent === "Financial" && asset.category === "finance") score += 5;
@@ -80,7 +99,12 @@ function suggestionReasons(asset: AssetRecord, slide: Slide, context: string[]) 
   const matched = wanted.filter((token) => haystack.includes(token)).slice(0, 3);
   if (matched.length) reasons.push("Matches " + matched.join(", "));
   if (asset.favorite) reasons.push("Favorite");
-  if (slide.slideIntent === "Cover" && aspect(asset) >= 1.25) reasons.push("Landscape cover fit");
+  const slotRatio = mediaSlotAspect(slide);
+  const assetRatio = aspect(asset);
+  const ratioDistance = Math.abs(Math.log(Math.max(0.1, assetRatio) / Math.max(0.1, slotRatio)));
+  if (ratioDistance < 0.18) reasons.push("Strong crop fit");
+  else if (ratioDistance < 0.38) reasons.push("Good crop fit");
+  if (slide.slideIntent === "Cover" && assetRatio >= 1.25) reasons.push("Landscape cover fit");
   if (slide.slideIntent === "Team" && asset.category === "people") reasons.push("People-focused");
   if (slide.slideIntent === "Financial" && asset.category === "finance") reasons.push("Finance category");
   if (["Solution", "Process"].includes(slide.slideIntent) && asset.category === "technology") reasons.push("Technology fit");

@@ -54,7 +54,17 @@ function TemplatesPage() {
     });
   }, [category, query]);
 
-  const featured = TEMPLATE_FAMILIES.filter((template) => template.featured).slice(0, 6);
+  const featuredIds = [
+    "luxury-investment",
+    "arabic-executive",
+    "strategy-consulting",
+    "feasibility-study",
+    "ai-innovation",
+    "company-profile",
+  ];
+  const featured = featuredIds
+    .map((id) => TEMPLATE_FAMILIES.find((template) => template.id === id))
+    .filter((template): template is TemplateFamily => Boolean(template));
 
   return (
     <AppShell>

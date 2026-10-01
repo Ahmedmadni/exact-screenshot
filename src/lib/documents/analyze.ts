@@ -15,6 +15,9 @@ export interface FileAnalysis {
   slideCount?: number;
   dataTables?: AssetDataTable[];
   imageDataUrl?: string;
+  mimeType?: string;
+  width?: number;
+  height?: number;
   warnings?: string[];
 }
 
@@ -246,6 +249,9 @@ export async function analyzeSourceFile(file: File): Promise<FileAnalysis> {
         extractionStatus: "ready",
         extractionSummary: `Visual source ready · ${image.width}×${image.height}px`,
         imageDataUrl: image.dataUrl,
+        mimeType: file.type || undefined,
+        width: image.width,
+        height: image.height,
         warnings: ["The image is available for slide design. OCR/vision text extraction is not enabled locally."],
       };
     }

@@ -10,6 +10,7 @@ export interface LayoutContent {
   items: { title: string; text: string }[];
   kpis: string[];
   media: string;
+  mediaAssetId?: string;
 }
 
 export interface LayoutDefinition {
@@ -60,7 +61,7 @@ export const LAYOUTS: LayoutDefinition[] = [
     name: "Cover Split",
     intents: ["Cover", "Section Divider"],
     build: (c) => [
-      imageEl("Hero image", [880, 0, 720, 900], { src: c.media }),
+      imageEl("Hero image", [880, 0, 720, 900], { src: c.media, assetId: c.mediaAssetId }),
       shapeEl("Accent bar", "rect", [100, 250, 64, 6]),
       textEl("Title", c.title, [100, 280, 720, 270], { ...H, fontSize: adaptiveType(c.title, 72, 48, 34), vAlign: "bottom" }, "title"),
       textEl("Subtitle", c.subtitle, [100, 580, 700, 130], { ...SEC, fontSize: 26 }, "subtitle"),
@@ -107,7 +108,7 @@ export const LAYOUTS: LayoutDefinition[] = [
     name: "Image + Text",
     intents: ["Opportunity", "Solution", "Case Study", "Problem", "Team"],
     build: (c) => [
-      imageEl("Image", [100, 100, 660, 700], { src: c.media, radius: 20 }),
+      imageEl("Image", [100, 100, 660, 700], { src: c.media, assetId: c.mediaAssetId, radius: 20 }),
       shapeEl("Accent line", "rect", [840, 200, 64, 5]),
       textEl("Title", c.title, [840, 230, 660, 180], { ...H, fontSize: adaptiveType(c.title, 56, 40, 40), vAlign: "bottom" }, "title"),
       textEl("Key message", c.subtitle, [840, 440, 660, 120], { fontSize: 28, fontWeight: 500 }, "subtitle"),
@@ -230,7 +231,7 @@ export const LAYOUTS: LayoutDefinition[] = [
     name: "Editorial Hero",
     intents: ["Cover", "Section Divider", "Opportunity", "Case Study"],
     build: (c) => [
-      imageEl("Hero image", [900, 0, 700, 900], { src: c.media, radius: 0 }),
+      imageEl("Hero image", [900, 0, 700, 900], { src: c.media, assetId: c.mediaAssetId, radius: 0 }),
       shapeEl("Editorial rule", "rect", [100, 110, 110, 4]),
       textEl("Eyebrow", item(c, 0).title || "Perspective", [100, 145, 660, 36], { ...SEC, fontSize: 17, uppercase: true, letterSpacing: 2 }, "decor"),
       textEl("Title", c.title, [100, 225, 700, 300], { ...H, fontSize: adaptiveType(c.title, 78, 50, 36), lineHeight: 0.98, vAlign: "bottom" }, "title"),
@@ -243,7 +244,7 @@ export const LAYOUTS: LayoutDefinition[] = [
     name: "Full Bleed Story",
     intents: ["Cover", "Section Divider", "Quote", "Case Study", "Closing"],
     build: (c) => [
-      imageEl("Background image", [0, 0, 1600, 900], { src: c.media, radius: 0 }),
+      imageEl("Background image", [0, 0, 1600, 900], { src: c.media, assetId: c.mediaAssetId, radius: 0 }),
       { ...shapeEl("Dark overlay", "rect", [0, 0, 1600, 900], { fill: "#111111" }), opacity: 0.62 },
       shapeEl("Accent tag", "roundRect", [110, 120, 230, 52], { fill: "theme:accent", radius: 26 }),
       textEl("Tag", item(c, 0).title || "Key perspective", [110, 120, 230, 52], { fontSize: 17, fontWeight: 700, color: "theme:onAccent", align: "center", vAlign: "middle" }, "decor"),
@@ -407,7 +408,7 @@ export const LAYOUTS: LayoutDefinition[] = [
     name: "Image + Stat Overlay",
     intents: ["Opportunity", "Case Study", "Big Number", "Data Story"],
     build: (c) => [
-      imageEl("Story image", [0, 0, 900, 900], { src: c.media, radius: 0 }),
+      imageEl("Story image", [0, 0, 900, 900], { src: c.media, assetId: c.mediaAssetId, radius: 0 }),
       shapeEl("Stat card", "roundRect", [650, 540, 360, 220], { fill: "theme:accent", radius: 18 }),
       textEl("Stat", c.kpis[0] ?? "[Value]", [690, 575, 280, 95], { ...H, fontSize: 72, color: "theme:onAccent" }, "kpiValue"),
       textEl("Stat label", item(c, 0).title, [690, 675, 280, 50], { fontSize: 17, fontWeight: 600, color: "theme:onAccent" }, "itemTitle"),
@@ -446,7 +447,7 @@ export const LAYOUTS: LayoutDefinition[] = [
     name: "Architectural Cover",
     intents: ["Cover", "Section Divider"],
     build: (c) => [
-      imageEl("Architectural image", [610, 0, 990, 900], { src: c.media, radius: 0 }),
+      imageEl("Architectural image", [610, 0, 990, 900], { src: c.media, assetId: c.mediaAssetId, radius: 0 }),
       { ...shapeEl("Image wash", "rect", [610, 0, 990, 900], { fill: "theme:primary" }), opacity: 0.14 },
       shapeEl("Vertical rail", "rect", [0, 0, 24, 900], { fill: "theme:accent" }),
       textEl("Index", "01", [105, 105, 160, 100], { ...H, fontSize: 78, color: "theme:accent" }, "decor"),
@@ -474,7 +475,7 @@ export const LAYOUTS: LayoutDefinition[] = [
     name: "Image + Editorial Caption",
     intents: ["Opportunity", "Case Study", "Problem", "Solution", "Team"],
     build: (c) => [
-      imageEl("Editorial image", [100, 90, 1400, 530], { src: c.media, radius: 12 }),
+      imageEl("Editorial image", [100, 90, 1400, 530], { src: c.media, assetId: c.mediaAssetId, radius: 12 }),
       shapeEl("Caption rail", "rect", [100, 665, 6, 150], { fill: "theme:accent" }),
       textEl("Title", c.title, [145, 655, 620, 90], { ...H, fontSize: adaptiveType(c.title, 42, 32, 48) }, "title"),
       textEl("Key message", c.subtitle, [145, 752, 620, 70], { fontSize: 20, fontWeight: 500 }, "subtitle"),
@@ -568,6 +569,7 @@ export function contentFromSlide(slide: Slide): LayoutContent {
     }),
     kpis: slide.kpis ?? [],
     media: "",
+    mediaAssetId: undefined,
   };
 }
 
@@ -588,6 +590,7 @@ export function contentFromElements(elements: SlideElement[], fallback: LayoutCo
       : fallback.items,
     kpis: texts("kpiValue").length ? texts("kpiValue") : fallback.kpis,
     media: media && media.type === "image" ? media.properties.src : fallback.media,
+    mediaAssetId: media && media.type === "image" ? media.properties.assetId : fallback.mediaAssetId,
   };
 }
 
@@ -644,12 +647,12 @@ export function applyLayout(slide: Slide, layoutId: string): Slide {
   const generated = buildLayout(layoutId, content, slide.id, slideIsRtl(slide));
   const free = slide.elements.filter((e) => !e.role || e.name === "Evidence Citation");
   const placedText = new Set(generated.flatMap((e) => (e.type === "text" ? [e.properties.text.trim()] : [])));
-  const placedImages = new Set(generated.flatMap((e) => (e.type === "image" ? [e.properties.src] : [])));
+  const placedImages = new Set(generated.flatMap((e) => (e.type === "image" ? [e.properties.assetId ?? e.properties.src] : [])));
   const orphans = slide.elements
     .filter((e) => e.role && e.role !== "decor" && e.name !== "Evidence Citation")
     .filter((e) =>
       e.type === "text" ? e.properties.text.trim() !== "" && !placedText.has(e.properties.text.trim())
-      : e.type === "image" ? !!e.properties.src && !placedImages.has(e.properties.src)
+      : e.type === "image" ? !!(e.properties.src || e.properties.assetId) && !placedImages.has(e.properties.assetId ?? e.properties.src)
       : false,
     )
     .map((e) => ({ ...e, role: undefined, name: `${e.name} (kept)` }) as SlideElement);
@@ -678,7 +681,7 @@ export function sanitizeElement(raw: unknown, slideId: string, index: number): S
   const props = (e.properties && typeof e.properties === "object" ? e.properties : {}) as Record<string, unknown>;
   const defaults: Record<string, Record<string, unknown>> = {
     text: { ...TEXT_DEFAULTS },
-    image: { src: "", fit: "cover", radius: 0 },
+    image: { src: "", assetId: undefined, fit: "cover", radius: 0 },
     shape: { shape: "rect", fill: "theme:accent", stroke: "transparent", strokeWidth: 0, radius: 0 },
     icon: { name: "Circle", color: "theme:accent", strokeWidth: 1.75 },
     chart: {

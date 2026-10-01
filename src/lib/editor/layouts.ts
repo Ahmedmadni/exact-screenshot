@@ -315,7 +315,7 @@ export const LAYOUTS: LayoutDefinition[] = [
   {
     id: "strategy-matrix",
     name: "Strategy 2×2 Matrix",
-    intents: ["Portfolio", "Comparison", "Opportunity", "Strategy", "Executive Summary"],
+    intents: ["Portfolio", "Comparison", "Opportunity", "Executive Summary"],
     build: (c) => [
       ...titleBlock(c),
       textEl("Key message", c.subtitle, [100, 210, 1400, 55], { ...SEC, fontSize: 23 }, "subtitle"),
@@ -377,7 +377,7 @@ export const LAYOUTS: LayoutDefinition[] = [
   {
     id: "diagram-focus",
     name: "Diagram Focus",
-    intents: ["Process", "Solution", "Strategy", "Portfolio", "Roadmap"],
+    intents: ["Process", "Solution", "Portfolio", "Roadmap"],
     build: (c) => [
       ...titleBlock(c),
       textEl("Key message", c.subtitle, [100, 205, 1400, 55], { ...SEC, fontSize: 23 }, "subtitle"),
@@ -420,7 +420,7 @@ export const LAYOUTS: LayoutDefinition[] = [
   {
     id: "decision-focus",
     name: "Decision Focus",
-    intents: ["Call to Action", "Closing", "Executive Summary", "Proposal"],
+    intents: ["Call to Action", "Closing", "Executive Summary"],
     build: (c) => [
       shapeEl("Decision rail", "rect", [0, 0, 26, 900], { fill: "theme:accent" }),
       textEl("Decision label", "DECISION REQUIRED", [110, 120, 400, 36], { color: "theme:accent", fontSize: 16, fontWeight: 800, letterSpacing: 1.5 }, "decor"),

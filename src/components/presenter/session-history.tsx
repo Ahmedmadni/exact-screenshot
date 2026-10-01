@@ -1,7 +1,10 @@
-import { ClipboardCopy, HelpCircle, ListTodo, Loader2, Play, Radio, RefreshCw, Users } from "lucide-react";
+import { ClipboardCopy, HelpCircle, ListTodo, Loader2, Play, Plus, Radio, RefreshCw, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
+import { presentationRepository } from "@/lib/data/store";
+import { saveLivePresentation } from "@/lib/collaboration";
+import { buildSessionOutcomesSlide } from "@/lib/session-outcomes";
 import { Button } from "@/components/ui/button";
 import {
   getActivePresentationSession,
@@ -144,9 +147,59 @@ export function PresentationSessionsOverview({ presentation: p }: { presentation
                       {selected.endedAt ? " · ended " + new Date(selected.endedAt).toLocaleString() : ""}
                     </p>
                   </div>
-                  <Button variant="outline" size="sm" disabled={!summary} onClick={() => { void navigator.clipboard?.writeText(summary); toast.success("Session summary copied."); }}>
-                    <ClipboardCopy className="size-4" /> Copy summary
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    {(p.collaboration?.role === "owner" || p.collaboration?.role === "editor") && p.status !== "Approved" && (
+                      <Button
+                        size="sm"
+                        onClick={async () => {
+                          const slide = buildSessionOutcomesSlide(p, selected, items);
+                          const stamp = new Date().toISOString();
+                          const nextPresentation: Presentation = {
+                            ...p,
+                            slides: [...p.slides, slide],
+                            recommendedSlideCount: p.slides.length + 1,
+                            updatedAt: stamp,
+                          };
+
+                          if (p.collaboration?.enabled) {
+                            try {
+                              const payload = structuredClone(nextPresentation);
+                              delete payload.collaboration;
+                              const result = await saveLivePresentation(p.id, p.collaboration.revision, payload);
+                              if (result.conflict) {
+                                toast.error("The presentation changed in another session. Refresh before creating the outcomes slide.");
+                                return;
+                              }
+                              presentationRepository.upsertCollaborative({
+                                ...nextPresentation,
+                                collaboration: {
+                                  ...p.collaboration,
+                                  revision: result.revision,
+                                  liveUpdatedAt: result.updatedAt,
+                                },
+                              });
+                            } catch (error) {
+                              console.error(error);
+                              toast.error(error instanceof Error ? error.message : "Could not save the outcomes slide.");
+                              return;
+                            }
+                          } else {
+                            presentationRepository.update(p.id, {
+                              slides: nextPresentation.slides,
+                              recommendedSlideCount: nextPresentation.recommendedSlideCount,
+                            });
+                          }
+
+                          toast.success("Meeting outcomes slide created.");
+                        }}
+                      >
+                        <Plus className="size-4" /> Create outcomes slide
+                      </Button>
+                    )}
+                    <Button variant="outline" size="sm" disabled={!summary} onClick={() => { void navigator.clipboard?.writeText(summary); toast.success("Session summary copied."); }}>
+                      <ClipboardCopy className="size-4" /> Copy summary
+                    </Button>
+                  </div>
                 </div>
                 <div className="mt-5 grid gap-3 sm:grid-cols-3">
                   <Metric icon={HelpCircle} label="Questions" value={questions.length} detail={questions.filter((item) => item.status === "open").length + " open"} />

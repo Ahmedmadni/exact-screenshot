@@ -476,9 +476,43 @@ export function contentFromElements(elements: SlideElement[], fallback: LayoutCo
   };
 }
 
-export function buildLayout(layoutId: string, content: LayoutContent, slideId: string): SlideElement[] {
+const RTL_MIRRORABLE_LAYOUTS = new Set([
+  "cover-split",
+  "hero-editorial",
+  "title-content",
+  "image-text",
+  "image-stat-overlay",
+  "chart-story",
+  "finance-table",
+  "diagram-focus",
+  "decision-focus",
+]);
+
+export function slideIsRtl(slide: Pick<Slide, "title" | "keyMessage" | "contentSummary" | "bullets">) {
+  const text = [slide.title, slide.keyMessage, slide.contentSummary, ...(slide.bullets ?? [])].join(" ");
+  const rtl = (text.match(/[\u0600-\u06FF]/g) ?? []).length;
+  const latin = (text.match(/[A-Za-z]/g) ?? []).length;
+  return rtl > 8 && rtl >= latin * 0.55;
+}
+
+function mirrorForRtl(elements: SlideElement[], layoutId: string): SlideElement[] {
+  if (!RTL_MIRRORABLE_LAYOUTS.has(layoutId)) return elements;
+  return elements.map((element) => {
+    const next = {
+      ...element,
+      x: SLIDE_W - element.x - element.width,
+    } as SlideElement;
+    if (next.type === "shape" && next.properties.shape === "arrow") {
+      next.rotation = (next.rotation + 180) % 360;
+    }
+    return next;
+  });
+}
+
+export function buildLayout(layoutId: string, content: LayoutContent, slideId: string, rtl = false): SlideElement[] {
   const layout = getLayout(layoutId) ?? LAYOUTS[0]!;
-  return instantiate(layout.build(content), slideId);
+  const elements = instantiate(layout.build(content), slideId);
+  return rtl ? mirrorForRtl(elements, layout.id) : elements;
 }
 
 /**
@@ -488,7 +522,7 @@ export function buildLayout(layoutId: string, content: LayoutContent, slideId: s
  */
 export function applyLayout(slide: Slide, layoutId: string): Slide {
   const content = contentFromElements(slide.elements, contentFromSlide(slide));
-  const generated = buildLayout(layoutId, content, slide.id);
+  const generated = buildLayout(layoutId, content, slide.id, slideIsRtl(slide));
   const free = slide.elements.filter((e) => !e.role || e.name === "Evidence Citation");
   const placedText = new Set(generated.flatMap((e) => (e.type === "text" ? [e.properties.text.trim()] : [])));
   const placedImages = new Set(generated.flatMap((e) => (e.type === "image" ? [e.properties.src] : [])));
@@ -585,5 +619,5 @@ export function materializeSlide(slide: Slide): Slide {
     return same ? slide : { ...slide, elements: clean };
   }
   const layoutId = slide.layoutId && getLayout(slide.layoutId) ? slide.layoutId : layoutsForIntent(slide.slideIntent)[0]!.id;
-  return { ...slide, layoutId, elements: buildLayout(layoutId, contentFromSlide(slide), slide.id) };
+  return { ...slide, layoutId, elements: buildLayout(layoutId, contentFromSlide(slide), slide.id, slideIsRtl(slide)) };
 }

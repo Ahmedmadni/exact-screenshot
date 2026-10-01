@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import {
-  CheckCircle2, ExternalLink, FileText, FolderOpen, Grid2X2, Image as ImageIcon, Loader2, Search, Sparkles, Star, Trash2, Upload,
+  CheckCircle2, FileText, FolderOpen, Grid2X2, Image as ImageIcon, Loader2, Search, Sparkles, Star, Trash2, Upload,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { EmptyState } from "@/components/empty-state";
@@ -216,14 +216,7 @@ function AssetsPage() {
                       {result.creator ? `${licensedProviderLabel(result.provider)} · ${result.creator}` : licensedProviderLabel(result.provider)}
                     </div>
                     <div className="mt-3 flex items-center justify-between gap-2">
-                      <a
-                        href={result.sourceUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-[9px] text-muted-foreground hover:text-foreground"
-                      >
-                        Source <ExternalLink className="size-3" />
-                      </a>
+                      <span className="text-[9px] text-muted-foreground">Imported media stays in your Vault</span>
                       <Button size="sm" className="h-7 text-[10px]" disabled={Boolean(importingId)} onClick={() => void importResult(result)}>
                         {importingId === result.id ? <Loader2 className="size-3 animate-spin" /> : <Upload className="size-3" />}
                         Import

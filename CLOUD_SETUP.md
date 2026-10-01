@@ -167,3 +167,33 @@ GitHub Actions now runs:
 `bun run check:migrations`
 
 before the frontend build. This catches malformed or unbalanced PL/pgSQL dollar quoting before changes are merged.
+
+
+## Live presentation sessions
+
+Team-enabled presentations can now run a persistent Live Room.
+
+From Presenter View, the owner can choose **Start Live**. Team members join from **Live Room** or the **Sessions** tab.
+
+During a live session:
+
+- Participants automatically follow the presenter’s current slide.
+- Audience presence is shown in real time.
+- Participants can raise a hand without creating a permanent database record.
+- Any team member can submit a Question.
+- Owner, Editor and Reviewer roles can record Decisions and Action Items.
+- Owner and Editor roles can mark Questions answered and Action Items completed.
+- Action Items can include an assignee and due date.
+
+Questions, Decisions and Action Items are stored in Supabase and remain available after the meeting ends. The **Sessions** tab shows session history and a copyable meeting summary.
+
+The owner can control the Live Room directly from Presenter View. Slide changes in Presenter View update the persisted session state, so participants remain synchronized even across different browsers.
+
+The migration adds:
+
+- `presentation_sessions`
+- `presentation_session_items`
+- role-aware session RPCs
+- Realtime publication entries for session and item updates
+
+After pulling these changes, re-run the latest cloud migration before using Live Rooms in an existing Supabase project.

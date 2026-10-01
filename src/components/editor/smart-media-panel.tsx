@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/sheet";
 import {
   applyVaultAssetToSlide,
+  recommendedMediaOrientation,
   suggestVaultMedia,
   visualSearchQuery,
 } from "@/lib/assets/auto-media";
@@ -70,7 +71,7 @@ export function SmartMediaPanel({
     if (q.length < 2 || searching) return;
     setSearching(true);
     try {
-      const result = await searchLicensedAssets(q, { orientation: slide?.slideIntent === "Team" ? "portrait" : "landscape" });
+      const result = await searchLicensedAssets(q, { orientation: slide ? recommendedMediaOrientation(slide) : "landscape" });
       setLicensed(result.results);
       if (!result.results.length) toast.info("No licensed visuals matched this query.");
     } catch (error) {

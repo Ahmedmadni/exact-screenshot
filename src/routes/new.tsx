@@ -1,6 +1,6 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useRef, useState } from "react";
-import { ArrowLeft, CheckCircle2, FileText, Loader2, Paperclip, Sparkles, X } from "lucide-react";
+import { ArrowLeft, CheckCircle2, FileText, LayoutTemplate, Loader2, Paperclip, Sparkles, X } from "lucide-react";
 import { z } from "zod";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
@@ -10,8 +10,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { aiProvider } from "@/lib/ai";
 import { materializeSlide } from "@/lib/editor/layouts";
+import { SlideThumb } from "@/components/editor/slide-renderer";
 import { composeDeck } from "@/lib/editor/composer";
-import { applyTemplateFamilyToSlides, getTemplateFamily } from "@/lib/templates";
+import { applyTemplateFamilyToSlides, getTemplateFamily, TEMPLATE_FAMILIES, templatePreviewSlides } from "@/lib/templates";
 import { applyBrandKit } from "@/lib/brand";
 import { assetRepository, brandKitRepository, presentationRepository, uid, useDatabase } from "@/lib/data/store";
 import { useI18n } from "@/lib/i18n";
@@ -77,7 +78,7 @@ function Setup() {
   const { t } = useI18n();
   const navigate = useNavigate();
   const { topic: initial = "", template: templateId, source: sourceId } = Route.useSearch();
-  const template = getTemplateFamily(templateId);
+  const initialTemplate = getTemplateFamily(templateId);
   const { brandKits, assets } = useDatabase();
   const sourceAsset = sourceId ? assets.find((asset) => asset.id === sourceId) : undefined;
   const initialTopic = initial || sourceAsset?.name.replace(/\.[^.]+$/, "") || "";
@@ -86,16 +87,30 @@ function Setup() {
   const [objective, setObjective] = useState("");
   const [audience, setAudience] = useState(guess.audience);
   const [purpose, setPurpose] = useState(guess.purpose);
-  const [type, setType] = useState<PresentationType>(template?.presentationType ?? guess.type);
+  const [selectedTemplateId, setSelectedTemplateId] = useState(templateId ?? "__smart");
+  const [type, setType] = useState<PresentationType>(initialTemplate?.presentationType ?? guess.type);
   const [language, setLanguage] = useState(guess.language);
-  const [tone, setTone] = useState<Tone>(template?.tone ?? guess.tone);
-  const [length, setLength] = useState<LengthPreset>(template?.lengthPreset ?? "Standard");
+  const [tone, setTone] = useState<Tone>(initialTemplate?.tone ?? guess.tone);
+  const [length, setLength] = useState<LengthPreset>(initialTemplate?.lengthPreset ?? "Standard");
   const [custom, setCustom] = useState(10);
   const [brandKitId, setBrandKitId] = useState("__none");
   const [sourceAssetIds, setSourceAssetIds] = useState<string[]>(sourceAsset ? [sourceAsset.id] : []);
   const [uploadingSources, setUploadingSources] = useState(false);
   const sourceInput = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  const template = selectedTemplateId === "__smart" ? undefined : getTemplateFamily(selectedTemplateId);
+  const designOptions = TEMPLATE_FAMILIES.filter((candidate) => candidate.featured).slice(0, 6);
+
+  const chooseTemplate = (id: string) => {
+    setSelectedTemplateId(id);
+    if (id === "__smart") return;
+    const next = getTemplateFamily(id);
+    if (!next) return;
+    setType(next.presentationType);
+    setTone(next.tone);
+    setLength(next.lengthPreset);
+    if (next.id === "arabic-executive") setLanguage("Arabic");
+  };
 
   const slideCount = length === "Custom" ? custom : Math.round((LENGTH_RANGES[length][0] + LENGTH_RANGES[length][1]) / 2);
   const selectedSources = assets.filter((asset) => sourceAssetIds.includes(asset.id));
@@ -167,6 +182,67 @@ function Setup() {
         <h1 className="text-3xl text-foreground">{t("setup.title")}</h1>
         <p className="text-sm text-muted-foreground">{t("setup.subtitle")}</p>
       </header>
+
+      <section className="panel mb-6 p-5">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <LayoutTemplate className="size-4 text-accent" />
+              <span className="eyebrow">Design direction</span>
+            </div>
+            <h2 className="mt-1 text-lg font-medium text-foreground">Choose the visual system before generation</h2>
+            <p className="mt-1 text-sm text-muted-foreground">The selected system controls theme, typography and the layout rhythm used across the generated deck.</p>
+          </div>
+          <Button asChild variant="outline" size="sm"><Link to="/templates">Browse full gallery</Link></Button>
+        </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <button
+            type="button"
+            onClick={() => chooseTemplate("__smart")}
+            className={cn(
+              "overflow-hidden rounded-xl border text-start transition hover:-translate-y-0.5 hover:shadow-md",
+              selectedTemplateId === "__smart" ? "border-primary ring-2 ring-primary" : "border-border",
+            )}
+          >
+            <div className="grid aspect-video place-items-center bg-gradient-to-br from-muted to-background">
+              <div className="text-center">
+                <Sparkles className="mx-auto size-7 text-accent" />
+                <div className="mt-2 text-sm font-semibold text-foreground">Smart Design</div>
+                <div className="mt-1 text-[10px] text-muted-foreground">Let content choose the layouts</div>
+              </div>
+            </div>
+            <div className="p-3">
+              <div className="text-xs font-medium text-foreground">Adaptive visual rhythm</div>
+              <div className="mt-1 text-[10px] text-muted-foreground">Best when you want the engine to decide.</div>
+            </div>
+          </button>
+
+          {designOptions.map((option) => {
+            const preview = templatePreviewSlides(option)[0];
+            return (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => chooseTemplate(option.id)}
+                className={cn(
+                  "overflow-hidden rounded-xl border text-start transition hover:-translate-y-0.5 hover:shadow-md",
+                  selectedTemplateId === option.id ? "border-primary ring-2 ring-primary" : "border-border",
+                )}
+              >
+                <div className="relative aspect-video overflow-hidden bg-muted">
+                  {preview && <SlideThumb slide={preview} themeId={option.themeId} />}
+                  <span className="absolute start-2 top-2 rounded-full border border-white/20 bg-black/25 px-2 py-1 text-[9px] font-semibold text-white backdrop-blur">{option.badge}</span>
+                </div>
+                <div className="p-3">
+                  <div className="truncate text-xs font-medium text-foreground">{option.name}</div>
+                  <div className="mt-1 line-clamp-2 text-[10px] leading-relaxed text-muted-foreground">{option.signature}</div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </section>
 
       <div className="panel space-y-6 p-6">
         <Field label={t("setup.topic")}>

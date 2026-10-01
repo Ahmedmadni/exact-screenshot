@@ -1,5 +1,6 @@
 import type { LengthPreset, PresentationType, Slide, SlideIntent, Tone } from "@/lib/types";
-import { applyLayout } from "@/lib/editor/layouts";
+import { applyLayout, buildLayout, getLayout } from "@/lib/editor/layouts";
+import { getTheme } from "@/lib/editor/themes";
 
 export interface TemplateFamily {
   id: string;
@@ -434,5 +435,77 @@ export function applyTemplateFamilyToSlides(slides: Slide[], template: TemplateF
   return slides.map((slide) => {
     const layoutId = template.layoutMap[slide.slideIntent];
     return layoutId ? applyLayout(slide, layoutId) : slide;
+  });
+}
+
+const PREVIEW_TITLES = [
+  "A clear point of view",
+  "The evidence behind the decision",
+  "What happens next",
+] as const;
+
+function previewMedia(template: TemplateFamily) {
+  const theme = getTheme(template.themeId);
+  const svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900">' +
+    '<rect width="1200" height="900" fill="' + theme.colors.surface + '"/>' +
+    '<circle cx="960" cy="170" r="330" fill="' + theme.colors.accentSoft + '"/>' +
+    '<circle cx="180" cy="760" r="250" fill="' + theme.colors.accent + '" opacity=".52"/>' +
+    '<path d="M0 640 C260 510 420 760 680 610 S1010 420 1200 540 V900 H0Z" fill="' + theme.colors.primary + '" opacity=".18"/>' +
+    '<rect x="120" y="125" width="380" height="22" rx="11" fill="' + theme.colors.accent + '" opacity=".8"/>' +
+    '<rect x="120" y="175" width="560" height="12" rx="6" fill="' + theme.colors.primary + '" opacity=".24"/>' +
+    '</svg>';
+  return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
+}
+
+export function templatePreviewSlides(template: TemplateFamily): Slide[] {
+  const media = previewMedia(template);
+  return template.previewLayouts.slice(0, 3).map((layoutId, index) => {
+    const layout = getLayout(layoutId);
+    const intent = layout?.intents[0] ?? "Executive Summary";
+    const id = "preview-" + template.id + "-" + index;
+    const content = {
+      title: PREVIEW_TITLES[index] ?? PREVIEW_TITLES[0],
+      subtitle:
+        index === 0
+          ? template.signature
+          : index === 1
+            ? "Performance is moving in the right direction, but the decision depends on three critical drivers."
+            : "Align the team around the priority actions, owners and timing.",
+      body:
+        index === 0
+          ? template.description
+          : index === 1
+            ? "The strongest signal comes from the combination of growth, execution quality and disciplined resource allocation."
+            : "Move from recommendation to execution with a clear decision, sequenced work and visible accountability.",
+      items: [
+        { title: "Priority one", text: "Concentrate effort where impact and confidence are highest." },
+        { title: "Priority two", text: "Make the trade-offs explicit and easy to discuss." },
+        { title: "Priority three", text: "Translate the narrative into measurable action." },
+        { title: "Priority four", text: "Protect momentum with a simple governance rhythm." },
+      ],
+      kpis: ["24%", "1.8×", "SAR 42m", "90d"],
+      media,
+    };
+    const stamp = "2026-01-01T00:00:00.000Z";
+    return {
+      id,
+      presentationId: "template-preview",
+      slideNumber: index + 1,
+      sortOrder: index,
+      title: content.title,
+      purpose: "Template preview",
+      slideIntent: intent,
+      keyMessage: content.subtitle,
+      contentSummary: content.body,
+      visualType: layoutId.includes("chart") ? "Chart" : layoutId.includes("table") ? "Table" : layoutId.includes("image") || layoutId.includes("bleed") || layoutId.includes("hero") ? "Image + Text" : "Cards",
+      isOptional: false,
+      elements: buildLayout(layoutId, content, id),
+      layoutId,
+      bullets: content.items.map((entry) => entry.title + ": " + entry.text),
+      kpis: content.kpis,
+      createdAt: stamp,
+      updatedAt: stamp,
+    };
   });
 }

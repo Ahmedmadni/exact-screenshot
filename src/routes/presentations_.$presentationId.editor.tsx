@@ -19,6 +19,7 @@ import { TeamReviewPanel } from "@/components/collaboration/team-review-panel";
 import { SlideRail } from "@/components/editor/slide-rail";
 import { IconPicker } from "@/components/editor/icon-picker";
 import { AssetPicker } from "@/components/editor/asset-picker";
+import { SmartMediaPanel } from "@/components/editor/smart-media-panel";
 import { readImage } from "@/components/editor/image-upload";
 import { SlideStage, SlideThumb, useFitScale } from "@/components/editor/slide-renderer";
 import { useEditor, type EditorApi } from "@/components/editor/use-editor";
@@ -27,6 +28,7 @@ import { SHAPE_LABELS, TEXT_PRESETS, chartEl, cloneElement, diagramEl, iconEl, i
 import { SLIDE_H, SLIDE_W, type DraftElement, type ShapeKind, type SlideElement } from "@/lib/editor/model";
 import { getTheme } from "@/lib/editor/themes";
 import { rebuildGeneratedContent, smartComposeSlide, tryAnotherDesign } from "@/lib/editor/composer";
+import { applyVaultMedia } from "@/lib/assets/auto-media";
 import { exportPresentationToPdf, exportPresentationToPptx, validatePresentationForExport } from "@/lib/export";
 import type { AssetRecord, Presentation } from "@/lib/types";
 import { sourceContextFromAssets } from "@/lib/documents/analyze";
@@ -262,6 +264,26 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
     api.setSelected([]);
   }, [api]);
 
+  const autoFillVaultMedia = useCallback(() => {
+    const before = api.snapshot();
+    const next = applyVaultMedia(
+      before,
+      assetRepository.list(),
+      [p.topic, p.presentationType, p.audience, p.visualDirection],
+      Math.max(6, before.length),
+    );
+    const changed = next.reduce((sum, slide, index) => {
+      const previous = before[index];
+      return sum + (previous && JSON.stringify(previous.elements) !== JSON.stringify(slide.elements) ? 1 : 0);
+    }, 0);
+    if (!changed) {
+      toast.info("No empty image slots matched reusable Vault media.");
+      return;
+    }
+    api.commit(next);
+    toast.success(`Smart Media filled ${changed} slide${changed === 1 ? "" : "s"} from the Asset Vault.`);
+  }, [api, p.topic, p.presentationType, p.audience, p.visualDirection]);
+
   const rewriteActive = useCallback(async (action: SlideRewriteAction) => {
     const slide = api.active;
     if (!slide || aiBusy) return;
@@ -491,6 +513,17 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        <SmartMediaPanel
+          slide={api.active}
+          context={[p.topic, p.presentationType, p.audience, p.visualDirection]}
+          onUse={replaceActive}
+          onAutoFillDeck={autoFillVaultMedia}
+        >
+          <Button variant="outline" size="sm" disabled={!api.active}>
+            <ImagePlus className="size-4" /> Smart Media
+          </Button>
+        </SmartMediaPanel>
 
         <div className="flex flex-1 items-center justify-center gap-1">
           <DropdownMenu>

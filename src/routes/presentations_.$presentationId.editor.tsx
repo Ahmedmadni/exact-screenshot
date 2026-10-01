@@ -529,7 +529,7 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
                   img.onload = () => {
                     const w = Math.min(720, img.width || 720);
                     const h = Math.round((w * (img.height || 480)) / Math.max(1, img.width || 720));
-                    add([imageEl(asset.name, center(w, Math.min(h, 720)), { src }, undefined as never)].map((draft) => ({ ...draft, role: undefined })));
+                    add([imageEl(asset.name, center(w, Math.min(h, 720)), { src: "", assetId: asset.id }, undefined as never)].map((draft) => ({ ...draft, role: undefined })));
                   };
                   img.src = src;
                 }}

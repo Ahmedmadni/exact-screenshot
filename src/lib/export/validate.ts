@@ -16,7 +16,7 @@ export function validatePresentationForExport(presentation: Presentation): Expor
 
     slide.elements.forEach((el) => {
       if (!el.visible) return;
-      if (el.type === "image" && !el.properties.src) {
+      if (el.type === "image" && !el.properties.src && !el.properties.assetId) {
         issues.push({ level: "warning", slideNumber: index + 1, message: `${el.name} has no image assigned.` });
       }
       if (el.type === "chart" && (!el.properties.categories.length || !el.properties.series.length)) {

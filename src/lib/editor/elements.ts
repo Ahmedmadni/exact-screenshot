@@ -88,10 +88,11 @@ export function chartEl(
   name: string,
   box: [number, number, number, number],
   props: Partial<ChartProps> = {},
+  role?: ContentRole,
 ): DraftElement {
   return {
     type: "chart",
-    ...base(name, ...box),
+    ...base(name, ...box, role),
     properties: {
       label: "Performance",
       chartType: "column",
@@ -110,10 +111,11 @@ export function tableEl(
   name: string,
   box: [number, number, number, number],
   props: Partial<TableProps> = {},
+  role?: ContentRole,
 ): DraftElement {
   return {
     type: "table",
-    ...base(name, ...box),
+    ...base(name, ...box, role),
     properties: {
       label: "Table",
       rows: [
@@ -134,10 +136,11 @@ export function diagramEl(
   name: string,
   box: [number, number, number, number],
   props: Partial<DiagramProps> = {},
+  role?: ContentRole,
 ): DraftElement {
   return {
     type: "diagram",
-    ...base(name, ...box),
+    ...base(name, ...box, role),
     properties: {
       label: "Process",
       diagramType: "process",

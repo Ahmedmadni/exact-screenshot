@@ -1,5 +1,5 @@
 import type { Slide } from "@/lib/types";
-import { applyLayout, buildLayout, contentFromSlide, slideIsRtl } from "./layouts";
+import { applyLayout, buildLayout, contentFromSlide, layoutsForIntent, slideIsRtl } from "./layouts";
 import type { SlideElement } from "./model";
 
 const BY_INTENT: Record<string, string[]> = {
@@ -66,6 +66,71 @@ function candidateLayouts(slide: Slide) {
   }
 
   return [...new Set(preferred)];
+}
+
+export type MagicDesignFamily = "editorial" | "data" | "structured" | "flow" | "statement" | "minimal";
+
+export interface MagicDesignVariant {
+  id: string;
+  label: string;
+  description: string;
+  family: MagicDesignFamily;
+  layoutId: string;
+  slide: Slide;
+}
+
+function magicFamily(layoutId: string): MagicDesignFamily {
+  if (layoutId.includes("chart") || layoutId.includes("metric") || layoutId.includes("table") || layoutId === "big-number") return "data";
+  if (layoutId.includes("image") || layoutId.includes("hero") || layoutId.includes("bleed") || layoutId.includes("editorial") || layoutId.includes("magazine")) return "editorial";
+  if (layoutId.includes("roadmap") || layoutId.includes("ribbon") || layoutId.includes("timeline") || layoutId.includes("diagram")) return "flow";
+  if (layoutId.includes("decision") || layoutId.includes("closing") || layoutId.includes("quote")) return "statement";
+  if (layoutId.includes("matrix") || layoutId.includes("card") || layoutId.includes("comparison")) return "structured";
+  return "minimal";
+}
+
+const MAGIC_COPY: Record<MagicDesignFamily, { label: string; description: string }> = {
+  editorial: { label: "Editorial", description: "Image-led hierarchy with a stronger visual point of view." },
+  data: { label: "Data-led", description: "Makes metrics, evidence and management commentary dominant." },
+  structured: { label: "Structured", description: "Consulting-style grouping for clear comparison and logic." },
+  flow: { label: "Flow", description: "Turns the story into a process, roadmap or connected system." },
+  statement: { label: "Statement", description: "Creates a decisive, high-impact message or closing moment." },
+  minimal: { label: "Minimal", description: "Quiet hierarchy with generous whitespace and low visual noise." },
+};
+
+export function magicDesignVariants(slide: Slide, limit = 4): MagicDesignVariant[] {
+  const candidates = [
+    ...candidateLayouts(slide),
+    ...layoutsForIntent(slide.slideIntent).map((layout) => layout.id),
+  ].filter((id, index, all) => all.indexOf(id) === index);
+
+  const selected: string[] = [];
+  const usedFamilies = new Set<MagicDesignFamily>();
+
+  for (const id of candidates) {
+    const family = magicFamily(id);
+    if (usedFamilies.has(family)) continue;
+    selected.push(id);
+    usedFamilies.add(family);
+    if (selected.length >= limit) break;
+  }
+
+  for (const id of candidates) {
+    if (selected.length >= limit) break;
+    if (!selected.includes(id)) selected.push(id);
+  }
+
+  return selected.slice(0, limit).map((layoutId, index) => {
+    const family = magicFamily(layoutId);
+    const copy = MAGIC_COPY[family];
+    return {
+      id: slide.id + "-magic-" + layoutId,
+      label: index === 0 ? "Best fit" : copy.label,
+      description: index === 0 ? "Recommended from this slide’s content, intent and visual density." : copy.description,
+      family,
+      layoutId,
+      slide: applyLayout(slide, layoutId),
+    };
+  });
 }
 
 export function recommendedLayoutId(slide: Slide): string {

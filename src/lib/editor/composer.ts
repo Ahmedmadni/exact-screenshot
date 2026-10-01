@@ -1,5 +1,5 @@
 import type { Slide } from "@/lib/types";
-import { applyLayout, buildLayout, contentFromSlide } from "./layouts";
+import { applyLayout, buildLayout, contentFromSlide, slideIsRtl } from "./layouts";
 import type { SlideElement } from "./model";
 
 const BY_INTENT: Record<string, string[]> = {
@@ -97,7 +97,7 @@ export function rebuildGeneratedContent(
 ): Slide {
   const next: Slide = { ...slide, ...patch, speakerNotes: undefined };
   const layoutId = recommendedLayoutId(next);
-  let generated = buildLayout(layoutId, contentFromSlide(next), next.id);
+  let generated = buildLayout(layoutId, contentFromSlide(next), next.id, slideIsRtl(next));
   const existingMedia = slide.elements.find((e) => e.type === "image" && e.role === "media" && e.properties.src);
   if (existingMedia?.type === "image") {
     generated = generated.map((e) =>

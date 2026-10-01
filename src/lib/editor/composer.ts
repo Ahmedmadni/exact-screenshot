@@ -3,24 +3,24 @@ import { applyLayout, buildLayout, contentFromSlide, layoutsForIntent, slideIsRt
 import type { SlideElement } from "./model";
 
 const BY_INTENT: Record<string, string[]> = {
-  Cover: ["hero-editorial", "cover-split", "cover-minimal", "full-bleed-story", "cover-bold"],
+  Cover: ["cover-architectural", "hero-editorial", "cover-index", "cover-split", "cover-minimal", "full-bleed-story", "cover-bold"],
   Agenda: ["four-cards", "title-content", "section-divider"],
-  "Executive Summary": ["executive-metrics-band", "four-cards", "title-content", "three-cards"],
+  "Executive Summary": ["executive-metrics-band", "executive-two-column", "financial-scorecard", "four-cards", "title-content", "three-cards"],
   "Section Divider": ["hero-editorial", "section-divider", "full-bleed-story", "cover-bold"],
   "Big Number": ["image-stat-overlay", "big-number", "executive-metrics-band"],
-  Problem: ["title-content", "three-cards", "hero-editorial", "image-text"],
-  Solution: ["diagram-focus", "image-text", "three-cards", "title-content"],
-  Opportunity: ["image-stat-overlay", "hero-editorial", "strategy-matrix", "big-number"],
+  Problem: ["executive-two-column", "title-content", "three-cards", "hero-editorial", "image-caption", "image-text"],
+  Solution: ["diagram-focus", "image-caption", "image-text", "executive-two-column", "three-cards", "title-content"],
+  Opportunity: ["image-stat-overlay", "image-caption", "hero-editorial", "strategy-matrix", "big-number"],
   Comparison: ["strategy-matrix", "comparison", "finance-table", "title-content"],
   Timeline: ["roadmap-staircase", "timeline", "process-ribbon"],
   Process: ["process-ribbon", "diagram-focus", "timeline", "four-cards"],
   Roadmap: ["roadmap-staircase", "process-ribbon", "timeline", "four-cards"],
   Portfolio: ["strategy-matrix", "four-cards", "three-cards"],
-  Dashboard: ["chart-story", "executive-metrics-band", "kpi-metrics", "finance-table"],
-  "Data Story": ["chart-story", "image-stat-overlay", "executive-metrics-band", "big-number"],
-  Financial: ["finance-table", "chart-story", "executive-metrics-band", "comparison"],
+  Dashboard: ["data-pulse", "executive-metrics-band", "chart-story", "financial-scorecard", "kpi-metrics", "finance-table"],
+  "Data Story": ["data-pulse", "chart-story", "image-stat-overlay", "executive-metrics-band", "big-number"],
+  Financial: ["financial-scorecard", "finance-table", "data-pulse", "chart-story", "executive-metrics-band", "comparison"],
   Quote: ["quote-editorial", "full-bleed-story", "section-divider", "big-number"],
-  "Case Study": ["image-stat-overlay", "hero-editorial", "image-text", "full-bleed-story"],
+  "Case Study": ["image-caption", "image-stat-overlay", "hero-editorial", "image-text", "full-bleed-story"],
   "Before / After": ["comparison", "strategy-matrix", "image-text"],
   Team: ["three-cards", "image-text", "four-cards"],
   "Call to Action": ["decision-focus", "closing-cta", "full-bleed-story"],
@@ -40,16 +40,16 @@ function candidateLayouts(slide: Slide) {
     preferred.unshift(id);
   };
 
-  if (slide.visualType === "Chart") promote("chart-story");
-  if (slide.visualType === "Table") promote("finance-table");
+  if (slide.visualType === "Chart") promote(slide.slideIntent === "Financial" ? "data-pulse" : "chart-story");
+  if (slide.visualType === "Table") promote(slide.slideIntent === "Financial" ? "financial-scorecard" : "finance-table");
   if (slide.visualType === "Matrix") promote("strategy-matrix");
   if (slide.visualType === "Diagram" || slide.visualType === "Process") promote("diagram-focus");
   if (slide.visualType === "Timeline") promote("roadmap-staircase");
   if (slide.visualType === "Full Bleed Image") promote("full-bleed-story");
   if (slide.visualType === "Hero Image") promote("hero-editorial");
-  if (slide.visualType === "Image + Text") promote(kpiCount ? "image-stat-overlay" : "image-text");
+  if (slide.visualType === "Image + Text") promote(kpiCount ? "image-stat-overlay" : (messageLength > 70 ? "image-caption" : "image-text"));
 
-  if (kpiCount >= 4) promote("executive-metrics-band");
+  if (kpiCount >= 4) promote(slide.slideIntent === "Financial" ? "financial-scorecard" : "executive-metrics-band");
   else if (kpiCount >= 2 && ["Dashboard", "Financial", "Data Story"].includes(slide.slideIntent)) promote("chart-story");
   else if (kpiCount === 1 && ["Opportunity", "Big Number", "Case Study"].includes(slide.slideIntent)) promote("image-stat-overlay");
 

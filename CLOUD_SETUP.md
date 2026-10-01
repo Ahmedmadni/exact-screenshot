@@ -197,3 +197,16 @@ The migration adds:
 - Realtime publication entries for session and item updates
 
 After pulling these changes, re-run the latest cloud migration before using Live Rooms in an existing Supabase project.
+
+
+### Post-session follow-up
+
+Ended sessions remain available in the **Sessions** tab.
+
+From a session record, authorized editors can:
+
+- copy a meeting summary
+- create an editable **Meeting outcomes** slide from recorded Decisions, Action Items and open Questions
+- promote unresolved Questions into Team Review comments linked back to the original slide
+
+When collaboration is enabled, creating the outcomes slide uses the same revision-safe live save contract as the editor. If another teammate changed the presentation first, the operation stops instead of overwriting the newer revision.

@@ -65,6 +65,12 @@ export async function searchLicensedAssets(query: string, options?: { orientatio
 }
 
 export async function importLicensedAsset(result: LicensedAssetSearchResult): Promise<AssetRecord> {
+  const providerLabel = licensedProviderLabel(result.provider);
+  const existing = assetRepository.list().find(
+    (asset) => asset.sourceProvider === providerLabel && asset.sourceItemId === result.id && asset.kind === "image",
+  );
+  if (existing?.imageDataUrl) return existing;
+
   const client = requireCloud();
   const { data, error } = await client.functions.invoke("licensed-assets", {
     body: { operation: "import", provider: result.provider, id: result.id },
@@ -91,7 +97,7 @@ export async function importLicensedAsset(result: LicensedAssetSearchResult): Pr
     extractionSummary: `Licensed visual · ${imported.width}×${imported.height}px · stored in Asset Vault`,
     imageDataUrl: imported.dataUrl,
     description: imported.title,
-    sourceProvider: licensedProviderLabel(imported.provider),
+    sourceProvider: providerLabel,
     sourceItemId: imported.id,
     sourceUrl: imported.sourceUrl,
     licenseLabel: imported.licenseLabel,

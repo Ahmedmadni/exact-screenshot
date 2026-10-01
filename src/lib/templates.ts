@@ -679,6 +679,41 @@ function applyTemplateSignature(slide: Slide, template: TemplateFamily, index: n
           { ...shapeEl("Impact seed", "ellipse", [1495, 35, 48, 48], { fill: "theme:accent" }), opacity: 0.85 },
           textEl("Impact folio", "IMPACT  ·  " + page, [1250, 814, 250, 24], { fontSize: 11, fontWeight: 700, color: "theme:secondary", align: "end", letterSpacing: 1.1 }, "decor"),
         ];
+      case "company-profile":
+        return [
+          shapeEl("Company corner mark", "roundRect", [1420, 42, 80, 80], { fill: "theme:accentSoft", radius: 18 }),
+          shapeEl("Company corner accent", "roundRect", [1454, 76, 46, 46], { fill: "theme:accent", radius: 12 }),
+          shapeEl("Company footer rule", "rect", [100, 842, 1400, 1], { fill: "theme:line" }),
+          textEl("Company folio", "PROFILE  ·  " + page, [100, 810, 220, 24], { fontSize: 11, fontWeight: 700, color: "theme:secondary", letterSpacing: 1.1 }, "decor"),
+        ];
+      case "feasibility-study":
+        return [
+          shapeEl("Feasibility rail", "rect", [0, 0, 10, 900], { fill: "theme:accent" }),
+          textEl("Feasibility label", "FEASIBILITY", [105, 44, 220, 28], { fontSize: 11, fontWeight: 800, color: "theme:accent", letterSpacing: 1.6 }, "decor"),
+          textEl("Feasibility folio", "INVESTMENT CASE  ·  " + page, [1190, 812, 310, 24], { fontSize: 11, fontWeight: 700, color: "theme:secondary", align: "end", letterSpacing: 1 }, "decor"),
+        ];
+      case "steering-committee":
+        return [
+          shapeEl("SteerCo status one", "ellipse", [100, 48, 12, 12], { fill: "theme:accent" }),
+          shapeEl("SteerCo status two", "ellipse", [122, 48, 12, 12], { fill: "theme:accentSoft" }),
+          shapeEl("SteerCo status three", "ellipse", [144, 48, 12, 12], { fill: "theme:line" }),
+          textEl("SteerCo label", "STEERING COMMITTEE", [180, 39, 300, 28], { fontSize: 11, fontWeight: 800, color: "theme:secondary", letterSpacing: 1.3 }, "decor"),
+          textEl("SteerCo folio", page, [1450, 812, 50, 24], { fontSize: 11, color: "theme:secondary", align: "end" }, "decor"),
+        ];
+      case "sales-proposal":
+        return [
+          { ...shapeEl("Sales corner wash", "ellipse", [1370, -120, 360, 360], { fill: "theme:accentSoft" }), opacity: 0.7 },
+          shapeEl("Sales signal", "rect", [100, 44, 90, 4], { fill: "theme:accent" }),
+          textEl("Sales label", "CLIENT PROPOSAL", [215, 34, 240, 26], { fontSize: 11, fontWeight: 800, color: "theme:accent", letterSpacing: 1.3 }, "decor"),
+          textEl("Sales folio", page, [1450, 812, 50, 24], { fontSize: 11, color: "theme:secondary", align: "end" }, "decor"),
+        ];
+      case "transformation-pmo":
+        return [
+          shapeEl("PMO top rail", "rect", [0, 0, 1600, 7], { fill: "theme:accent" }),
+          ...[0, 1, 2, 3].map((i) => shapeEl("PMO pulse " + (i + 1), "ellipse", [1180 + i * 70, 42, 16, 16], { fill: i === 3 ? "theme:accent" : "theme:line" })),
+          textEl("PMO label", "TRANSFORMATION PMO", [100, 34, 300, 28], { fontSize: 11, fontWeight: 800, color: "theme:secondary", letterSpacing: 1.2 }, "decor"),
+          textEl("PMO folio", page, [1450, 812, 50, 24], { fontSize: 11, color: "theme:secondary", align: "end" }, "decor"),
+        ];
       default:
         return [];
     }

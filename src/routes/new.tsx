@@ -100,7 +100,19 @@ function Setup() {
   const [busy, setBusy] = useState(false);
   const template = selectedTemplateId === "__smart" ? undefined : getTemplateFamily(selectedTemplateId);
   const selectedTemplatePreview = template ? templatePreviewSlides(template) : [];
-  const designOptions = TEMPLATE_FAMILIES.filter((candidate) => candidate.featured).slice(0, 6);
+  const featuredIds = [
+    "boardroom-strategy",
+    "arabic-executive",
+    "luxury-investment",
+    "cfo-performance",
+    "ai-innovation",
+    "company-profile",
+    "feasibility-study",
+    "sales-proposal",
+  ];
+  const designOptions = featuredIds
+    .map((id) => TEMPLATE_FAMILIES.find((candidate) => candidate.id === id))
+    .filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate));
 
   const chooseTemplate = (id: string) => {
     setSelectedTemplateId(id);

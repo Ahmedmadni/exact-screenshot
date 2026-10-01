@@ -3,9 +3,15 @@ import { assetRepository } from "@/lib/data/store";
 import { enrichAssetMetadata, inferAssetTags } from "@/lib/assets/catalog";
 import type { AssetRecord } from "@/lib/types";
 
+export type LicensedAssetProvider = "pexels" | "pixabay";
+
+export function licensedProviderLabel(provider: LicensedAssetProvider) {
+  return provider === "pixabay" ? "Pixabay" : "Pexels";
+}
+
 export interface LicensedAssetSearchResult {
   id: string;
-  provider: "pexels";
+  provider: LicensedAssetProvider;
   title: string;
   creator: string;
   width: number;
@@ -15,7 +21,8 @@ export interface LicensedAssetSearchResult {
 }
 
 interface SearchResponse {
-  provider: string;
+  provider: "all" | LicensedAssetProvider;
+  providers?: LicensedAssetProvider[];
   page: number;
   perPage: number;
   totalResults: number;
@@ -23,7 +30,7 @@ interface SearchResponse {
 }
 
 interface ImportResponse {
-  provider: "pexels";
+  provider: LicensedAssetProvider;
   id: string;
   title: string;
   creator: string;
@@ -45,7 +52,7 @@ export async function searchLicensedAssets(query: string, options?: { orientatio
   const { data, error } = await client.functions.invoke("licensed-assets", {
     body: {
       operation: "search",
-      provider: "pexels",
+      provider: "all",
       query,
       orientation: options?.orientation,
       page: options?.page ?? 1,
@@ -84,7 +91,7 @@ export async function importLicensedAsset(result: LicensedAssetSearchResult): Pr
     extractionSummary: `Licensed visual · ${imported.width}×${imported.height}px · stored in Asset Vault`,
     imageDataUrl: imported.dataUrl,
     description: imported.title,
-    sourceProvider: imported.provider === "pexels" ? "Pexels" : imported.provider,
+    sourceProvider: licensedProviderLabel(imported.provider),
     sourceItemId: imported.id,
     sourceUrl: imported.sourceUrl,
     licenseLabel: imported.licenseLabel,

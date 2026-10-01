@@ -1185,7 +1185,7 @@ export function templatePreviewSlides(template: TemplateFamily): Slide[] {
     const stamp = "2026-01-01T00:00:00.000Z";
     const elements = decoratePreviewElements(buildLayout(layoutId, content, id, rtl), profile);
 
-    return {
+    const previewSlide: Slide = {
       id,
       presentationId: "template-preview",
       slideNumber: index + 1,
@@ -1215,5 +1215,6 @@ export function templatePreviewSlides(template: TemplateFamily): Slide[] {
       createdAt: stamp,
       updatedAt: stamp,
     };
+    return applyTemplateSignature(previewSlide, template, index);
   });
 }

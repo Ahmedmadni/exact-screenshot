@@ -27,8 +27,18 @@ function item(c: LayoutContent, i: number) {
   return c.items[i] ?? { title: `[Point ${i + 1}]`, text: "Add a short supporting detail." };
 }
 
+function adaptiveType(text: string, base: number, min: number, comfortableChars: number) {
+  const clean = text.trim();
+  if (!clean) return base;
+  const arabicChars = (clean.match(/[\u0600-\u06FF]/g) ?? []).length;
+  const effectiveLength = clean.length * (arabicChars > clean.length * 0.35 ? 1.12 : 1);
+  if (effectiveLength <= comfortableChars) return base;
+  const scale = Math.sqrt(comfortableChars / effectiveLength);
+  return Math.max(min, Math.round(base * scale));
+}
+
 const titleBlock = (c: LayoutContent): DraftElement[] => [
-  textEl("Title", c.title, [100, 80, 1400, 90], { ...H, fontSize: 52 }, "title"),
+  textEl("Title", c.title, [100, 80, 1400, 90], { ...H, fontSize: adaptiveType(c.title, 52, 38, 52) }, "title"),
   shapeEl("Accent line", "rect", [100, 190, 64, 5]),
 ];
 
@@ -39,7 +49,7 @@ export const LAYOUTS: LayoutDefinition[] = [
     intents: ["Cover"],
     build: (c) => [
       shapeEl("Accent bar", "rect", [100, 250, 80, 6]),
-      textEl("Title", c.title, [100, 290, 1200, 240], { ...H, fontSize: 92, vAlign: "bottom" }, "title"),
+      textEl("Title", c.title, [100, 290, 1200, 240], { ...H, fontSize: adaptiveType(c.title, 92, 56, 34), vAlign: "bottom" }, "title"),
       textEl("Subtitle", c.subtitle, [100, 560, 1000, 110], { ...SEC, fontSize: 30 }, "subtitle"),
       shapeEl("Footer rule", "rect", [100, 800, 1400, 1], { fill: "theme:line" }),
       textEl("Footer", c.body, [100, 815, 1400, 40], { ...SEC, fontSize: 16 }, "body"),
@@ -52,7 +62,7 @@ export const LAYOUTS: LayoutDefinition[] = [
     build: (c) => [
       imageEl("Hero image", [880, 0, 720, 900], { src: c.media }),
       shapeEl("Accent bar", "rect", [100, 250, 64, 6]),
-      textEl("Title", c.title, [100, 280, 720, 270], { ...H, fontSize: 72, vAlign: "bottom" }, "title"),
+      textEl("Title", c.title, [100, 280, 720, 270], { ...H, fontSize: adaptiveType(c.title, 72, 48, 34), vAlign: "bottom" }, "title"),
       textEl("Subtitle", c.subtitle, [100, 580, 700, 130], { ...SEC, fontSize: 26 }, "subtitle"),
     ],
   },
@@ -63,7 +73,7 @@ export const LAYOUTS: LayoutDefinition[] = [
     build: (c) => [
       shapeEl("Background", "rect", [0, 0, 1600, 900]),
       shapeEl("Circle", "ellipse", [1180, -140, 560, 560], { fill: "theme:onAccent" }),
-      textEl("Title", c.title, [120, 300, 1200, 260], { ...H, fontSize: 96, color: "theme:onAccent", vAlign: "bottom" }, "title"),
+      textEl("Title", c.title, [120, 300, 1200, 260], { ...H, fontSize: adaptiveType(c.title, 96, 58, 34), color: "theme:onAccent", vAlign: "bottom" }, "title"),
       textEl("Subtitle", c.subtitle, [120, 590, 1000, 110], { fontSize: 30, color: "theme:onAccent" }, "subtitle"),
     ],
   },
@@ -73,7 +83,7 @@ export const LAYOUTS: LayoutDefinition[] = [
     intents: ["Section Divider", "Agenda", "Quote"],
     build: (c) => [
       shapeEl("Accent line", "rect", [SLIDE_W / 2 - 40, 290, 80, 5]),
-      textEl("Title", c.title, [200, 320, 1200, 170], { ...H, fontSize: 76, align: "center", vAlign: "middle" }, "title"),
+      textEl("Title", c.title, [200, 320, 1200, 170], { ...H, fontSize: adaptiveType(c.title, 76, 48, 42), align: "center", vAlign: "middle" }, "title"),
       textEl("Subtitle", c.subtitle, [300, 510, 1000, 100], { ...SEC, fontSize: 28, align: "center" }, "subtitle"),
     ],
   },
@@ -99,7 +109,7 @@ export const LAYOUTS: LayoutDefinition[] = [
     build: (c) => [
       imageEl("Image", [100, 100, 660, 700], { src: c.media, radius: 20 }),
       shapeEl("Accent line", "rect", [840, 200, 64, 5]),
-      textEl("Title", c.title, [840, 230, 660, 180], { ...H, fontSize: 56, vAlign: "bottom" }, "title"),
+      textEl("Title", c.title, [840, 230, 660, 180], { ...H, fontSize: adaptiveType(c.title, 56, 40, 40), vAlign: "bottom" }, "title"),
       textEl("Key message", c.subtitle, [840, 440, 660, 120], { fontSize: 28, fontWeight: 500 }, "subtitle"),
       textEl("Body", c.body, [840, 580, 660, 200], { ...SEC, fontSize: 21 }, "body"),
     ],
@@ -199,7 +209,7 @@ export const LAYOUTS: LayoutDefinition[] = [
     intents: ["Big Number", "Opportunity", "Quote", "Data Story"],
     build: (c) => [
       textEl("Big value", c.kpis[0] ?? "[Value]", [100, 180, 1400, 300], { ...H, fontSize: 220, color: "theme:accent", vAlign: "bottom" }, "kpiValue"),
-      textEl("Title", c.title, [100, 510, 1100, 110], { ...H, fontSize: 48 }, "title"),
+      textEl("Title", c.title, [100, 510, 1100, 110], { ...H, fontSize: adaptiveType(c.title, 48, 36, 52) }, "title"),
       textEl("Key message", c.subtitle, [100, 640, 1000, 110], { ...SEC, fontSize: 26 }, "subtitle"),
     ],
   },
@@ -209,7 +219,7 @@ export const LAYOUTS: LayoutDefinition[] = [
     intents: ["Call to Action", "Closing"],
     build: (c) => [
       shapeEl("Panel", "rect", [0, 0, 1600, 900], { fill: "theme:surface" }),
-      textEl("Title", c.title, [200, 250, 1200, 200], { ...H, fontSize: 76, align: "center", vAlign: "bottom" }, "title"),
+      textEl("Title", c.title, [200, 250, 1200, 200], { ...H, fontSize: adaptiveType(c.title, 76, 48, 40), align: "center", vAlign: "bottom" }, "title"),
       textEl("Key message", c.subtitle, [300, 480, 1000, 110], { ...SEC, fontSize: 28, align: "center" }, "subtitle"),
       shapeEl("Button", "roundRect", [600, 640, 400, 76], { radius: 38 }),
       textEl("Call to action", c.body || "Decision required today", [600, 640, 400, 76], { fontSize: 22, fontWeight: 600, color: "theme:onAccent", align: "center", vAlign: "middle" }, "body"),
@@ -223,7 +233,7 @@ export const LAYOUTS: LayoutDefinition[] = [
       imageEl("Hero image", [900, 0, 700, 900], { src: c.media, radius: 0 }),
       shapeEl("Editorial rule", "rect", [100, 110, 110, 4]),
       textEl("Eyebrow", item(c, 0).title || "Perspective", [100, 145, 660, 36], { ...SEC, fontSize: 17, uppercase: true, letterSpacing: 2 }, "decor"),
-      textEl("Title", c.title, [100, 225, 700, 300], { ...H, fontSize: 78, lineHeight: 0.98, vAlign: "bottom" }, "title"),
+      textEl("Title", c.title, [100, 225, 700, 300], { ...H, fontSize: adaptiveType(c.title, 78, 50, 36), lineHeight: 0.98, vAlign: "bottom" }, "title"),
       textEl("Key message", c.subtitle, [100, 570, 690, 150], { fontSize: 29, fontWeight: 500, lineHeight: 1.25 }, "subtitle"),
       textEl("Footer", c.body, [100, 790, 690, 56], { ...SEC, fontSize: 16 }, "body"),
     ],
@@ -237,7 +247,7 @@ export const LAYOUTS: LayoutDefinition[] = [
       { ...shapeEl("Dark overlay", "rect", [0, 0, 1600, 900], { fill: "#111111" }), opacity: 0.62 },
       shapeEl("Accent tag", "roundRect", [110, 120, 230, 52], { fill: "theme:accent", radius: 26 }),
       textEl("Tag", item(c, 0).title || "Key perspective", [110, 120, 230, 52], { fontSize: 17, fontWeight: 700, color: "theme:onAccent", align: "center", vAlign: "middle" }, "decor"),
-      textEl("Title", c.title, [110, 300, 1180, 270], { ...H, fontSize: 86, color: "#FFFFFF", lineHeight: 1.02, vAlign: "bottom" }, "title"),
+      textEl("Title", c.title, [110, 300, 1180, 270], { ...H, fontSize: adaptiveType(c.title, 86, 54, 40), color: "#FFFFFF", lineHeight: 1.02, vAlign: "bottom" }, "title"),
       textEl("Key message", c.subtitle, [110, 610, 1040, 120], { fontSize: 28, fontWeight: 500, color: "#FFFFFF" }, "subtitle"),
       textEl("Footer", c.body, [110, 795, 1180, 42], { fontSize: 15, color: "#D5D5D5" }, "body"),
     ],
@@ -401,7 +411,7 @@ export const LAYOUTS: LayoutDefinition[] = [
       shapeEl("Stat card", "roundRect", [650, 540, 360, 220], { fill: "theme:accent", radius: 18 }),
       textEl("Stat", c.kpis[0] ?? "[Value]", [690, 575, 280, 95], { ...H, fontSize: 72, color: "theme:onAccent" }, "kpiValue"),
       textEl("Stat label", item(c, 0).title, [690, 675, 280, 50], { fontSize: 17, fontWeight: 600, color: "theme:onAccent" }, "itemTitle"),
-      textEl("Title", c.title, [1030, 170, 470, 220], { ...H, fontSize: 56, lineHeight: 1.05 }, "title"),
+      textEl("Title", c.title, [1030, 170, 470, 220], { ...H, fontSize: adaptiveType(c.title, 56, 40, 38), lineHeight: 1.05 }, "title"),
       textEl("Key message", c.subtitle, [1030, 420, 470, 140], { fontSize: 25, fontWeight: 500 }, "subtitle"),
       textEl("Body", c.body, [1030, 610, 470, 150], { ...SEC, fontSize: 18 }, "body"),
     ],
@@ -412,7 +422,7 @@ export const LAYOUTS: LayoutDefinition[] = [
     intents: ["Quote", "Section Divider", "Closing"],
     build: (c) => [
       textEl("Quote mark", "“", [100, 115, 260, 180], { ...H, fontSize: 180, color: "theme:accent" }, "decor"),
-      textEl("Quote", c.subtitle || c.title, [250, 245, 1100, 330], { ...H, fontSize: 62, lineHeight: 1.12, align: "center", vAlign: "middle" }, "subtitle"),
+      textEl("Quote", c.subtitle || c.title, [250, 245, 1100, 330], { ...H, fontSize: adaptiveType(c.subtitle || c.title, 62, 42, 72), lineHeight: 1.12, align: "center", vAlign: "middle" }, "subtitle"),
       shapeEl("Rule", "rect", [690, 635, 220, 2], { fill: "theme:line" }),
       textEl("Attribution", c.body || c.title, [400, 675, 800, 70], { ...SEC, fontSize: 20, align: "center" }, "body"),
     ],
@@ -424,7 +434,7 @@ export const LAYOUTS: LayoutDefinition[] = [
     build: (c) => [
       shapeEl("Decision rail", "rect", [0, 0, 26, 900], { fill: "theme:accent" }),
       textEl("Decision label", "DECISION REQUIRED", [110, 120, 400, 36], { color: "theme:accent", fontSize: 16, fontWeight: 800, letterSpacing: 1.5 }, "decor"),
-      textEl("Title", c.title, [110, 220, 1180, 210], { ...H, fontSize: 72, lineHeight: 1.02 }, "title"),
+      textEl("Title", c.title, [110, 220, 1180, 210], { ...H, fontSize: adaptiveType(c.title, 72, 48, 42), lineHeight: 1.02 }, "title"),
       textEl("Key message", c.subtitle, [110, 475, 1050, 115], { fontSize: 29, fontWeight: 500 }, "subtitle"),
       shapeEl("Decision panel", "roundRect", [110, 650, 1380, 145], { fill: "theme:accentSoft", radius: 18 }),
       iconEl("Decision icon", "CheckCircle2", [155, 695, 48, 48]),

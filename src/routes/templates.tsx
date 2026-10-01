@@ -1,9 +1,10 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Copy, LayoutTemplate, Search, Sparkles, Star, Trash2 } from "lucide-react";
+import { Copy, Eye, LayoutTemplate, Search, Sparkles, Star, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { SlideThumb } from "@/components/editor/slide-renderer";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { LAYOUTS, materializeSlide } from "@/lib/editor/layouts";
 import { SLIDE_THEMES, getTheme } from "@/lib/editor/themes";
@@ -274,12 +275,105 @@ function TemplateCard({ template, featured = false }: { template: TemplateFamily
 
         <div className="mt-5 flex items-center justify-between gap-3 border-t border-border pt-4">
           <div className="text-xs text-muted-foreground">{template.tone} · {template.lengthPreset}</div>
-          <Button asChild size="sm">
-            <Link to="/new" search={{ template: template.id }}>Use template</Link>
-          </Button>
+          <div className="flex gap-2">
+            <TemplatePreviewDialog template={template} previews={previews} />
+            <Button asChild size="sm">
+              <Link to="/new" search={{ template: template.id }}>Use template</Link>
+            </Button>
+          </div>
         </div>
       </div>
     </article>
+  );
+}
+
+function TemplatePreviewDialog({
+  template,
+  previews,
+}: {
+  template: TemplateFamily;
+  previews: ReturnType<typeof templatePreviewSlides>;
+}) {
+  const sceneLabels = ["Opening statement", "Evidence / proof", "Decision / next step"];
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="outline">
+          <Eye className="size-4" /> Preview deck
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-h-[92vh] max-w-6xl overflow-y-auto p-0">
+        <DialogHeader className="border-b border-border p-6 pe-14">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <div className="eyebrow">{template.category} · {template.badge}</div>
+              <DialogTitle className="mt-1 text-2xl">{template.name}</DialogTitle>
+              <DialogDescription className="mt-2 max-w-3xl leading-relaxed">
+                {template.signature}
+              </DialogDescription>
+            </div>
+            <div className="flex gap-1.5">
+              {Object.values(getTheme(template.themeId).colors)
+                .filter((value) => typeof value === "string" && value.startsWith("#"))
+                .slice(0, 5)
+                .map((color) => (
+                  <span key={color} className="size-5 rounded-full border border-border" style={{ background: color }} />
+                ))}
+            </div>
+          </div>
+        </DialogHeader>
+
+        <div className="space-y-6 p-6">
+          <div className="grid gap-6 lg:grid-cols-3">
+            {previews.map((slide, index) => (
+              <article key={slide.id} className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+                <div className="aspect-video overflow-hidden bg-muted">
+                  <SlideThumb slide={slide} themeId={template.themeId} />
+                </div>
+                <div className="border-t border-border p-4">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-accent">
+                    {sceneLabels[index] ?? `Scene ${index + 1}`}
+                  </div>
+                  <div className="mt-1 text-sm font-medium text-foreground">{slide.title}</div>
+                  <div className="mt-1 line-clamp-3 text-xs leading-relaxed text-muted-foreground">{slide.keyMessage}</div>
+                  <div className="mt-3 flex items-center justify-between text-[10px] text-muted-foreground">
+                    <span>{slide.slideIntent}</span>
+                    <span>{slide.layoutId?.replaceAll("-", " ")}</span>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+
+          <div className="grid gap-4 rounded-xl border border-border bg-muted/30 p-5 sm:grid-cols-3">
+            <div>
+              <div className="eyebrow">Best for</div>
+              <div className="mt-1 text-sm text-foreground">{template.presentationType}</div>
+            </div>
+            <div>
+              <div className="eyebrow">Visual character</div>
+              <div className="mt-1 text-sm text-foreground">{template.signature}</div>
+            </div>
+            <div>
+              <div className="eyebrow">Design vocabulary</div>
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                {template.previewLayouts.map((layout) => (
+                  <span key={layout} className="rounded bg-background px-2 py-1 text-[10px] text-muted-foreground">
+                    {layout.replaceAll("-", " ")}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <Button asChild>
+              <Link to="/new" search={{ template: template.id }}>Use {template.name}</Link>
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

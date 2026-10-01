@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  AlertTriangle, ArrowLeft, BarChart3, ChevronLeft, ChevronRight, Circle, Download, Eye, ImagePlus, Loader2, LocateFixed, LockKeyhole, Minus, MoveRight, Network, Play, Redo2, Shapes, Smile, Sparkles, Square, Table2, Triangle, Type, Undo2, Users, WandSparkles, X, ZoomIn, ZoomOut, RectangleHorizontal,
+  AlertTriangle, ArrowLeft, BarChart3, ChevronLeft, ChevronRight, Circle, Download, Eye, FolderOpen, ImagePlus, Loader2, LocateFixed, LockKeyhole, Minus, MoveRight, Network, Play, Redo2, Shapes, Smile, Sparkles, Square, Table2, Triangle, Type, Undo2, Users, WandSparkles, X, ZoomIn, ZoomOut, RectangleHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -18,6 +18,7 @@ import { EditorReviewPanel } from "@/components/review-workspace";
 import { TeamReviewPanel } from "@/components/collaboration/team-review-panel";
 import { SlideRail } from "@/components/editor/slide-rail";
 import { IconPicker } from "@/components/editor/icon-picker";
+import { AssetPicker } from "@/components/editor/asset-picker";
 import { readImage } from "@/components/editor/image-upload";
 import { SlideStage, SlideThumb, useFitScale } from "@/components/editor/slide-renderer";
 import { useEditor, type EditorApi } from "@/components/editor/use-editor";
@@ -514,7 +515,32 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
           <IconPicker onPick={(n) => add([{ ...iconEl(n, n, center(120, 120)), role: undefined }])}>
             <Button variant="ghost" size="sm"><Smile className="size-4" /> Icon</Button>
           </IconPicker>
-          <Button variant="ghost" size="sm" onClick={() => fileRef.current?.click()}><ImagePlus className="size-4" /> Image</Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild><Button variant="ghost" size="sm"><ImagePlus className="size-4" /> Image</Button></DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => fileRef.current?.click()}>
+                <ImagePlus className="size-4" /> Upload from computer
+              </DropdownMenuItem>
+              <AssetPicker
+                onPick={(asset) => {
+                  const src = asset.imageDataUrl;
+                  if (!src) return;
+                  const img = new Image();
+                  img.onload = () => {
+                    const w = Math.min(720, img.width || 720);
+                    const h = Math.round((w * (img.height || 480)) / Math.max(1, img.width || 720));
+                    add([imageEl(asset.name, center(w, Math.min(h, 720)), { src }, undefined as never)].map((draft) => ({ ...draft, role: undefined })));
+                  };
+                  img.src = src;
+                }}
+                title="Insert from Asset Vault"
+              >
+                <DropdownMenuItem onSelect={(event) => event.preventDefault()}>
+                  <FolderOpen className="size-4" /> Browse Asset Vault
+                </DropdownMenuItem>
+              </AssetPicker>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void onUpload(f); e.target.value = ""; }} />
           <DropdownMenu>
             <DropdownMenuTrigger asChild><Button variant="ghost" size="sm"><BarChart3 className="size-4" /> Data</Button></DropdownMenuTrigger>

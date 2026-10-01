@@ -99,6 +99,7 @@ function Setup() {
   const sourceInput = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const template = selectedTemplateId === "__smart" ? undefined : getTemplateFamily(selectedTemplateId);
+  const selectedTemplatePreview = template ? templatePreviewSlides(template) : [];
   const designOptions = TEMPLATE_FAMILIES.filter((candidate) => candidate.featured).slice(0, 6);
 
   const chooseTemplate = (id: string) => {
@@ -242,6 +243,34 @@ function Setup() {
             );
           })}
         </div>
+
+        {template && selectedTemplatePreview.length > 0 && (
+          <div className="mt-5 rounded-xl border border-border bg-muted/25 p-4">
+            <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <div className="eyebrow">Selected design preview</div>
+                <div className="mt-1 text-sm font-medium text-foreground">{template.name}</div>
+                <div className="mt-1 text-xs text-muted-foreground">{template.signature}</div>
+              </div>
+              <span className="rounded-full border border-border bg-background px-2.5 py-1 text-[10px] text-muted-foreground">
+                3-scene preview
+              </span>
+            </div>
+            <div className="grid gap-3 md:grid-cols-3">
+              {selectedTemplatePreview.map((slide, index) => (
+                <div key={slide.id} className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+                  <SlideThumb slide={slide} themeId={template.themeId} />
+                  <div className="border-t border-border px-3 py-2">
+                    <div className="text-[9px] font-semibold uppercase tracking-wide text-accent">
+                      {index === 0 ? "Opening" : index === 1 ? "Evidence" : "Decision"}
+                    </div>
+                    <div className="mt-0.5 truncate text-[11px] font-medium text-foreground">{slide.title}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
 
       <div className="panel space-y-6 p-6">

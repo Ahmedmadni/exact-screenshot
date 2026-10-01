@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { presentationRepository } from "@/lib/data/store";
-import { saveLivePresentation } from "@/lib/collaboration";
+import { addTeamReviewComment, saveLivePresentation } from "@/lib/collaboration";
 import { buildSessionOutcomesSlide } from "@/lib/session-outcomes";
 import { Button } from "@/components/ui/button";
 import {
@@ -194,6 +194,30 @@ export function PresentationSessionsOverview({ presentation: p }: { presentation
                         }}
                       >
                         <Plus className="size-4" /> Create outcomes slide
+                      </Button>
+                    )}
+                    {questions.some((item) => item.status === "open") && p.collaboration?.role !== "viewer" && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                          const open = questions.filter((item) => item.status === "open");
+                          try {
+                            for (const item of open) {
+                              await addTeamReviewComment(
+                                p.id,
+                                "[Session follow-up] " + item.body,
+                                item.slideId ?? undefined,
+                              );
+                            }
+                            toast.success(open.length + " open question" + (open.length === 1 ? "" : "s") + " sent to Team Review.");
+                          } catch (error) {
+                            console.error(error);
+                            toast.error(error instanceof Error ? error.message : "Could not promote open questions.");
+                          }
+                        }}
+                      >
+                        <HelpCircle className="size-4" /> Send open questions to Review
                       </Button>
                     )}
                     <Button variant="outline" size="sm" disabled={!summary} onClick={() => { void navigator.clipboard?.writeText(summary); toast.success("Session summary copied."); }}>

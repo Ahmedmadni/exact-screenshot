@@ -1,4 +1,4 @@
-import { ExternalLink, FolderOpen, Loader2, Search, Sparkles, Upload } from "lucide-react";
+import { FolderOpen, Loader2, Search, Sparkles, Upload } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -263,10 +263,7 @@ export function AssetPicker({
                       <div className="p-2.5">
                         <div className="line-clamp-2 text-[11px] font-medium text-foreground">{result.title}</div>
                         <div className="mt-1 text-[9px] text-muted-foreground">{result.creator ? `Pexels · ${result.creator}` : "Pexels"}</div>
-                        <div className="mt-2 flex items-center justify-between gap-2">
-                          <a href={result.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[8px] text-muted-foreground hover:text-foreground">
-                            Source <ExternalLink className="size-2.5" />
-                          </a>
+                        <div className="mt-2 flex items-center justify-end">
                           <Button
                             size="sm"
                             className="h-7 text-[9px]"

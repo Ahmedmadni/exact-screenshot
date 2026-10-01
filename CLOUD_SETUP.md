@@ -210,3 +210,27 @@ From a session record, authorized editors can:
 - promote unresolved Questions into Team Review comments linked back to the original slide
 
 When collaboration is enabled, creating the outcomes slide uses the same revision-safe live save contract as the editor. If another teammate changed the presentation first, the operation stops instead of overwriting the newer revision.
+
+
+## Licensed Asset Vault
+
+Meridian Studio now supports an internal Asset Vault for reusable licensed media and source documents.
+
+The first provider adapter is implemented as the `licensed-assets` Supabase Edge Function. It keeps provider API keys on the server side and exposes authenticated in-app search/import to the Assets page and the slide editor.
+
+### Pexels provider
+
+Set this Edge Function secret before using licensed search:
+
+- `PEXELS_API_KEY` — required for Pexels search/import
+- `PEXELS_LICENSE_LABEL` — optional internal label stored with imported asset metadata
+
+Deploy the `supabase/functions/licensed-assets` Edge Function after setting secrets.
+
+Search results stay inside Meridian Studio. When a user chooses **Import** or **Use**, the function retrieves the selected provider image and the app stores it in the reusable Asset Vault together with provider, source item id, source URL, creator attribution, dimensions, MIME type, tags and category.
+
+The editor Asset Picker exposes both **My Vault** and **Licensed Search**, so a user can search, import and insert media without leaving the editor.
+
+During new presentation generation, blank semantic image slots are automatically matched against reusable Vault assets using the slide title, key message, presentation context, template keywords, asset category and tags. User-selected source visuals take precedence and are never overwritten by the automatic Vault pass.
+
+Additional licensed providers should be added behind the same provider-adapter contract rather than calling third-party APIs directly from browser components.

@@ -4,6 +4,7 @@ import type { PresentationThemeOverrides, Slide } from "@/lib/types";
 import { SLIDE_H, SLIDE_W, type SlideElement } from "@/lib/editor/model";
 import { getTheme, resolveColor, resolveFont, type SlideTheme } from "@/lib/editor/themes";
 import { getIcon } from "@/lib/editor/icons";
+import { resolveImageSource } from "@/lib/assets/resolve";
 import { ChartBody, DiagramBody, TableBody } from "./data-elements";
 
 /** Visual body of an element, positioned by the caller. Pure: same output for canvas, preview and thumbnails. */
@@ -53,13 +54,14 @@ export function ElementBody({ el, theme }: { el: SlideElement; theme: SlideTheme
     }
     case "image": {
       const p = el.properties;
-      if (!p.src)
+      const src = resolveImageSource(p);
+      if (!src)
         return (
           <div style={{ width: "100%", height: "100%", borderRadius: p.radius, background: theme.colors.accentSoft, display: "grid", placeItems: "center", color: theme.colors.secondary }}>
             <ImageIcon style={{ width: 56, height: 56, opacity: 0.6 }} />
           </div>
         );
-      return <img src={p.src} alt={el.name} draggable={false} style={{ width: "100%", height: "100%", objectFit: p.fit, borderRadius: p.radius, display: "block" }} />;
+      return <img src={src} alt={el.name} draggable={false} style={{ width: "100%", height: "100%", objectFit: p.fit, borderRadius: p.radius, display: "block" }} />;
     }
     case "chart":
       return <ChartBody el={el} theme={theme} />;

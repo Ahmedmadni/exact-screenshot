@@ -250,6 +250,18 @@ export const assetRepository = {
   list: (presentationId?: string) =>
     presentationId ? db.assets.filter((a) => a.presentationId === presentationId) : db.assets,
   get: (id: string) => db.assets.find((a) => a.id === id),
+  usageCount(id: string) {
+    return db.presentations.reduce((total, presentation) => {
+      const presentationRefs = (presentation.sourceAssetIds ?? []).filter((assetId) => assetId === id).length;
+      const slideRefs = presentation.slides.reduce((sum, slide) => {
+        const sourceRefs = (slide.sourceAssetIds ?? []).filter((assetId) => assetId === id).length;
+        const imageRefs = slide.elements.filter((element) => element.type === "image" && element.properties.assetId === id).length;
+        const evidenceRefs = (slide.evidenceRefs ?? []).filter((ref) => ref.assetId === id).length;
+        return sum + sourceRefs + imageRefs + evidenceRefs;
+      }, 0);
+      return total + presentationRefs + slideRefs;
+    }, 0);
+  },
   add(record: Omit<AssetRecord, "id" | "createdAt">) {
     const stamp = new Date().toISOString();
     const asset: AssetRecord = { ...record, id: uid(), createdAt: stamp, updatedAt: stamp };
@@ -263,8 +275,14 @@ export const assetRepository = {
     }));
   },
   remove(id: string) {
+    const usage = this.usageCount(id);
+    if (usage > 0) {
+      toast.warning(`This asset is still used in ${usage} presentation reference${usage === 1 ? "" : "s"}. Replace or detach it before deleting.`);
+      return false;
+    }
     queueCloudDelete("asset", id);
     mutate((d) => ({ ...d, assets: d.assets.filter((a) => a.id !== id) }));
+    return true;
   },
 };
 

@@ -313,7 +313,7 @@ export function PropertiesPanel({ api, theme, onTheme }: { api: EditorApi; theme
           <div className="grid grid-cols-2 gap-2">
             <label className="block">
               <span className="inline-flex h-8 w-full cursor-pointer items-center justify-center rounded-md border border-input text-xs hover:bg-muted">{el.properties.src ? "Upload new" : "Upload image"}</span>
-              <input type="file" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if (f) { const src = await readImage(f); if (src) setProps({ src }); } e.target.value = ""; }} />
+              <input type="file" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if (f) { const src = await readImage(f); if (src) setProps({ src, assetId: undefined }); } e.target.value = ""; }} />
             </label>
             <AssetPicker onPick={(asset) => asset.imageDataUrl && setProps({ src: "", assetId: asset.id })} title="Replace from Asset Vault">
               <Button variant="outline" size="sm" className="h-8 w-full text-xs">Asset Vault</Button>

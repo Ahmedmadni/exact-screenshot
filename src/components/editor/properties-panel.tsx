@@ -23,6 +23,7 @@ import { chartToText, diagramToText, recommendChartType, tableToText, textToChar
 import type { EditorApi } from "./use-editor";
 import { IconPicker } from "./icon-picker";
 import { readImage } from "./image-upload";
+import { AssetPicker } from "./asset-picker";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -309,10 +310,15 @@ export function PropertiesPanel({ api, theme, onTheme }: { api: EditorApi; theme
 
       {el?.type === "image" && (
         <Section title="Image">
-          <label className="block">
-            <span className="inline-flex h-8 w-full cursor-pointer items-center justify-center rounded-md border border-input text-sm hover:bg-muted">{el.properties.src ? "Replace image" : "Upload image"}</span>
-            <input type="file" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if (f) { const src = await readImage(f); if (src) setProps({ src }); } e.target.value = ""; }} />
-          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="block">
+              <span className="inline-flex h-8 w-full cursor-pointer items-center justify-center rounded-md border border-input text-xs hover:bg-muted">{el.properties.src ? "Upload new" : "Upload image"}</span>
+              <input type="file" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if (f) { const src = await readImage(f); if (src) setProps({ src }); } e.target.value = ""; }} />
+            </label>
+            <AssetPicker onPick={(asset) => asset.imageDataUrl && setProps({ src: asset.imageDataUrl })} title="Replace from Asset Vault">
+              <Button variant="outline" size="sm" className="h-8 w-full text-xs">Asset Vault</Button>
+            </AssetPicker>
+          </div>
           <Select value={el.properties.fit} onValueChange={(v) => setProps({ fit: v })}>
             <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
             <SelectContent><SelectItem value="cover">Fill frame (crop)</SelectItem><SelectItem value="contain">Fit inside</SelectItem></SelectContent>

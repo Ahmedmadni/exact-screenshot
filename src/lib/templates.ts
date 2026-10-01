@@ -426,6 +426,138 @@ export const TEMPLATE_FAMILIES: TemplateFamily[] = [
       "Call to Action": "decision-focus",
     },
   },
+  {
+    id: "company-profile",
+    name: "Company Profile",
+    category: "Executive",
+    description: "A polished corporate profile for capabilities, footprint, sectors, leadership and proof of delivery.",
+    themeId: "warm-minimal",
+    presentationType: "Company Profile",
+    tone: "Professional",
+    lengthPreset: "Standard",
+    badge: "Corporate",
+    signature: "Warm minimalism · capability storytelling · confident proof without visual clutter",
+    featured: true,
+    previewLayouts: ["cover-split", "three-cards", "image-caption"],
+    keywords: ["company profile", "corporate", "capabilities", "services", "leadership", "credentials"],
+    layoutMap: {
+      Cover: "cover-split",
+      Agenda: "four-cards",
+      "Executive Summary": "executive-two-column",
+      Portfolio: "three-cards",
+      "Case Study": "image-caption",
+      Team: "image-text",
+      Opportunity: "image-stat-overlay",
+      "Data Story": "data-pulse",
+      Closing: "quote-editorial",
+      "Call to Action": "decision-focus",
+    },
+  },
+  {
+    id: "feasibility-study",
+    name: "Feasibility Study",
+    category: "Finance",
+    description: "Investment feasibility storytelling for market demand, economics, scenarios, risks and the final go/no-go decision.",
+    themeId: "finance-ink",
+    presentationType: "Feasibility Study",
+    tone: "Data-driven",
+    lengthPreset: "Detailed",
+    badge: "Feasibility",
+    signature: "Evidence-heavy economics · scenario clarity · investment decision architecture",
+    featured: true,
+    previewLayouts: ["cover-index", "financial-scorecard", "strategy-matrix"],
+    keywords: ["feasibility", "study", "investment", "npv", "irr", "market", "scenario", "risk"],
+    layoutMap: {
+      Cover: "cover-index",
+      "Executive Summary": "executive-metrics-band",
+      Opportunity: "image-stat-overlay",
+      "Data Story": "data-pulse",
+      Financial: "financial-scorecard",
+      Comparison: "strategy-matrix",
+      Portfolio: "strategy-matrix",
+      Roadmap: "roadmap-staircase",
+      "Call to Action": "decision-focus",
+      Closing: "decision-focus",
+    },
+  },
+  {
+    id: "steering-committee",
+    name: "Steering Committee",
+    category: "Executive",
+    description: "A concise governance pack for programme status, key issues, decisions, dependencies and next milestones.",
+    themeId: "consulting-navy",
+    presentationType: "Project Update",
+    tone: "Executive",
+    lengthPreset: "Short",
+    badge: "SteerCo",
+    signature: "Status discipline · issue escalation · decision-first governance",
+    featured: true,
+    previewLayouts: ["cover-minimal", "data-pulse", "decision-focus"],
+    keywords: ["steering committee", "steerco", "project update", "status", "risks", "decisions", "governance"],
+    layoutMap: {
+      Cover: "cover-minimal",
+      "Executive Summary": "executive-metrics-band",
+      Dashboard: "data-pulse",
+      Problem: "executive-two-column",
+      Roadmap: "roadmap-staircase",
+      Process: "process-ribbon",
+      "Call to Action": "decision-focus",
+      Closing: "decision-focus",
+    },
+  },
+  {
+    id: "sales-proposal",
+    name: "Sales Proposal",
+    category: "Proposal",
+    description: "A persuasive client proposal for context, value proposition, solution, proof, commercial logic and next steps.",
+    themeId: "warm-minimal",
+    presentationType: "Sales Deck",
+    tone: "Persuasive",
+    lengthPreset: "Standard",
+    badge: "Client-ready",
+    signature: "Client-centered narrative · strong proof · elegant commercial close",
+    featured: true,
+    previewLayouts: ["cover-architectural", "image-caption", "decision-focus"],
+    keywords: ["sales", "proposal", "client", "solution", "services", "commercial", "pitch"],
+    layoutMap: {
+      Cover: "cover-architectural",
+      Problem: "executive-two-column",
+      Opportunity: "image-stat-overlay",
+      Solution: "image-caption",
+      "Case Study": "image-caption",
+      Comparison: "comparison",
+      Financial: "finance-table",
+      Roadmap: "process-ribbon",
+      "Call to Action": "decision-focus",
+      Closing: "quote-editorial",
+    },
+  },
+  {
+    id: "transformation-pmo",
+    name: "Transformation PMO",
+    category: "Government",
+    description: "A delivery-focused transformation office pack for portfolio health, milestones, dependencies, risks and executive intervention.",
+    themeId: "royal-blue",
+    presentationType: "Project Update",
+    tone: "Formal",
+    lengthPreset: "Detailed",
+    badge: "PMO",
+    signature: "Portfolio control · delivery pulse · milestone and dependency visibility",
+    featured: true,
+    previewLayouts: ["cover-architectural", "data-pulse", "roadmap-staircase"],
+    keywords: ["pmo", "transformation", "portfolio", "milestones", "dependencies", "programme", "delivery"],
+    layoutMap: {
+      Cover: "cover-architectural",
+      "Executive Summary": "executive-metrics-band",
+      Dashboard: "data-pulse",
+      Portfolio: "strategy-matrix",
+      Process: "process-ribbon",
+      Roadmap: "roadmap-staircase",
+      Comparison: "executive-two-column",
+      "Call to Action": "decision-focus",
+      Closing: "decision-focus",
+    },
+  },
 ];
 
 export function getTemplateFamily(id?: string | null): TemplateFamily | undefined {
@@ -608,7 +740,12 @@ type PreviewMediaKind =
   | "editorial"
   | "arabic"
   | "markets"
-  | "impact";
+  | "impact"
+  | "company"
+  | "feasibility"
+  | "project"
+  | "sales"
+  | "pmo";
 
 interface TemplatePreviewProfile {
   titles: [string, string, string];
@@ -1006,6 +1143,125 @@ const TEMPLATE_PREVIEW_PROFILES: Record<string, TemplatePreviewProfile> = {
   },
 };
 
+  "company-profile": {
+    titles: ["Built to deliver at scale", "Capabilities that connect end to end", "Proof across the portfolio"],
+    subtitles: [
+      "A corporate profile that explains who we are through capability, reach and demonstrated delivery.",
+      "Strategy, execution and specialist expertise work as one integrated client proposition.",
+      "Credibility comes from repeatable outcomes across sectors, geographies and complex delivery environments.",
+    ],
+    bodies: [
+      "A warm, confident profile designed for introductions, credentials and strategic client conversations.",
+      "The capability story is organized around the client problem rather than internal organization charts.",
+      "Case studies and operational proof turn company claims into evidence.",
+    ],
+    items: [
+      { title: "Advisory", text: "Translate ambition into practical strategic choices." },
+      { title: "Delivery", text: "Mobilize teams and execute complex programmes." },
+      { title: "Digital", text: "Build platforms, data and automation capabilities." },
+      { title: "Operations", text: "Embed performance disciplines that last." },
+    ],
+    kpis: ["18 yrs", "12 markets", "140+", "92%"],
+    media: "company",
+  },
+  "feasibility-study": {
+    titles: ["Investment feasibility at a glance", "Economics remain attractive in the base case", "Risk-adjusted decision"],
+    subtitles: [
+      "Market demand, project economics and execution readiness support a positive investment case.",
+      "Returns remain above the hurdle rate under the base case, with downside concentrated in ramp-up timing.",
+      "Proceed subject to three conditions that protect capital and execution quality.",
+    ],
+    bodies: [
+      "A rigorous feasibility pack balancing commercial evidence, financial returns, scenarios and risk.",
+      "The base case is supported by demand visibility, operating assumptions and conservative exit economics.",
+      "The recommendation is conditional, transparent and directly linked to the material sensitivities.",
+    ],
+    items: [
+      { title: "Demand", text: "Addressable demand supports targeted utilization." },
+      { title: "Economics", text: "Returns clear the investment hurdle." },
+      { title: "Execution", text: "Critical capabilities are obtainable within the plan." },
+      { title: "Risk", text: "Downside is concentrated in timing and ramp-up." },
+    ],
+    kpis: ["18.9% IRR", "SAR 74m NPV", "4.8 yrs", "1.6× DSCR"],
+    media: "feasibility",
+    chartCategories: ["Base", "Upside", "Delay", "Downside"],
+    chartSeries: [{ name: "Project IRR", values: [19, 24, 15, 11] }],
+    tableRows: [
+      ["Scenario", "NPV", "IRR", "Payback"],
+      ["Base", "74", "18.9%", "4.8y"],
+      ["Upside", "118", "24.1%", "3.9y"],
+      ["Delay", "42", "15.2%", "5.7y"],
+      ["Downside", "8", "11.3%", "7.1y"],
+    ],
+  },
+  "steering-committee": {
+    titles: ["Programme steering committee", "Delivery pulse and exceptions", "Decisions required today"],
+    subtitles: [
+      "The programme remains on track overall, with two issues requiring executive intervention.",
+      "Most workstreams are progressing to plan; schedule pressure is concentrated in integration and readiness.",
+      "Resolve ownership on the critical dependency and approve the proposed recovery path.",
+    ],
+    bodies: [
+      "A short, disciplined pack designed for governance meetings rather than broad status reporting.",
+      "The view focuses attention on deviations, risks and cross-functional dependencies.",
+      "Each meeting ends with explicit decisions, owners and dates.",
+    ],
+    items: [
+      { title: "Scope", text: "Stable with two controlled changes." },
+      { title: "Schedule", text: "One critical-path integration issue." },
+      { title: "Budget", text: "Within approved tolerance." },
+      { title: "Readiness", text: "Operational preparation needs acceleration." },
+    ],
+    kpis: ["76%", "2 red", "+3 wk", "96%"],
+    media: "project",
+    chartCategories: ["Plan", "Done", "At risk", "Blocked"],
+    chartSeries: [{ name: "Work packages", values: [42, 31, 8, 3] }],
+  },
+  "sales-proposal": {
+    titles: ["A better client experience, by design", "The solution around your priorities", "A low-risk path to value"],
+    subtitles: [
+      "Redesign the moments that matter most while simplifying the operating model behind them.",
+      "The proposed solution combines process, digital enablement and frontline adoption as one programme.",
+      "Start with a focused first wave, prove the value quickly and scale only what works.",
+    ],
+    bodies: [
+      "A persuasive client narrative that feels tailored rather than templated.",
+      "The solution is framed around outcomes, not a catalogue of services.",
+      "Commercial logic and delivery sequencing are kept transparent and easy to discuss.",
+    ],
+    items: [
+      { title: "Experience", text: "Simplify the priority journeys." },
+      { title: "Process", text: "Remove handoffs and avoidable delays." },
+      { title: "Digital", text: "Enable faster, clearer interactions." },
+      { title: "Adoption", text: "Embed change with frontline teams." },
+    ],
+    kpis: ["-32%", "+18 pts", "12 wk", "3 waves"],
+    media: "sales",
+  },
+  "transformation-pmo": {
+    titles: ["Transformation delivery pulse", "Portfolio health by intervention need", "Next 90-day milestone path"],
+    subtitles: [
+      "The portfolio is moving, but a small number of dependencies now determine whether benefits land on time.",
+      "Focus executive attention on programmes where intervention can materially improve outcome confidence.",
+      "The next 90 days are dominated by approvals, platform readiness and operational mobilization.",
+    ],
+    bodies: [
+      "A PMO system designed for executive control rather than activity reporting.",
+      "Portfolio health combines milestone status, dependency exposure and benefit confidence.",
+      "The roadmap makes sequencing and escalation points visible at a glance.",
+    ],
+    items: [
+      { title: "On track", text: "Programmes progressing within tolerance." },
+      { title: "Watch", text: "Manageable issues requiring active oversight." },
+      { title: "Intervene", text: "Executive decision or dependency resolution required." },
+      { title: "Benefits", text: "Outcome confidence tracked independently from activity." },
+    ],
+    kpis: ["27 programmes", "71% green", "5 watch", "2 intervene"],
+    media: "pmo",
+    chartCategories: ["Jan", "Mar", "May", "Jul", "Sep"],
+    chartSeries: [{ name: "Milestones on time", values: [62, 67, 72, 76, 81] }],
+  },
+
 const DEFAULT_PREVIEW_PROFILE: TemplatePreviewProfile = {
   titles: ["A clear point of view", "The evidence behind the decision", "What happens next"],
   subtitles: [
@@ -1129,6 +1385,37 @@ function previewMedia(template: TemplateFamily, kind: PreviewMediaKind) {
       '<path d="M630 450 C470 380 350 405 285 520 C430 555 555 535 630 450Z" fill="' + accent + '" opacity=".75"/>' +
       '<path d="M625 355 C760 260 890 270 985 375 C850 430 730 420 625 355Z" fill="' + soft + '" stroke="' + accent + '" stroke-width="6"/>' +
       '<circle cx="600" cy="690" r="90" fill="' + soft + '"/><circle cx="600" cy="690" r="42" fill="' + accent + '"/>',
+    company:
+      '<rect width="1200" height="900" fill="' + bg + '"/>' +
+      '<rect x="120" y="120" width="430" height="610" rx="26" fill="' + soft + '"/>' +
+      '<rect x="650" y="160" width="390" height="170" rx="20" fill="' + accent + '" opacity=".28"/>' +
+      '<rect x="650" y="380" width="180" height="180" rx="20" fill="' + ink + '" opacity=".14"/>' +
+      '<rect x="860" y="380" width="180" height="180" rx="20" fill="' + accent + '" opacity=".16"/>' +
+      '<rect x="650" y="610" width="390" height="90" rx="20" fill="' + ink + '" opacity=".09"/>',
+    feasibility:
+      '<rect width="1200" height="900" fill="' + bg + '"/>' +
+      '<circle cx="360" cy="450" r="235" fill="none" stroke="' + line + '" stroke-width="52"/>' +
+      '<path d="M360 215 A235 235 0 0 1 558 575" fill="none" stroke="' + accent + '" stroke-width="52" stroke-linecap="round"/>' +
+      '<rect x="700" y="260" width="320" height="42" rx="12" fill="' + ink + '" opacity=".88"/>' +
+      '<rect x="700" y="340" width="250" height="25" rx="10" fill="' + accent + '" opacity=".72"/>' +
+      '<rect x="700" y="405" width="290" height="25" rx="10" fill="' + ink + '" opacity=".26"/>' +
+      '<rect x="700" y="470" width="210" height="25" rx="10" fill="' + ink + '" opacity=".18"/>',
+    project:
+      '<rect width="1200" height="900" fill="' + bg + '"/>' +
+      '<rect x="130" y="180" width="940" height="540" rx="28" fill="' + soft + '"/>' +
+      '<g fill="' + accent + '"><rect x="195" y="535" width="100" height="120" rx="12"/><rect x="345" y="465" width="100" height="190" rx="12"/><rect x="495" y="390" width="100" height="265" rx="12"/></g>' +
+      '<g fill="' + ink + '" opacity=".2"><rect x="645" y="320" width="100" height="335" rx="12"/><rect x="795" y="250" width="100" height="405" rx="12"/></g>' +
+      '<circle cx="975" cy="240" r="44" fill="' + accent + '"/>',
+    sales:
+      '<rect width="1200" height="900" fill="' + bg + '"/>' +
+      '<path d="M170 630 C315 470 450 530 585 390 S815 260 1030 320" fill="none" stroke="' + accent + '" stroke-width="28" stroke-linecap="round"/>' +
+      '<circle cx="170" cy="630" r="45" fill="' + soft + '" stroke="' + accent + '" stroke-width="8"/><circle cx="585" cy="390" r="58" fill="' + soft + '" stroke="' + accent + '" stroke-width="8"/><circle cx="1030" cy="320" r="70" fill="' + accent + '"/>' +
+      '<rect x="170" y="735" width="860" height="16" rx="8" fill="' + ink + '" opacity=".14"/>',
+    pmo:
+      '<rect width="1200" height="900" fill="' + bg + '"/>' +
+      '<g stroke="' + line + '" stroke-width="3"><line x1="180" y1="220" x2="1040" y2="220"/><line x1="180" y1="420" x2="1040" y2="420"/><line x1="180" y1="620" x2="1040" y2="620"/></g>' +
+      '<g fill="' + accent + '"><circle cx="300" cy="220" r="28"/><circle cx="510" cy="420" r="28"/><circle cx="735" cy="220" r="28"/><circle cx="930" cy="620" r="28"/></g>' +
+      '<g fill="' + soft + '"><rect x="245" y="270" width="230" height="80" rx="18"/><rect x="590" y="470" width="280" height="80" rx="18"/><rect x="760" y="270" width="250" height="80" rx="18"/></g>',
   };
 
   const svg =

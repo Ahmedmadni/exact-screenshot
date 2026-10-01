@@ -192,6 +192,39 @@ export interface CollaborationState {
   liveUpdatedAt?: string;
 }
 
+export interface PresentationSession {
+  id: string;
+  presentationId: string;
+  title: string;
+  status: "live" | "ended";
+  currentSlideId?: string | null;
+  currentSlideIndex: number;
+  startedAt: string;
+  endedAt?: string | null;
+  updatedAt: string;
+  role?: CollaborationRole;
+}
+
+export type PresentationSessionItemKind = "question" | "decision" | "action";
+export type PresentationSessionItemStatus = "open" | "answered" | "completed";
+
+export interface PresentationSessionItem {
+  id: string;
+  sessionId: string;
+  presentationId: string;
+  actorUserId: string;
+  actorEmail?: string | null;
+  kind: PresentationSessionItemKind;
+  slideId?: string | null;
+  body: string;
+  status: PresentationSessionItemStatus;
+  resolution?: string | null;
+  assignee?: string | null;
+  dueDate?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface PresentationRehearsal {
   id: string;
   startedAt: string;

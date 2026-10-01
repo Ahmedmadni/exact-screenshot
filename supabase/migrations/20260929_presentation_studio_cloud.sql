@@ -1065,3 +1065,530 @@ $$;
 grant execute on function public.record_collaboration_activity(text,text,jsonb) to authenticated;
 grant execute on function public.list_collaboration_activity(text,integer) to authenticated;
 grant execute on function public.revoke_collaboration_invite(text) to authenticated;
+
+
+-- Live presentation sessions -------------------------------------------------
+
+create table if not exists public.presentation_sessions (
+  id text primary key,
+  presentation_id text not null,
+  owner_user_id uuid not null references auth.users(id) on delete cascade,
+  title text not null,
+  status text not null default 'live' check (status in ('live','ended')),
+  current_slide_id text,
+  current_slide_index integer not null default 0,
+  started_by uuid not null references auth.users(id),
+  started_at timestamptz not null default now(),
+  ended_at timestamptz,
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.presentation_session_items (
+  id text primary key,
+  session_id text not null references public.presentation_sessions(id) on delete cascade,
+  presentation_id text not null,
+  owner_user_id uuid not null references auth.users(id) on delete cascade,
+  actor_user_id uuid not null references auth.users(id) on delete cascade,
+  actor_email text,
+  kind text not null check (kind in ('question','decision','action')),
+  slide_id text,
+  body text not null,
+  status text not null default 'open' check (status in ('open','answered','completed')),
+  resolution text,
+  assignee text,
+  due_date date,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists presentation_sessions_presentation_idx
+on public.presentation_sessions(presentation_id, started_at desc);
+
+create index if not exists presentation_session_items_session_idx
+on public.presentation_session_items(session_id, created_at asc);
+
+alter table public.presentation_sessions enable row level security;
+alter table public.presentation_session_items enable row level security;
+
+drop policy if exists "team_read_presentation_sessions" on public.presentation_sessions;
+create policy "team_read_presentation_sessions" on public.presentation_sessions
+for select using (
+  auth.uid() = owner_user_id
+  or exists (
+    select 1 from public.presentation_collaborators c
+    where c.presentation_id = presentation_sessions.presentation_id
+      and c.user_id = auth.uid()
+  )
+);
+
+drop policy if exists "team_read_presentation_session_items" on public.presentation_session_items;
+create policy "team_read_presentation_session_items" on public.presentation_session_items
+for select using (
+  auth.uid() = owner_user_id
+  or exists (
+    select 1 from public.presentation_collaborators c
+    where c.presentation_id = presentation_session_items.presentation_id
+      and c.user_id = auth.uid()
+  )
+);
+
+create or replace function public.start_presentation_session(
+  p_presentation_id text,
+  p_title text default null,
+  p_current_slide_id text default null,
+  p_current_slide_index integer default 0
+) returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user uuid := auth.uid();
+  v_id text := encode(gen_random_bytes(12), 'hex');
+  v_title text;
+  v_existing public.presentation_sessions%rowtype;
+begin
+  if v_user is null then raise exception 'Authentication required'; end if;
+  if not exists (
+    select 1 from public.presentation_live_documents
+    where presentation_id = p_presentation_id and owner_user_id = v_user
+  ) then
+    raise exception 'Only the presentation owner can start a live session';
+  end if;
+
+  select * into v_existing
+  from public.presentation_sessions
+  where presentation_id = p_presentation_id
+    and owner_user_id = v_user
+    and status = 'live'
+  order by started_at desc
+  limit 1;
+
+  if v_existing.id is not null then
+    return jsonb_build_object(
+      'id', v_existing.id,
+      'presentationId', v_existing.presentation_id,
+      'title', v_existing.title,
+      'status', v_existing.status,
+      'currentSlideId', v_existing.current_slide_id,
+      'currentSlideIndex', v_existing.current_slide_index,
+      'startedAt', v_existing.started_at,
+      'endedAt', v_existing.ended_at,
+      'updatedAt', v_existing.updated_at
+    );
+  end if;
+
+  v_title := left(coalesce(nullif(trim(p_title),''), 'Live presentation session'), 240);
+
+  insert into public.presentation_sessions(
+    id, presentation_id, owner_user_id, title, current_slide_id, current_slide_index, started_by
+  ) values (
+    v_id, p_presentation_id, v_user, v_title, p_current_slide_id, greatest(0, p_current_slide_index), v_user
+  );
+
+  return jsonb_build_object(
+    'id', v_id,
+    'presentationId', p_presentation_id,
+    'title', v_title,
+    'status', 'live',
+    'currentSlideId', p_current_slide_id,
+    'currentSlideIndex', greatest(0, p_current_slide_index),
+    'startedAt', now(),
+    'endedAt', null,
+    'updatedAt', now()
+  );
+end;
+$$;
+
+create or replace function public.get_active_presentation_session(p_presentation_id text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user uuid := auth.uid();
+  v_owner uuid;
+  v_role text;
+  v_session public.presentation_sessions%rowtype;
+begin
+  if v_user is null then raise exception 'Authentication required'; end if;
+
+  select owner_user_id into v_owner
+  from public.presentation_live_documents
+  where presentation_id = p_presentation_id;
+
+  if v_owner is null then return null; end if;
+
+  if v_owner = v_user then
+    v_role := 'owner';
+  else
+    select role into v_role
+    from public.presentation_collaborators
+    where presentation_id = p_presentation_id and user_id = v_user;
+  end if;
+
+  if v_role is null then raise exception 'You do not have access to this presentation'; end if;
+
+  select * into v_session
+  from public.presentation_sessions
+  where presentation_id = p_presentation_id and status = 'live'
+  order by started_at desc
+  limit 1;
+
+  if v_session.id is null then return null; end if;
+
+  return jsonb_build_object(
+    'id', v_session.id,
+    'presentationId', v_session.presentation_id,
+    'title', v_session.title,
+    'status', v_session.status,
+    'currentSlideId', v_session.current_slide_id,
+    'currentSlideIndex', v_session.current_slide_index,
+    'startedAt', v_session.started_at,
+    'endedAt', v_session.ended_at,
+    'updatedAt', v_session.updated_at,
+    'role', v_role
+  );
+end;
+$$;
+
+create or replace function public.list_presentation_sessions(
+  p_presentation_id text,
+  p_limit integer default 20
+) returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user uuid := auth.uid();
+  v_owner uuid;
+  v_role text;
+  v_rows jsonb;
+begin
+  if v_user is null then raise exception 'Authentication required'; end if;
+  select owner_user_id into v_owner
+  from public.presentation_live_documents
+  where presentation_id = p_presentation_id;
+  if v_owner is null then return '[]'::jsonb; end if;
+
+  if v_owner = v_user then
+    v_role := 'owner';
+  else
+    select role into v_role
+    from public.presentation_collaborators
+    where presentation_id = p_presentation_id and user_id = v_user;
+  end if;
+  if v_role is null then raise exception 'You do not have access to this presentation'; end if;
+
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'id', s.id,
+    'presentationId', s.presentation_id,
+    'title', s.title,
+    'status', s.status,
+    'currentSlideId', s.current_slide_id,
+    'currentSlideIndex', s.current_slide_index,
+    'startedAt', s.started_at,
+    'endedAt', s.ended_at,
+    'updatedAt', s.updated_at
+  ) order by s.started_at desc), '[]'::jsonb)
+  into v_rows
+  from (
+    select *
+    from public.presentation_sessions
+    where presentation_id = p_presentation_id
+    order by started_at desc
+    limit greatest(1, least(coalesce(p_limit,20),100))
+  ) s;
+
+  return v_rows;
+end;
+$$;
+
+create or replace function public.update_presentation_session_slide(
+  p_session_id text,
+  p_slide_id text,
+  p_slide_index integer
+) returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user uuid := auth.uid();
+  v_session public.presentation_sessions%rowtype;
+begin
+  if v_user is null then raise exception 'Authentication required'; end if;
+  select * into v_session from public.presentation_sessions where id = p_session_id for update;
+  if v_session.id is null then raise exception 'Session not found'; end if;
+  if v_session.owner_user_id <> v_user then raise exception 'Only the owner can control the live session'; end if;
+  if v_session.status <> 'live' then raise exception 'Session has ended'; end if;
+
+  update public.presentation_sessions
+  set current_slide_id = p_slide_id,
+      current_slide_index = greatest(0, p_slide_index),
+      updated_at = now()
+  where id = p_session_id;
+
+  return jsonb_build_object(
+    'id', p_session_id,
+    'presentationId', v_session.presentation_id,
+    'title', v_session.title,
+    'status', 'live',
+    'currentSlideId', p_slide_id,
+    'currentSlideIndex', greatest(0, p_slide_index),
+    'startedAt', v_session.started_at,
+    'endedAt', null,
+    'updatedAt', now()
+  );
+end;
+$$;
+
+create or replace function public.end_presentation_session(p_session_id text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user uuid := auth.uid();
+  v_session public.presentation_sessions%rowtype;
+begin
+  if v_user is null then raise exception 'Authentication required'; end if;
+  select * into v_session from public.presentation_sessions where id = p_session_id for update;
+  if v_session.id is null then raise exception 'Session not found'; end if;
+  if v_session.owner_user_id <> v_user then raise exception 'Only the owner can end the session'; end if;
+
+  update public.presentation_sessions
+  set status = 'ended', ended_at = coalesce(ended_at, now()), updated_at = now()
+  where id = p_session_id;
+
+  return jsonb_build_object(
+    'id', p_session_id,
+    'presentationId', v_session.presentation_id,
+    'title', v_session.title,
+    'status', 'ended',
+    'currentSlideId', v_session.current_slide_id,
+    'currentSlideIndex', v_session.current_slide_index,
+    'startedAt', v_session.started_at,
+    'endedAt', coalesce(v_session.ended_at, now()),
+    'updatedAt', now()
+  );
+end;
+$$;
+
+create or replace function public.add_presentation_session_item(
+  p_session_id text,
+  p_kind text,
+  p_body text,
+  p_slide_id text default null,
+  p_assignee text default null,
+  p_due_date date default null
+) returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user uuid := auth.uid();
+  v_email text := coalesce(auth.jwt()->>'email','Team member');
+  v_session public.presentation_sessions%rowtype;
+  v_role text;
+  v_id text := encode(gen_random_bytes(12), 'hex');
+  v_status text := 'open';
+begin
+  if v_user is null then raise exception 'Authentication required'; end if;
+  if p_kind not in ('question','decision','action') then raise exception 'Invalid session item type'; end if;
+  if length(trim(coalesce(p_body,''))) < 1 or length(p_body) > 5000 then
+    raise exception 'Item must be between 1 and 5000 characters';
+  end if;
+
+  select * into v_session from public.presentation_sessions where id = p_session_id;
+  if v_session.id is null then raise exception 'Session not found'; end if;
+  if v_session.status <> 'live' then raise exception 'Session has ended'; end if;
+
+  if v_session.owner_user_id = v_user then
+    v_role := 'owner';
+  else
+    select role into v_role
+    from public.presentation_collaborators
+    where presentation_id = v_session.presentation_id and user_id = v_user;
+  end if;
+  if v_role is null then raise exception 'You do not have access to this session'; end if;
+  if p_kind in ('decision','action') and v_role not in ('owner','editor','reviewer') then
+    raise exception 'Your role can only ask questions';
+  end if;
+
+  if p_kind = 'decision' then v_status := 'completed'; end if;
+
+  insert into public.presentation_session_items(
+    id, session_id, presentation_id, owner_user_id, actor_user_id, actor_email,
+    kind, slide_id, body, status, assignee, due_date
+  ) values (
+    v_id, v_session.id, v_session.presentation_id, v_session.owner_user_id, v_user,
+    left(v_email,120), p_kind, p_slide_id, trim(p_body), v_status,
+    nullif(left(trim(coalesce(p_assignee,'')),240),''), p_due_date
+  );
+
+  return jsonb_build_object(
+    'id', v_id,
+    'sessionId', v_session.id,
+    'presentationId', v_session.presentation_id,
+    'actorUserId', v_user,
+    'actorEmail', left(v_email,120),
+    'kind', p_kind,
+    'slideId', p_slide_id,
+    'body', trim(p_body),
+    'status', v_status,
+    'resolution', null,
+    'assignee', nullif(left(trim(coalesce(p_assignee,'')),240),''),
+    'dueDate', p_due_date,
+    'createdAt', now(),
+    'updatedAt', now()
+  );
+end;
+$$;
+
+create or replace function public.update_presentation_session_item(
+  p_item_id text,
+  p_status text default null,
+  p_resolution text default null,
+  p_assignee text default null,
+  p_due_date date default null
+) returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user uuid := auth.uid();
+  v_item public.presentation_session_items%rowtype;
+  v_role text;
+begin
+  if v_user is null then raise exception 'Authentication required'; end if;
+  select * into v_item from public.presentation_session_items where id = p_item_id for update;
+  if v_item.id is null then raise exception 'Session item not found'; end if;
+
+  if v_item.owner_user_id = v_user then
+    v_role := 'owner';
+  else
+    select role into v_role
+    from public.presentation_collaborators
+    where presentation_id = v_item.presentation_id and user_id = v_user;
+  end if;
+
+  if v_role not in ('owner','editor') then
+    raise exception 'Only owner or editor can resolve session items';
+  end if;
+  if p_status is not null and p_status not in ('open','answered','completed') then
+    raise exception 'Invalid session item status';
+  end if;
+
+  update public.presentation_session_items
+  set status = coalesce(p_status, status),
+      resolution = case when p_resolution is null then resolution else nullif(left(trim(p_resolution),5000),'') end,
+      assignee = case when p_assignee is null then assignee else nullif(left(trim(p_assignee),240),'') end,
+      due_date = coalesce(p_due_date, due_date),
+      updated_at = now()
+  where id = p_item_id;
+
+  select * into v_item from public.presentation_session_items where id = p_item_id;
+
+  return jsonb_build_object(
+    'id', v_item.id,
+    'sessionId', v_item.session_id,
+    'presentationId', v_item.presentation_id,
+    'actorUserId', v_item.actor_user_id,
+    'actorEmail', v_item.actor_email,
+    'kind', v_item.kind,
+    'slideId', v_item.slide_id,
+    'body', v_item.body,
+    'status', v_item.status,
+    'resolution', v_item.resolution,
+    'assignee', v_item.assignee,
+    'dueDate', v_item.due_date,
+    'createdAt', v_item.created_at,
+    'updatedAt', v_item.updated_at
+  );
+end;
+$$;
+
+create or replace function public.list_presentation_session_items(p_session_id text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user uuid := auth.uid();
+  v_session public.presentation_sessions%rowtype;
+  v_role text;
+  v_rows jsonb;
+begin
+  if v_user is null then raise exception 'Authentication required'; end if;
+  select * into v_session from public.presentation_sessions where id = p_session_id;
+  if v_session.id is null then return '[]'::jsonb; end if;
+
+  if v_session.owner_user_id = v_user then
+    v_role := 'owner';
+  else
+    select role into v_role
+    from public.presentation_collaborators
+    where presentation_id = v_session.presentation_id and user_id = v_user;
+  end if;
+  if v_role is null then raise exception 'You do not have access to this session'; end if;
+
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'id', i.id,
+    'sessionId', i.session_id,
+    'presentationId', i.presentation_id,
+    'actorUserId', i.actor_user_id,
+    'actorEmail', i.actor_email,
+    'kind', i.kind,
+    'slideId', i.slide_id,
+    'body', i.body,
+    'status', i.status,
+    'resolution', i.resolution,
+    'assignee', i.assignee,
+    'dueDate', i.due_date,
+    'createdAt', i.created_at,
+    'updatedAt', i.updated_at
+  ) order by i.created_at asc), '[]'::jsonb)
+  into v_rows
+  from public.presentation_session_items i
+  where i.session_id = p_session_id;
+
+  return v_rows;
+end;
+$$;
+
+grant execute on function public.start_presentation_session(text,text,text,integer) to authenticated;
+grant execute on function public.get_active_presentation_session(text) to authenticated;
+grant execute on function public.list_presentation_sessions(text,integer) to authenticated;
+grant execute on function public.update_presentation_session_slide(text,text,integer) to authenticated;
+grant execute on function public.end_presentation_session(text) to authenticated;
+grant execute on function public.add_presentation_session_item(text,text,text,text,text,date) to authenticated;
+grant execute on function public.update_presentation_session_item(text,text,text,text,date) to authenticated;
+grant execute on function public.list_presentation_session_items(text) to authenticated;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'presentation_sessions'
+  ) then
+    alter publication supabase_realtime add table public.presentation_sessions;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'presentation_session_items'
+  ) then
+    alter publication supabase_realtime add table public.presentation_session_items;
+  end if;
+end $$;

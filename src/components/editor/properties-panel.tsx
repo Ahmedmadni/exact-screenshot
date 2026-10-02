@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Pencil, Sparkles } from "lucide-react";
 import {
   AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignStartHorizontal, AlignStartVertical,
@@ -25,7 +25,7 @@ import { FinancialImportControl } from "./financial-import-control";
 import type { EditorApi } from "./use-editor";
 import { IconPicker } from "./icon-picker";
 import { readImage } from "./image-upload";
-import { withTemplateImage, withTemplateText, clearTemplateImage } from "@/lib/editor/template-edit";
+import { withTemplateImage, withTemplateText, clearTemplateImage, updateTemplateElementInSlides } from "@/lib/editor/template-edit";
 import { imageCropControls, imageCropFocalPreset, imageCropFromControls } from "@/lib/editor/image-crop";
 import { AssetPicker } from "./asset-picker";
 
@@ -92,6 +92,47 @@ function LayersSection({ api, slide }: { api: EditorApi; slide: NonNullable<Edit
 }
 
 /** Directly edit a template's meaningful content without selecting every canvas layer first. */
+/** Keep edits attached to their original slide when the user navigates before blur. */
+function QuickTemplateText({
+  api, slideId, elementId, value,
+}: {
+  api: EditorApi; slideId: string; elementId: string; value: string;
+}) {
+  const [draft, setDraft] = useState(value);
+  const draftRef = useRef(value);
+  const apiRef = useRef(api);
+  apiRef.current = api;
+  const commit = () => {
+    const currentApi = apiRef.current;
+    const before = currentApi.snapshot();
+    const updated = updateTemplateElementInSlides(before, slideId, elementId, element =>
+      withTemplateText(element, draftRef.current));
+    if (updated !== before) currentApi.commit(updated);
+  };
+  const commitRef = useRef(commit);
+  commitRef.current = commit;
+  // Tabs and slide changes can unmount an input without reliably dispatching blur.
+  useEffect(() => () => commitRef.current(), [slideId, elementId]);
+  useEffect(() => {
+    draftRef.current = value;
+    setDraft(value);
+  }, [value]);
+  return (
+    <Textarea
+      value={draft}
+      rows={draft.length > 100 ? 3 : 2}
+      aria-label="Edit template text"
+      className="text-xs"
+      onChange={event => {
+        const next = event.target.value;
+        draftRef.current = next;
+        setDraft(next);
+      }}
+      onBlur={commit}
+    />
+  );
+}
+
 function TemplateQuickEdit({ api, slide }: { api: EditorApi; slide: NonNullable<EditorApi["active"]> }) {
   const texts = slide.elements.filter((element): element is Extract<SlideElement, { type: "text" }> =>
     element.type === "text" && element.role !== "decor",
@@ -110,14 +151,12 @@ function TemplateQuickEdit({ api, slide }: { api: EditorApi; slide: NonNullable<
               <Label className="min-w-0 truncate text-[11px] text-muted-foreground">{element.name}</Label>
               <button className="text-[10px] text-primary hover:underline" onClick={() => api.setSelected([element.id])}>Style / position</button>
             </div>
-            <DataTextarea
+            <QuickTemplateText
               key={element.id}
-              rows={element.properties.text.length > 100 ? 3 : 2}
+              api={api}
+              slideId={slide.id}
+              elementId={element.id}
               value={element.properties.text}
-              onCommit={text => {
-                if (text === element.properties.text) return;
-                api.updateElements([element.id], item => withTemplateText(item, text));
-              }}
             />
           </div>
         ))}
@@ -135,14 +174,23 @@ function TemplateQuickEdit({ api, slide }: { api: EditorApi; slide: NonNullable<
                   event.currentTarget.value = "";
                   if (!file) return;
                   const src = await readImage(file);
-                  if (src) api.updateElements([element.id], item => withTemplateImage(item, src));
+                  if (src) {
+                    const before = api.snapshot();
+                    const updated = updateTemplateElementInSlides(before, slide.id, element.id, item =>
+                      withTemplateImage(item, src));
+                    if (updated !== before) api.commit(updated);
+                  }
                 }} />
               </label>
               <Button variant="outline" size="sm" className="text-xs" onClick={() => api.setSelected([element.id])}>More</Button>
               {(element.properties.src || element.properties.assetId) && (
                 <button type="button" className="text-[10px] text-muted-foreground hover:text-destructive"
                   aria-label={`Clear image for ${element.name}`}
-                  onClick={() => api.updateElements([element.id], clearTemplateImage)}>Clear</button>
+                  onClick={() => {
+                    const before = api.snapshot();
+                    const updated = updateTemplateElementInSlides(before, slide.id, element.id, clearTemplateImage);
+                    if (updated !== before) api.commit(updated);
+                  }}>Clear</button>
               )}
             </div>
           </div>

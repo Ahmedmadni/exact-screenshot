@@ -12,6 +12,10 @@ test("100-slide deck keeps only nearby rail previews mounted while scrolling", a
   await expect(page).toHaveURL(/\/presentations\/[^/]+\/editor/);
   const deckId = page.url().match(/presentations\/([^/]+)\/editor/)?.[1];
   expect(deckId).toBeTruthy();
+  const editorUrl = page.url();
+  // Fully unmount the autosaving editor before preparing fixture storage.
+  await page.goto("/templates");
+  await expect(page.getByTestId("templates-hydrated")).toBeAttached();
 
   const created = await page.evaluate(async (id) => {
     const { decodeBrowserDatabase, encodeBrowserDatabase } = await import(
@@ -46,7 +50,7 @@ test("100-slide deck keeps only nearby rail previews mounted while scrolling", a
   }, deckId!);
   expect(created).toBe(true);
 
-  await page.reload();
+  await page.goto(editorUrl);
   const frames = page.getByTestId("rail-thumb-frame");
   await expect(frames).toHaveCount(100);
   await expect(page.getByTestId("rail-thumb-rendered").first()).toBeVisible();

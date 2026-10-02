@@ -26,6 +26,7 @@ import type { EditorApi } from "./use-editor";
 import { IconPicker } from "./icon-picker";
 import { readImage } from "./image-upload";
 import { withTemplateImage, withTemplateText, clearTemplateImage } from "@/lib/editor/template-edit";
+import { imageCropControls, imageCropFromControls } from "@/lib/editor/image-crop";
 import { AssetPicker } from "./asset-picker";
 
 /** Persistent layer explorer lets users select obscured template art and hidden image slots. */
@@ -453,6 +454,39 @@ export function PropertiesPanel({ api, theme, onTheme }: { api: EditorApi; theme
             <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
             <SelectContent><SelectItem value="cover">Fill frame (crop)</SelectItem><SelectItem value="contain">Fit inside</SelectItem></SelectContent>
           </Select>
+          {el.properties.fit === "cover" && (
+            <div className="space-y-3 rounded-md border border-border bg-muted/20 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <Label className="text-xs font-semibold">Photo crop · Pan & zoom</Label>
+                <Button type="button" variant="ghost" size="sm" className="h-7 text-[11px]"
+                  onClick={() => setProps({ crop: undefined })}>Reset</Button>
+              </div>
+              {([
+                ["Zoom", "zoom", 1, 4, 0.1],
+                ["Horizontal position", "horizontal", 0, 100, 1],
+                ["Vertical position", "vertical", 0, 100, 1],
+              ] as const).map(([label, field, min, max, step]) => {
+                const controls = imageCropControls(el.properties.crop);
+                return (
+                  <div key={field} className="space-y-1">
+                    <div className="flex justify-between text-[11px] text-muted-foreground">
+                      <span>{label}</span>
+                      <span className="tabular-nums">{field === "zoom" ? `${controls.zoom.toFixed(1)}×` : `${Math.round(controls[field])}%`}</span>
+                    </div>
+                    <Slider
+                      aria-label={label}
+                      min={min} max={max} step={step} value={[controls[field]]}
+                      onValueChange={([value]) => {
+                        const next = { ...controls, [field]: value! };
+                        setProps({ crop: imageCropFromControls(next.zoom, next.horizontal, next.vertical) });
+                      }}
+                    />
+                  </div>
+                );
+              })}
+              <p className="text-[10px] leading-relaxed text-muted-foreground">Move the subject within this frame without modifying the original photo. Also preserved in PowerPoint.</p>
+            </div>
+          )}
           <NumField label="R" value={el.properties.radius} onChange={(v) => setProps({ radius: Math.max(0, v) })} />
         </Section>
       )}

@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Copy, Eye, LayoutTemplate, Search, Sparkles, Star, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { SlideThumb } from "@/components/editor/slide-renderer";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,8 @@ export const Route = createFileRoute("/templates")({
 });
 
 function TemplatesPage() {
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
   const navigate = useNavigate();
   const { savedTemplates } = useDatabase();
   const categories = ["All", ...Array.from(new Set(TEMPLATE_FAMILIES.map((template) => template.category)))] as const;
@@ -69,6 +71,7 @@ function TemplatesPage() {
 
   return (
     <AppShell>
+      {hydrated && <span data-testid="templates-hydrated" className="sr-only">Templates ready</span>}
       <section className="mb-9 overflow-hidden rounded-2xl border border-border bg-card">
         <div className="grid gap-0 lg:grid-cols-[1.15fr_.85fr]">
           <div className="p-7 sm:p-9">

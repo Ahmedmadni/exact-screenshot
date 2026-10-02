@@ -8,6 +8,7 @@ import { getIcon } from "@/lib/editor/icons";
 import { safeExportFilename } from "./validate";
 import { resolveImageSource } from "@/lib/assets/resolve";
 import { imageTreatmentOverlay } from "@/lib/editor/image-treatment";
+import { buildWaterfall, waterfallColor } from "@/lib/editor/waterfall";
 
 const PPT_W = 13.333333;
 const PPT_H = 7.5;
@@ -181,7 +182,79 @@ function addIcon(pptxSlide: any, el: Extract<SlideElement, { type: "icon" }>, th
   });
 }
 
+function addWaterfall(pptx: any, pptxSlide: any, el: Extract<SlideElement, { type: "chart" }>, theme: SlideTheme) {
+  const p = el.properties;
+  const model = buildWaterfall(p.categories, p.series[0]?.values ?? []);
+  const box = pos(el);
+  const left = 80;
+  const right = el.width - 26;
+  const top = p.label ? 78 : 45;
+  const bottom = el.height - 70;
+  const yFor = (value: number) =>
+    bottom - ((value - model.min) / Math.max(1, model.max - model.min)) * Math.max(20, bottom - top);
+  const tx = (x: number) => box.x + x * X_SCALE;
+  const ty = (y: number) => box.y + y * Y_SCALE;
+  const formatValue = (value: number) => Number(value.toFixed(2)).toLocaleString(undefined, { maximumFractionDigits: 2 });
+  if (!model.valid) {
+    pptxSlide.addText("Enter an opening balance and finite signed movements", {
+      ...box, fontFace: theme.fonts.body, fontSize: 13, color: cleanHex(theme.colors.secondary),
+      align: "center", valign: "mid", margin: 0,
+    });
+    return;
+  }
+  if (p.label) pptxSlide.addText(p.label, {
+    x: tx(left), y: ty(4), w: (right - left) * X_SCALE, h: 40 * Y_SCALE,
+    fontFace: theme.fonts.heading, fontSize: 13, color: cleanHex(theme.colors.primary), margin: 0,
+  });
+  const axis = cleanHex(theme.colors.line);
+  if (p.showGrid) for (const fraction of [0, 0.25, 0.5, 0.75, 1]) {
+    const y = top + (bottom - top) * fraction;
+    pptxSlide.addShape(pptx.ShapeType.line, {
+      x: tx(left), y: ty(y), w: (right - left) * X_SCALE, h: 0,
+      line: { color: axis, width: 0.6 },
+    });
+  }
+  pptxSlide.addShape(pptx.ShapeType.line, {
+    x: tx(left), y: ty(yFor(0)), w: (right - left) * X_SCALE, h: 0,
+    line: { color: cleanHex(theme.colors.secondary), width: 1 },
+  });
+  const band = (right - left) / Math.max(1, model.steps.length);
+  const barWidth = Math.max(7, band * 0.54);
+  model.steps.forEach((step, index) => {
+    const cx = left + band * (index + 0.5);
+    const yTop = yFor(Math.max(step.start, step.end));
+    const yBottom = yFor(Math.min(step.start, step.end));
+    const color = cleanHex(theme.colors[waterfallColor(step.kind)]);
+    const prev = model.steps[index - 1];
+    if (index > 0 && step.kind !== "closing" && prev) {
+      pptxSlide.addShape(pptx.ShapeType.line, {
+        x: tx(cx - band * 0.5), y: ty(yFor(prev.end)),
+        w: Math.max(0.001, (band * 0.5 - barWidth * 0.5) * X_SCALE), h: 0,
+        line: { color: axis, width: 0.7, dash: "dash" },
+      });
+    }
+    pptxSlide.addShape(pptx.ShapeType.rect, {
+      x: tx(cx - barWidth / 2), y: ty(yTop),
+      w: barWidth * X_SCALE, h: Math.max(2, yBottom - yTop) * Y_SCALE,
+      line: { color, transparency: 100 }, fill: { color },
+    });
+    if (p.showValues) pptxSlide.addText(formatValue(step.value), {
+      x: tx(cx - band * 0.48), y: ty(Math.max(top + 3, yTop - 27)),
+      w: band * 0.96 * X_SCALE, h: 23 * Y_SCALE,
+      fontFace: theme.fonts.body, fontSize: 9, align: "center",
+      color: cleanHex(theme.colors.primary), margin: 0,
+    });
+    pptxSlide.addText(step.label, {
+      x: tx(cx - band * 0.49), y: ty(el.height - 61),
+      w: band * 0.98 * X_SCALE, h: 45 * Y_SCALE,
+      fontFace: theme.fonts.body, fontSize: 9, align: "center",
+      color: cleanHex(theme.colors.secondary), margin: 0, breakLine: false, fit: "shrink",
+    });
+  });
+}
+
 function addChart(pptx: any, pptxSlide: any, el: Extract<SlideElement, { type: "chart" }>, theme: SlideTheme) {
+  if (el.properties.chartType === "waterfall") return addWaterfall(pptx, pptxSlide, el, theme);
   const p = el.properties;
   const box = pos(el);
   const chartType =

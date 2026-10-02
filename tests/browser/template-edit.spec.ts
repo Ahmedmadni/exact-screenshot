@@ -18,7 +18,7 @@ test("an editable template opens in the real desktop editor, saves text, and sur
   await firstText.fill("Client-edited visual identity story");
   await firstText.press("Tab");
   await expect(firstText).toHaveValue("Client-edited visual identity story");
-  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await expect(page.getByRole("banner").getByText("Saved", { exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByRole("textbox", { name: "Edit template text" }).first())
     .toHaveValue("Client-edited visual identity story");

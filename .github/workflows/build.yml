@@ -24,5 +24,8 @@ jobs:
       - name: Check migrations
         run: bun run check:migrations
 
+      - name: Design regression tests
+        run: bun test tests/design-regression.test.ts
+
       - name: Build
         run: bun run build

@@ -62,14 +62,24 @@ export function normalizeImportedRows(source: unknown[][]): ImportResult<string[
   return { ok: true, value: result, rows: result.length };
 }
 
-function parseNumber(source: string): number | null {
-  const raw = source.trim().replace(/[\u00A0\u202F\s]/g, "");
-  if (!raw || /[%]/.test(raw)) return null; // % formatting is ambiguous (0.2 vs 20).
-  const accounting = /^\((.+)\)$/.exec(raw);
-  const unsigned = accounting ? accounting[1]! : raw;
-  const cleaned = unsigned.replace(/,/g, "");
-  if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(cleaned)) return null;
-  const number = Number(cleaned);
+/** Numeric import deliberately accepts Arabic/Persian digits but never guesses decimal conventions. */
+export function parseFinancialNumber(source: string): number | null {
+  const arabicDigits = "٠١٢٣٤٥٦٧٨٩";
+  const persianDigits = "۰۱۲۳۴۵۶۷۸۹";
+  const input = source.trim()
+    .replace(/[٠-٩]/g, digit => String(arabicDigits.indexOf(digit)))
+    .replace(/[۰-۹]/g, digit => String(persianDigits.indexOf(digit)))
+    .replace(/\u066C/g, ",") // Arabic thousands separator
+    .replace(/\u066B/g, ".") // Arabic decimal separator
+    .replace(/[\u00A0\u202F\s]/g, "");
+  if (!input || /[%٪]/.test(input)) return null;
+  const accounting = /^\((.*)\)$/.exec(input);
+  const unsigned = accounting ? accounting[1]! : input;
+  // A comma is a grouping separator only when all grouped parts have three digits.
+  const grouping = /^[+-]?\d{1,3}(?:,\d{3})+(?:\.\d+)?(?:[eE][+-]?\d+)?$/;
+  const plain = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
+  if (!plain.test(unsigned) && !grouping.test(unsigned)) return null;
+  const number = Number(unsigned.replace(/,/g, ""));
   return Number.isFinite(number) ? (accounting ? -number : number) : null;
 }
 
@@ -97,7 +107,7 @@ export function importedRowsToChart(rows: unknown[][]): ImportResult<ImportedCha
     categories.push(category);
     for (let i = 0; i < series.length; i++) {
       const raw = row[i + 1] ?? "";
-      const parsed = parseNumber(raw);
+      const parsed = parseFinancialNumber(raw);
       if (parsed === null) return { ok: false, error: `Invalid number at row ${index + 1}, column ${i + 2}: "${raw}".` };
       series[i]!.values.push(parsed);
     }

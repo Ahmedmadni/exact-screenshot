@@ -935,8 +935,7 @@ export function applyLayout(slide: Slide, layoutId: string): Slide {
   // Include previously retained image slots when returning to a multi-photo layout.
   const originalImages = slide.elements.filter(
     (e): e is Extract<SlideElement, { type: "image" }> =>
-      e.type === "image" && (e.role === "media" || e.name.endsWith(" (kept)")) &&
-      !!(e.properties.src || e.properties.assetId),
+      e.type === "image" && (e.role === "media" || e.name.endsWith(" (kept)")),
   );
   const matchedImages = new Set<string>();
   const generated = buildLayout(layoutId, content, slide.id, slideIsRtl(slide)).map((element) => {

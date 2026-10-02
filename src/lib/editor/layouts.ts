@@ -149,7 +149,7 @@ export const LAYOUTS: LayoutDefinition[] = [
     build: (c) => [
       shapeEl("Institutional left rail", "rect", [0, 0, 22, 900], { fill: "theme:accent" }),
       shapeEl("Institutional header", "rect", [115, 100, 1320, 2], { fill: "theme:line" }),
-      textEl("Institutional heading", "EXECUTIVE / 01", [115, 130, 800, 45], { fontSize: 17, fontWeight: 700, color: "theme:accent", letterSpacing: 1.2 }, "decor"),
+      textEl("Institutional heading", "ملخص تنفيذي / ٠١", [115, 130, 800, 45], { fontSize: 17, fontWeight: 700, color: "theme:accent", letterSpacing: 1.2 }, "decor"),
       shapeEl("Architectural block", "rect", [1020, 240, 435, 420], { fill: "theme:accentSoft" }),
       shapeEl("Architectural accent", "rect", [1120, 240, 75, 420], { fill: "theme:accent" }),
       shapeEl("Architectural line", "rect", [1222, 240, 7, 420], { fill: "theme:background" }),

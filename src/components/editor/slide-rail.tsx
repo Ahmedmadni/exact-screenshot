@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Copy, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,48 @@ import type { PresenceParticipant } from "@/lib/collaboration-presence";
 export function duplicateSlide(s: Slide): Slide {
   const id = uid();
   return { ...structuredClone(s), id, title: `${s.title}`, elements: s.elements.map((e) => ({ ...structuredClone(e), id: uid(), slideId: id })) };
+}
+
+/**
+ * Hundreds of slide thumbnails can mount thousands of canvas/chart/image nodes.
+ * Keep the frame visible, but render the expensive slide only near the viewport.
+ * Active slides always render, even when outside the observed range.
+ */
+function VisibleSlideThumb({
+  slide, active, themeId, themeOverrides,
+}: {
+  slide: Slide;
+  active: boolean;
+  themeId?: string;
+  themeOverrides?: PresentationThemeOverrides;
+}) {
+  const nodeRef = useRef<HTMLDivElement>(null);
+  const [nearViewport, setNearViewport] = useState(false);
+  useEffect(() => {
+    const node = nodeRef.current;
+    if (!node) return;
+    if (typeof IntersectionObserver === "undefined") {
+      setNearViewport(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => setNearViewport(Boolean(entry?.isIntersecting)),
+      { rootMargin: "300px 0px" },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+  return (
+    <div ref={nodeRef} className="aspect-video w-full" data-testid="rail-thumb-frame">
+      {active || nearViewport ? (
+        <div data-testid="rail-thumb-rendered">
+          <SlideThumb slide={slide} themeId={themeId} themeOverrides={themeOverrides} />
+        </div>
+      ) : (
+        <div aria-hidden="true" className="h-full w-full bg-muted/35" />
+      )}
+    </div>
+  );
 }
 
 export function SlideRail({
@@ -76,7 +118,7 @@ export function SlideRail({
             >
               <span className="w-4 pt-1 text-end text-[11px] text-muted-foreground">{i + 1}</span>
               <div className={cn("relative flex-1 overflow-hidden rounded border", s.id === api.activeId ? "border-primary ring-1 ring-primary" : "border-border")}>
-                <SlideThumb slide={s} themeId={themeId} themeOverrides={themeOverrides} />
+                <VisibleSlideThumb slide={s} active={s.id === api.activeId} themeId={themeId} themeOverrides={themeOverrides} />
                 {collaborators.some((participant) => !participant.isSelf && participant.activeSlideId === s.id) && (
                   <div className="absolute bottom-1 end-1 flex -space-x-1.5">
                     {collaborators

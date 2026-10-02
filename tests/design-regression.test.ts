@@ -7,7 +7,7 @@ import type { Presentation } from "../src/lib/types";
 import { applyVaultMedia, externalVisualSearchQuery } from "../src/lib/assets/auto-media";
 import { applyLayout, buildLayout, contentFromSlide } from "../src/lib/editor/layouts";
 import { imageTreatmentOverlay } from "../src/lib/editor/image-treatment";
-import { imageCropControls, imageCropCss, imageCropFromControls, imageCropPptx, normalizeImageCrop } from "../src/lib/editor/image-crop";
+import { imageCropControls, imageCropCss, imageCropFocalPreset, imageCropFromControls, imageCropPptx, normalizeImageCrop } from "../src/lib/editor/image-crop";
 import { getLayout, LAYOUTS } from "../src/lib/editor/layouts";
 import { getTemplateFamily, templatePreviewSlides, TEMPLATE_FAMILIES } from "../src/lib/templates";
 import { editableTemplateDeckInput, editableTemplateSlides } from "../src/lib/template-starter";
@@ -49,6 +49,24 @@ const asset: AssetRecord = {
 };
 
 describe("design integrity", () => {
+  test("all nine photo focal presets retain current zoom and stay in bounds", () => {
+    const current = imageCropFromControls(2.5, 47, 61);
+    const pos = { left: 0, center: 50, right: 100 } as const;
+    const vert = { top: 0, center: 50, bottom: 100 } as const;
+    for (const horizontal of Object.keys(pos) as Array<keyof typeof pos>) {
+      for (const vertical of Object.keys(vert) as Array<keyof typeof vert>) {
+        const updated = imageCropFocalPreset(current, horizontal, vertical);
+        const controls = imageCropControls(updated);
+        expect(controls.zoom).toBe(2.5);
+        expect(controls.horizontal).toBe(pos[horizontal]);
+        expect(controls.vertical).toBe(vert[vertical]);
+        expect(updated.x + updated.width).toBeLessThanOrEqual(1);
+        expect(updated.y + updated.height).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+
+
   test("image zoom and pan normalization is finite clamped and reversible", () => {
     const crop = imageCropFromControls(2, 75, 25);
     expect(crop).toEqual({ x: 0.375, y: 0.125, width: 0.5, height: 0.5 });

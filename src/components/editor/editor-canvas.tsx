@@ -4,6 +4,7 @@ import type { SlideTheme } from "@/lib/editor/themes";
 import { resolveColor, resolveFont } from "@/lib/editor/themes";
 import type { Slide } from "@/lib/types";
 import { ElementBody, elementBoxStyle, slideBackground, useFitScale } from "./slide-renderer";
+import { renderedFinancialElements } from "@/lib/editor/variance";
 import type { EditorApi } from "./use-editor";
 import type { PresenceParticipant } from "@/lib/collaboration-presence";
 
@@ -256,7 +257,7 @@ export function EditorCanvas({
           onPointerLeave={() => onCursorMove?.(undefined)}
         >
           <div style={{ position: "absolute", top: 0, left: 0, width: SLIDE_W, height: SLIDE_H, transform: `scale(${scale})`, transformOrigin: "top left", background: slideBackground(slide, theme), overflow: "hidden" }}>
-            {[...slide.elements].sort((a, b) => a.zIndex - b.zIndex).filter((x) => x.visible).map((el) => {
+            {[...renderedFinancialElements(slide)].sort((a, b) => a.zIndex - b.zIndex).filter((x) => x.visible).map((el) => {
               const teammateDraft = remoteDraft(el.id);
               const displayEl = teammateDraft && el.type === "text"
                 ? { ...el, properties: { ...el.properties, text: teammateDraft.textDraft ?? el.properties.text } }

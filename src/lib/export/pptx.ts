@@ -8,6 +8,7 @@ import { getIcon } from "@/lib/editor/icons";
 import { safeExportFilename } from "./validate";
 import { resolveImageSource } from "@/lib/assets/resolve";
 import { imageTreatmentOverlay } from "@/lib/editor/image-treatment";
+import { imageCropPptx } from "@/lib/editor/image-crop";
 import { renderedFinancialElements } from "@/lib/editor/variance";
 import { buildWaterfall, waterfallColor } from "@/lib/editor/waterfall";
 
@@ -155,7 +156,9 @@ function addImage(pptx: any, pptxSlide: any, el: Extract<SlideElement, { type: "
   pptxSlide.addImage({
     data: normalizeImageData(src),
     ...box,
-    sizing: { type: el.properties.fit, w: box.w, h: box.h },
+    sizing: el.properties.fit === "cover" && el.properties.crop
+      ? imageCropPptx(el.properties.crop, box.w, box.h)
+      : { type: el.properties.fit, w: box.w, h: box.h },
     rotate: Math.round(el.rotation),
     transparency: transparency(el.opacity),
     altText: el.name,

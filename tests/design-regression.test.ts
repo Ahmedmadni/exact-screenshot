@@ -9,6 +9,7 @@ import { applyLayout, buildLayout, contentFromSlide } from "../src/lib/editor/la
 import { imageTreatmentOverlay } from "../src/lib/editor/image-treatment";
 import { imageCropControls, imageCropCss, imageCropFocalPreset, imageCropFromControls, imageCropPptx, normalizeImageCrop } from "../src/lib/editor/image-crop";
 import { canStartEditorGesture, isActiveEditorPointer } from "../src/lib/editor/pointer-gesture";
+import { moveItemByStep } from "../src/lib/editor/slide-order";
 import { getLayout, LAYOUTS } from "../src/lib/editor/layouts";
 import { getTemplateFamily, templatePreviewSlides, TEMPLATE_FAMILIES } from "../src/lib/templates";
 import { editableTemplateDeckInput, editableTemplateSlides } from "../src/lib/template-starter";
@@ -50,6 +51,20 @@ const asset: AssetRecord = {
 };
 
 describe("design integrity", () => {
+  test("touch reorder moves one slide, retains original ids and rejects out-of-range taps", () => {
+    const ids = ["cover", "agenda", "portfolio", "closing"] as const;
+    const movedUp = moveItemByStep(ids, 2, -1);
+    expect(movedUp).toEqual(["cover", "portfolio", "agenda", "closing"]);
+    expect(moveItemByStep(movedUp, 1, 1)).toEqual(ids);
+    expect(moveItemByStep(ids, 0, -1)).toEqual(ids);
+    expect(moveItemByStep(ids, 3, 1)).toEqual(ids);
+    expect(moveItemByStep(ids, -1, 1)).toEqual(ids);
+    expect(moveItemByStep(ids, 9, -1)).toEqual(ids);
+    expect(ids).toEqual(["cover", "agenda", "portfolio", "closing"]);
+    expect(new Set(movedUp).size).toBe(4);
+  });
+
+
   test("touch edit gestures exclude secondary fingers and mismatched pointer events", () => {
     expect(canStartEditorGesture({ pointerId: 1, isPrimary: true, button: 0 })).toBe(true);
     expect(canStartEditorGesture({ pointerId: 2, isPrimary: false, button: 0 })).toBe(false);

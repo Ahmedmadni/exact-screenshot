@@ -27,6 +27,62 @@ import { IconPicker } from "./icon-picker";
 import { readImage } from "./image-upload";
 import { AssetPicker } from "./asset-picker";
 
+/** Persistent layer explorer lets users select obscured template art and hidden image slots. */
+function LayersSection({ api, slide }: { api: EditorApi; slide: NonNullable<EditorApi["active"]> }) {
+  const [search, setSearch] = useState("");
+  const [type, setType] = useState("all");
+  const items = [...slide.elements].sort((a, b) => b.zIndex - a.zIndex)
+    .filter(element => type === "all" || element.type === type)
+    .filter(element => !search.trim() ||
+      [element.name, element.type,
+        element.type === "text" ? element.properties.text : ""]
+        .join(" ").toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()));
+  return (
+    <Section title={`Layers · ${slide.elements.length}`}>
+      <p className="text-[11px] text-muted-foreground">Select any object, including images covered by shapes. Rename, hide or lock individual layers without flattening your template.</p>
+      <div className="flex gap-1.5">
+        <Input className="h-8 min-w-0 flex-1 text-xs" aria-label="Search slide layers" placeholder="Search layers…" value={search} onChange={event => setSearch(event.target.value)} />
+        <select className="h-8 w-24 rounded-md border border-input bg-background px-1 text-xs" aria-label="Filter layer types" value={type} onChange={event => setType(event.target.value)}>
+          <option value="all">All</option>
+          <option value="text">Text</option>
+          <option value="image">Images</option>
+          <option value="shape">Shapes</option>
+          <option value="chart">Charts</option>
+          <option value="table">Tables</option>
+          <option value="icon">Icons</option>
+          <option value="diagram">Diagrams</option>
+        </select>
+      </div>
+      <div className="max-h-72 space-y-0.5 overflow-y-auto" aria-label="Slide layer list">
+        {items.map(element => (
+          <div key={element.id} className={cn(
+            "flex items-center gap-1 rounded px-1.5 py-1 text-xs hover:bg-muted",
+            api.selected.includes(element.id) && "bg-primary/10 ring-1 ring-primary/30",
+          )}>
+            <button
+              type="button"
+              className="min-w-0 flex-1 truncate text-start"
+              title={element.name}
+              aria-label={`Select ${element.name}`}
+              onClick={() => api.setSelected([element.id])}
+            >
+              <span className="me-1 text-[10px] uppercase text-muted-foreground">{element.type}</span>
+              {element.name}
+            </button>
+            <button type="button" aria-label={`Toggle visibility for ${element.name}`} title="Show / hide" className="text-muted-foreground" onClick={() => api.updateElements([element.id], item => ({ ...item, visible: !item.visible }))}>
+              {element.visible ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}
+            </button>
+            <button type="button" aria-label={`Toggle lock for ${element.name}`} title="Lock / unlock" className="text-muted-foreground" onClick={() => api.updateElements([element.id], item => ({ ...item, locked: !item.locked }))}>
+              {element.locked ? <Lock className="size-3.5" /> : <Unlock className="size-3.5" />}
+            </button>
+          </div>
+        ))}
+        {!items.length && <p className="py-3 text-center text-xs text-muted-foreground">No matching layers.</p>}
+      </div>
+    </Section>
+  );
+}
+
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="space-y-3 border-b border-border px-4 py-4">
@@ -238,17 +294,7 @@ export function PropertiesPanel({ api, theme, onTheme }: { api: EditorApi; theme
             ))}
           </div>
         </Section>
-        <Section title="Layers">
-          <div className="space-y-0.5">
-            {[...slide.elements].sort((a, b) => b.zIndex - a.zIndex).map((e) => (
-              <div key={e.id} className="flex items-center gap-1 rounded px-1.5 py-1 text-xs hover:bg-muted">
-                <LayerName name={e.name} onSelect={() => api.setSelected([e.id])} onRename={(name) => api.updateElements([e.id], (x) => ({ ...x, name: name || defaultName(x) }))} />
-                <button aria-label="Toggle visibility" className="text-muted-foreground" onClick={() => api.updateElements([e.id], (x) => ({ ...x, visible: !x.visible }))}>{e.visible ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}</button>
-                <button aria-label="Toggle lock" className="text-muted-foreground" onClick={() => api.updateElements([e.id], (x) => ({ ...x, locked: !x.locked }))}>{e.locked ? <Lock className="size-3.5" /> : <Unlock className="size-3.5" />}</button>
-              </div>
-            ))}
-          </div>
-        </Section>
+        <LayersSection api={api} slide={slide} />
       </aside>
     );
   }
@@ -352,6 +398,8 @@ export function PropertiesPanel({ api, theme, onTheme }: { api: EditorApi; theme
       {el?.type === "diagram" && (
         <DiagramSection p={el.properties} theme={theme} setProps={(patch) => setProps(patch)} />
       )}
+
+      <LayersSection api={api} slide={slide} />
 
       <Section title="Arrange">
         <div className="grid grid-cols-4 gap-1">

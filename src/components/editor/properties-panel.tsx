@@ -297,18 +297,6 @@ export function PropertiesPanel({ api, theme, onTheme }: { api: EditorApi; theme
           <ColorField value={el.properties.stroke} theme={theme} allowNone onChange={(v) => setProps({ stroke: v, strokeWidth: el.properties.strokeWidth || 2 })} />
           <div className="grid grid-cols-2 gap-2">
             <NumField label="B" value={el.properties.strokeWidth} onChange={(v) => setProps({ strokeWidth: Math.max(0, v) })} />
-            <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Image treatment</Label>
-            <Select value={el.properties.treatment ?? "natural"} onValueChange={(value) => setProps({ treatment: value })}>
-              <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="natural">Natural · original image</SelectItem>
-                <SelectItem value="cinematic">Cinematic · deep overlay</SelectItem>
-                <SelectItem value="soft">Soft editorial · light wash</SelectItem>
-                <SelectItem value="brand">Brand tint · theme accent</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
           <NumField label="R" value={el.properties.radius} onChange={(v) => setProps({ radius: Math.max(0, v) })} />
           </div>
         </Section>
@@ -332,6 +320,18 @@ export function PropertiesPanel({ api, theme, onTheme }: { api: EditorApi; theme
             <AssetPicker onPick={(asset) => asset.imageDataUrl && setProps({ src: "", assetId: asset.id })} title="Replace from Asset Vault">
               <Button variant="outline" size="sm" className="h-8 w-full text-xs">Asset Vault</Button>
             </AssetPicker>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Image treatment</Label>
+            <Select value={el.properties.treatment ?? "natural"} onValueChange={(value) => setProps({ treatment: value })}>
+              <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="natural">Natural · original image</SelectItem>
+                <SelectItem value="cinematic">Cinematic · deep overlay</SelectItem>
+                <SelectItem value="soft">Soft editorial · light wash</SelectItem>
+                <SelectItem value="brand">Brand tint · theme accent</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <Select value={el.properties.fit} onValueChange={(v) => setProps({ fit: v })}>
             <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>

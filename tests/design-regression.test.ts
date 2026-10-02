@@ -7,6 +7,7 @@ import { getTemplateFamily, templatePreviewSlides } from "../src/lib/templates";
 import { rebuildGeneratedContent } from "../src/lib/editor/composer";
 import { buildWaterfall } from "../src/lib/editor/waterfall";
 import { analyzeBudgetVariance, analyzeChartBudget, renderedFinancialElements, varianceSummary } from "../src/lib/editor/variance";
+import { importedRowsToChart, importedRowsToTable, normalizeImportedRows, parseDelimited } from "../src/lib/editor/financial-import";
 import type { AssetRecord, Slide } from "../src/lib/types";
 
 const slide = (): Slide => ({
@@ -40,6 +41,63 @@ const asset: AssetRecord = {
 };
 
 describe("design integrity", () => {
+  test("CSV parser retains embedded delimiters, quoted newlines and escaped quotes", () => {
+    const rows = parseDelimited('"Period","Actual","Budget"\r\n"Q1, North","1,250","1,500"\r\n"Q2 ""renewal""","240","260"');
+    expect(rows).toEqual([
+      ["Period", "Actual", "Budget"],
+      ["Q1, North", "1,250", "1,500"],
+      ['Q2 "renewal"', "240", "260"],
+    ]);
+    expect(parseDelimited("Period\tActual\tBudget\nQ1\t10\t12", "\t")[1]).toEqual(["Q1", "10", "12"]);
+    expect(() => parseDelimited('A,B\n"unclosed,10')).toThrow("Unclosed");
+  });
+
+  test("strict financial import parses accounting negatives and thousand separators", () => {
+    const result = importedRowsToChart([
+      ["Period", "Actual", "Budget"],
+      ["Q1", "1,200.50", "1000"],
+      ["Q2", "(350)", "-200"],
+    ]);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.categories).toEqual(["Q1", "Q2"]);
+      expect(result.value.series[0]?.values).toEqual([1200.5, -350]);
+      expect(result.value.series[1]?.values).toEqual([1000, -200]);
+      expect(analyzeChartBudget({
+        label: "", chartType: "column", categories: result.value.categories,
+        series: result.value.series, showLegend: true, showValues: true,
+        showGrid: true, accent: "theme:accent",
+      }).valid).toBe(true);
+    }
+  });
+
+  test("malformed financial imports cannot silently generate zero metrics", () => {
+    const bad = [
+      [["Period", "Actual", "Budget"], ["Jan", "", "100"]],
+      [["Period", "Actual"], ["Jan", "20%"]],
+      [["Period", "Actual"], ["Jan", "oops"]],
+      [["Period", "Actual"], ["Jan", "10"], ["Jan", "15"]],
+      [["Period", "Actual"], ["Jan", "NaN"]],
+      [["Period", "Actual"], ["Jan", "Infinity"]],
+      [["Period", "Actual"], ["Jan", "3"], ["Feb", "1e999"]],
+    ];
+    for (const rows of bad) expect(importedRowsToChart(rows).ok).toBe(false);
+    expect(importedRowsToChart([["Period", "Actual"], ["Jan", 25]]).toMatchObject({ ok: true });
+    expect(importedRowsToChart([["Period", "Actual"]]).ok).toBe(false);
+  });
+
+  test("table import preserves words, Arabic, and empty middle cells", () => {
+    const result = importedRowsToTable([["البند", "فعلي", "موازنة"], ["الإيرادات", "1,200", ""], ["المصروفات", "(400)", "450"]]);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value[1]).toEqual(["الإيرادات", "1,200", ""]);
+      expect(result.value[2]).toEqual(["المصروفات", "(400)", "450"]);
+    }
+    expect(normalizeImportedRows([]).ok).toBe(false);
+    expect(normalizeImportedRows(Array.from({ length: 502 }, (_, i) => ["period" + i])).ok).toBe(false);
+  });
+
+
   test("budget variance computes revenue totals and period-level percentages", () => {
     const result = analyzeBudgetVariance(["Q1", "Q2"], [115, 85], [100, 100]);
     expect(result.valid).toBe(true);

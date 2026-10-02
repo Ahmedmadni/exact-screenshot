@@ -15,7 +15,7 @@ test("100-slide deck keeps only nearby rail previews mounted while scrolling", a
 
   const created = await page.evaluate(async (id) => {
     const { decodeBrowserDatabase, encodeBrowserDatabase } = await import(
-      "../../src/lib/data/storage-codec"
+      "/src/lib/data/storage-codec.ts"
     );
     const original = window.localStorage.getItem("aps.db.v1");
     if (!original) return false;

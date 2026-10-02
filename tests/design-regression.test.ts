@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import JSZip from "jszip";
 import { createPresentationPptx } from "../src/lib/export/pptx";
 import { validatePresentationForExport, contentBeyondSlide, substantialTextOverlap } from "../src/lib/export/validate";
+import { reviewPresentation } from "../src/lib/quality";
 import type { Presentation } from "../src/lib/types";
 import { applyVaultMedia, externalVisualSearchQuery } from "../src/lib/assets/auto-media";
 import { applyLayout, buildLayout, contentFromSlide } from "../src/lib/editor/layouts";
@@ -45,6 +46,34 @@ const asset: AssetRecord = {
 };
 
 describe("design integrity", () => {
+  test("quality panel links export geometry warnings to the correct slide", () => {
+    const source = slide();
+    const title = buildLayout("cover-minimal", contentFromSlide(source), source.id)
+      .find(element => element.type === "text" && element.role === "title");
+    expect(title).toBeDefined();
+    if (!title) return;
+    source.elements = [{ ...title, x: 1550, width: 220, name: "Escaped title" }];
+    const deck = { themeId: "executive-light", slides: [source] } as unknown as Presentation;
+    const warnings = reviewPresentation(deck);
+    expect(warnings.some(item =>
+      item.code === "element-outside-slide" &&
+      item.slideId === source.id &&
+      item.message.includes("Escaped title"),
+    )).toBe(true);
+  });
+
+  test("quality check accepts linked Asset Vault photography without false missing-image alerts", () => {
+    const source = slide();
+    source.elements = [{
+      ...buildLayout("cover-split", contentFromSlide(source), source.id)
+        .find(element => element.type === "image")!,
+      properties: { src: "", assetId: "existing-approved-photo", fit: "cover" as const, radius: 0 },
+    }];
+    const deck = { themeId: "executive-light", slides: [source] } as unknown as Presentation;
+    expect(reviewPresentation(deck).some(item => item.code === "missing-image")).toBe(false);
+  });
+
+
   test("export preflight catches clipped primary text and ignores intentional full-bleed photography", () => {
     const source = slide();
     source.layoutId = "cover-minimal";

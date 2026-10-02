@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Copy, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Copy, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { uid } from "@/lib/data/store";
 import { buildLayout, contentFromSlide } from "@/lib/editor/layouts";
+import { moveItemByStep } from "@/lib/editor/slide-order";
 import type { PresentationThemeOverrides, Slide } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { SlideThumb } from "./slide-renderer";
@@ -93,12 +94,24 @@ export function SlideRail({
                   </div>
                 )}
               </div>
-              <div className="absolute end-2 top-2 hidden gap-0.5 group-hover:flex">
-                <button className="rounded bg-background/90 p-1 text-muted-foreground shadow hover:text-foreground" aria-label="Duplicate slide" onClick={(e) => { e.stopPropagation(); const copy = duplicateSlide(s); const next = [...slides]; next.splice(i + 1, 0, copy); api.commit(next); api.setActiveId(copy.id); }}>
+              <div className="absolute end-2 top-2 flex gap-1 lg:hidden lg:group-hover:flex">
+                <button type="button" className="flex size-8 items-center justify-center rounded border border-border bg-background/95 text-foreground shadow-sm disabled:opacity-30 lg:size-6"
+                  aria-label={`Move slide ${i + 1} up`} disabled={i === 0}
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onClick={(event) => { event.stopPropagation(); api.commit(moveItemByStep(slides, i, -1)); }}>
+                  <ArrowUp className="size-4 lg:size-3" />
+                </button>
+                <button type="button" className="flex size-8 items-center justify-center rounded border border-border bg-background/95 text-foreground shadow-sm disabled:opacity-30 lg:size-6"
+                  aria-label={`Move slide ${i + 1} down`} disabled={i === slides.length - 1}
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onClick={(event) => { event.stopPropagation(); api.commit(moveItemByStep(slides, i, 1)); }}>
+                  <ArrowDown className="size-4 lg:size-3" />
+                </button>
+                <button className="flex size-8 items-center justify-center rounded border border-border bg-background/95 text-foreground shadow-sm lg:size-6" aria-label="Duplicate slide" onClick={(e) => { e.stopPropagation(); const copy = duplicateSlide(s); const next = [...slides]; next.splice(i + 1, 0, copy); api.commit(next); api.setActiveId(copy.id); }}>
                   <Copy className="size-3" />
                 </button>
                 {slides.length > 1 && (
-                  <button className="rounded bg-background/90 p-1 text-muted-foreground shadow hover:text-destructive" aria-label="Delete slide" onClick={(e) => { e.stopPropagation(); const before = slides; const wasActive = api.activeId; const next = slides.filter((x) => x.id !== s.id); api.commit(next); if (s.id === api.activeId) api.setActiveId(next[Math.max(0, i - 1)]!.id); toast("Slide deleted", { action: { label: "Undo", onClick: () => { api.commit(before); api.setActiveId(s.id === wasActive ? s.id : wasActive); } } }); }}>
+                  <button className="flex size-8 items-center justify-center rounded border border-border bg-background/95 text-foreground shadow-sm hover:text-destructive lg:size-6" aria-label="Delete slide" onClick={(e) => { e.stopPropagation(); const before = slides; const wasActive = api.activeId; const next = slides.filter((x) => x.id !== s.id); api.commit(next); if (s.id === api.activeId) api.setActiveId(next[Math.max(0, i - 1)]!.id); toast("Slide deleted", { action: { label: "Undo", onClick: () => { api.commit(before); api.setActiveId(s.id === wasActive ? s.id : wasActive); } } }); }}>
                     <Trash2 className="size-3" />
                   </button>
                 )}

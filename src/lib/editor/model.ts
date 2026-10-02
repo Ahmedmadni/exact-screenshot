@@ -105,6 +105,8 @@ export interface ChartProps {
   showValues: boolean;
   showGrid: boolean;
   accent: string;
+  /** Defines what a favorable variance means; expenses use lower-is-better. */
+  varianceDirection?: "higher-is-better" | "lower-is-better";
 }
 
 export interface TableProps {

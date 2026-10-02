@@ -25,6 +25,7 @@ import { FinancialImportControl } from "./financial-import-control";
 import type { EditorApi } from "./use-editor";
 import { IconPicker } from "./icon-picker";
 import { readImage } from "./image-upload";
+import { withTemplateImage, withTemplateText, clearTemplateImage } from "@/lib/editor/template-edit";
 import { AssetPicker } from "./asset-picker";
 
 /** Persistent layer explorer lets users select obscured template art and hidden image slots. */
@@ -114,8 +115,7 @@ function TemplateQuickEdit({ api, slide }: { api: EditorApi; slide: NonNullable<
               value={element.properties.text}
               onCommit={text => {
                 if (text === element.properties.text) return;
-                api.updateElements([element.id], item =>
-                  item.type === "text" ? { ...item, properties: { ...item.properties, text } } : item);
+                api.updateElements([element.id], item => withTemplateText(item, text));
               }}
             />
           </div>
@@ -134,11 +134,15 @@ function TemplateQuickEdit({ api, slide }: { api: EditorApi; slide: NonNullable<
                   event.currentTarget.value = "";
                   if (!file) return;
                   const src = await readImage(file);
-                  if (src) api.updateElements([element.id], item =>
-                    item.type === "image" ? { ...item, properties: { ...item.properties, src, assetId: undefined } } : item);
+                  if (src) api.updateElements([element.id], item => withTemplateImage(item, src));
                 }} />
               </label>
               <Button variant="outline" size="sm" className="text-xs" onClick={() => api.setSelected([element.id])}>More</Button>
+              {(element.properties.src || element.properties.assetId) && (
+                <button type="button" className="text-[10px] text-muted-foreground hover:text-destructive"
+                  aria-label={`Clear image for ${element.name}`}
+                  onClick={() => api.updateElements([element.id], clearTemplateImage)}>Clear</button>
+              )
             </div>
           </div>
         ))}

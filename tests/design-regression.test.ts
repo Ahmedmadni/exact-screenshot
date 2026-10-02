@@ -7,7 +7,7 @@ import { getTemplateFamily, templatePreviewSlides } from "../src/lib/templates";
 import { rebuildGeneratedContent } from "../src/lib/editor/composer";
 import { buildWaterfall } from "../src/lib/editor/waterfall";
 import { analyzeBudgetVariance, analyzeChartBudget, renderedFinancialElements, varianceSummary } from "../src/lib/editor/variance";
-import { importedRowsToChart, importedRowsToTable, normalizeImportedRows, parseDelimited } from "../src/lib/editor/financial-import";
+import { importedRowsToChart, importedRowsToTable, mapFinancialColumns, normalizeImportedRows, parseDelimited } from "../src/lib/editor/financial-import";
 import type { AssetRecord, Slide } from "../src/lib/types";
 
 const slide = (): Slide => ({
@@ -41,6 +41,38 @@ const asset: AssetRecord = {
 };
 
 describe("design integrity", () => {
+  test("column mapping selects the correct worksheet metrics without changing source cells", () => {
+    const source = [
+      ["Notes", "Budget", "Period", "Actual", "Ignored"],
+      ["North", "1,500", "Q1", "1,260", "misc"],
+      ["South", "1,700", "Q2", "(280)", "misc"],
+    ];
+    const result = mapFinancialColumns(source, 2, [3, 1]);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.categories).toEqual(["Q1", "Q2"]);
+      expect(result.value.series.map(s => s.name)).toEqual(["Actual", "Budget"]);
+      expect(result.value.series[0]?.values).toEqual([1260, -280]);
+      expect(result.value.series[1]?.values).toEqual([1500, 1700]);
+    }
+    expect(source[2]![3]).toBe("(280)");
+  });
+
+  test("column selection blocks duplicate, missing and nonnumeric sources", () => {
+    const rows = [
+      ["Period", "Actual", "Budget", "Comment"],
+      ["Jan", "110", "100", "draft"],
+    ];
+    expect(mapFinancialColumns(rows, 0, []).ok).toBe(false);
+    expect(mapFinancialColumns(rows, 0, [0]).ok).toBe(false);
+    expect(mapFinancialColumns(rows, 0, [5]).ok).toBe(false);
+    expect(mapFinancialColumns(rows, 0, [1, 1]).ok).toBe(false);
+    expect(mapFinancialColumns(rows, 0, [3]).ok).toBe(false);
+    const valid = mapFinancialColumns(rows, 0, [1, 2]);
+    expect(valid.ok).toBe(true);
+  });
+
+
   test("CSV parser retains embedded delimiters, quoted newlines and escaped quotes", () => {
     const rows = parseDelimited('"Period","Actual","Budget"\r\n"Q1, North","1,250","1,500"\r\n"Q2 ""renewal""","240","260"');
     expect(rows).toEqual([

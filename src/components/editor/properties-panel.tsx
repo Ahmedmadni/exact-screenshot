@@ -70,7 +70,7 @@ function LayersSection({ api, slide }: { api: EditorApi; slide: NonNullable<Edit
                     ? api.selected.filter(id => id !== element.id)
                     : [...api.selected, element.id]);
                 } else api.setSelected([element.id]);
-              }
+              }}
             >
               <span className="me-1 text-[10px] uppercase text-muted-foreground">{element.type}</span>
               {element.name}

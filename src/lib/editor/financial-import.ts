@@ -109,23 +109,55 @@ export function importedRowsToTable(rows: unknown[][]): ImportResult<string[][]>
   return normalizeImportedRows(rows);
 }
 
-export async function readFinancialFile(file: File): Promise<string[][]> {
+export interface FinancialSheet {
+  name: string;
+  rows: string[][];
+}
+
+/** Parse locally. No upload and no mutation: caller must explicitly confirm selection. */
+export async function readFinancialWorkbook(file: File): Promise<FinancialSheet[]> {
   if (file.size > MAX_FILE_BYTES) throw new Error("File too large (maximum 5 MB).");
-  if (/\.csv$/i.test(file.name) || /\.tsv$/i.test(file.name)) {
+  if (/\.(csv|tsv)$/i.test(file.name)) {
     const body = (await file.text()).replace(/^\uFEFF/, "");
-    return parseDelimited(body, /\.tsv$/i.test(file.name) ? "\t" : ",");
+    return [{ name: file.name, rows: parseDelimited(body, /\.tsv$/i.test(file.name) ? "\t" : ",") }];
   }
   if (!/\.(xlsx|xls)$/i.test(file.name)) {
     throw new Error("Choose a .csv, .tsv, .xlsx, or .xls file.");
   }
   const xlsx = await import("xlsx");
   const workbook = xlsx.read(await file.arrayBuffer(), { type: "array", cellDates: false, sheetStubs: false });
-  const sheet = workbook.SheetNames.find(name => {
-    const worksheet = workbook.Sheets[name];
-    return worksheet && worksheet["!ref"];
-  });
-  if (!sheet) throw new Error("Workbook has no nonempty sheets.");
-  return xlsx.utils.sheet_to_json<unknown[]>(workbook.Sheets[sheet]!, {
-    header: 1, raw: false, defval: "",
-  });
+  if (workbook.SheetNames.length > 40) throw new Error("Workbook exceeds 40 sheets.");
+  const sheets = workbook.SheetNames.filter(name => workbook.Sheets[name]?.["!ref"]).map(name => ({
+    name,
+    rows: xlsx.utils.sheet_to_json<unknown[]>(workbook.Sheets[name]!, {
+      header: 1, raw: false, defval: "",
+    }).map(row => row.map(cell)),
+  }));
+  if (!sheets.length) throw new Error("Workbook has no nonempty sheets.");
+  return sheets;
+}
+
+/** Chart mapping retains the original strings for strict numerical validation. */
+export function mapFinancialColumns(
+  rows: unknown[][],
+  categoryColumn: number,
+  valueColumns: number[],
+): ImportResult<ImportedChart> {
+  const normalized = normalizeImportedRows(rows);
+  if (!normalized.ok) return normalized;
+  const data = normalized.value;
+  const width = data[0]?.length ?? 0;
+  const cols = [categoryColumn, ...valueColumns];
+  if (!valueColumns.length || cols.some(index => !Number.isInteger(index) || index < 0 || index >= width)) {
+    return { ok: false, error: "Choose a category column and at least one numeric series." };
+  }
+  if (new Set(cols).size !== cols.length) {
+    return { ok: false, error: "Category and series columns must be different." };
+  }
+  return importedRowsToChart(data.map(row => cols.map(index => row[index] ?? "")));
+}
+
+export async function readFinancialFile(file: File): Promise<string[][]> {
+  const sheets = await readFinancialWorkbook(file);
+  return sheets[0]!.rows;
 }

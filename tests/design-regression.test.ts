@@ -13,7 +13,7 @@ import { moveItemByStep } from "../src/lib/editor/slide-order";
 import { getLayout, LAYOUTS } from "../src/lib/editor/layouts";
 import { getTemplateFamily, templatePreviewSlides, TEMPLATE_FAMILIES } from "../src/lib/templates";
 import { editableTemplateDeckInput, editableTemplateSlides } from "../src/lib/template-starter";
-import { withTemplateText, withTemplateImage, clearTemplateImage } from "../src/lib/editor/template-edit";
+import { withTemplateText, withTemplateImage, clearTemplateImage, updateTemplateElementInSlides } from "../src/lib/editor/template-edit";
 import { rebuildGeneratedContent } from "../src/lib/editor/composer";
 import { buildWaterfall } from "../src/lib/editor/waterfall";
 import { analyzeBudgetVariance, analyzeChartBudget, renderedFinancialElements, varianceSummary } from "../src/lib/editor/variance";
@@ -51,6 +51,47 @@ const asset: AssetRecord = {
 };
 
 describe("design integrity", () => {
+  test("quick-edit text stays on its original slide after navigation and remains immutable", () => {
+    const family = getTemplateFamily("creative-portfolio-premium")!;
+    const [first, second] = editableTemplateSlides(family, "client-presentation");
+    expect(first).toBeDefined();
+    expect(second).toBeDefined();
+    const text = first!.elements.find(element => element.type === "text" && element.role === "title");
+    expect(text).toBeDefined();
+    if (!text) return;
+    const original = [first!, second!];
+    const changed = updateTemplateElementInSlides(
+      original, first!.id, text.id, element => withTemplateText(element, "Custom client headline"),
+    );
+    expect(changed).not.toBe(original);
+    expect(changed[1]).toBe(original[1]);
+    expect(changed[0]!.elements.find(element => element.id === text.id && element.type === "text")?.properties.text)
+      .toBe("Custom client headline");
+    expect(original[0]!.elements.find(element => element.id === text.id && element.type === "text")?.properties.text)
+      .not.toBe("Custom client headline");
+    expect(updateTemplateElementInSlides(changed, first!.id, text.id,
+      element => withTemplateText(element, "Custom client headline"))).toBe(changed);
+  });
+
+  test("asynchronous image replacements only change the originally selected slide", () => {
+    const slides = editableTemplateSlides(getTemplateFamily("creative-portfolio-premium")!, "client-images");
+    const photo = slides[0]!.elements.find(element => element.type === "image");
+    expect(photo).toBeDefined();
+    if (!photo) return;
+    const edited = updateTemplateElementInSlides(
+      slides, slides[0]!.id, photo.id, element =>
+        withTemplateImage(element, "data:image/png;base64,AAA"),
+    );
+    const target = edited[0]!.elements.find(element => element.id === photo.id);
+    expect(target?.type).toBe("image");
+    if (target?.type === "image") expect(target.properties.src).toBe("data:image/png;base64,AAA");
+    expect(edited[1]).toBe(slides[1]);
+    expect(edited[2]).toBe(slides[2]);
+    expect(updateTemplateElementInSlides(edited, "missing-slide", photo.id, clearTemplateImage)).toBe(edited);
+    expect(updateTemplateElementInSlides(edited, slides[1]!.id, photo.id, clearTemplateImage)).toBe(edited);
+  });
+
+
   test("touch reorder moves one slide, retains original ids and rejects out-of-range taps", () => {
     const ids = ["cover", "agenda", "portfolio", "closing"] as const;
     const movedUp = moveItemByStep(ids, 2, -1);

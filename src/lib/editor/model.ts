@@ -67,6 +67,8 @@ export interface ImageProps {
   assetId?: string;
   fit: "cover" | "contain";
   radius: number;
+  /** Non-destructive editorial overlay, kept as editable geometry in PPTX. */
+  treatment?: "natural" | "cinematic" | "soft" | "brand";
   /** Reserved for crop tooling: fractional source window. */
   crop?: { x: number; y: number; width: number; height: number };
 }

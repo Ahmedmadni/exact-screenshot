@@ -5,6 +5,7 @@ import { SLIDE_H, SLIDE_W, type SlideElement } from "@/lib/editor/model";
 import { getTheme, resolveColor, resolveFont, type SlideTheme } from "@/lib/editor/themes";
 import { getIcon } from "@/lib/editor/icons";
 import { resolveImageSource } from "@/lib/assets/resolve";
+import { renderedFinancialElements } from "@/lib/editor/variance";
 import { imageTreatmentOverlay } from "@/lib/editor/image-treatment";
 import { ChartBody, DiagramBody, TableBody } from "./data-elements";
 
@@ -137,7 +138,7 @@ export function slideBackground(slide: Slide, theme: SlideTheme) {
 export function SlideStage({ slide, theme, hideIds }: { slide: Slide; theme: SlideTheme; hideIds?: Set<string> }) {
   return (
     <div style={{ position: "absolute", inset: 0, width: SLIDE_W, height: SLIDE_H, background: slideBackground(slide, theme), overflow: "hidden" }}>
-      {[...slide.elements]
+      {[...renderedFinancialElements(slide)]
         .sort((a, b) => a.zIndex - b.zIndex)
         .filter((e) => e.visible && !hideIds?.has(e.id))
         .map((el) => (

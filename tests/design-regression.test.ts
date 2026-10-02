@@ -10,6 +10,7 @@ import { imageTreatmentOverlay } from "../src/lib/editor/image-treatment";
 import { imageCropControls, imageCropCss, imageCropFocalPreset, imageCropFromControls, imageCropPptx, normalizeImageCrop } from "../src/lib/editor/image-crop";
 import { canStartEditorGesture, isActiveEditorPointer } from "../src/lib/editor/pointer-gesture";
 import { moveItemByStep } from "../src/lib/editor/slide-order";
+import { encodeBrowserDatabase, decodeBrowserDatabase } from "../src/lib/data/storage-codec";
 import { getLayout, LAYOUTS } from "../src/lib/editor/layouts";
 import { getTemplateFamily, templatePreviewSlides, TEMPLATE_FAMILIES } from "../src/lib/templates";
 import { editableTemplateDeckInput, editableTemplateSlides } from "../src/lib/template-starter";
@@ -51,6 +52,40 @@ const asset: AssetRecord = {
 };
 
 describe("design integrity", () => {
+  test("duplicate pictures in deck versions and saved templates are pooled losslessly", () => {
+    const png = "data:image/png;base64," + "A".repeat(12_000);
+    const source = {
+      presentations: [{ slides: [{ elements: [
+        { type: "image", properties: { src: png, treatment: "brand", crop: { x: 0.25, y: 0.1, width: 0.5, height: 0.5 } } },
+        { type: "text", properties: { text: "data:image/png;base64," + "A".repeat(12_000) } },
+      ] }] }],
+      savedTemplates: [{ snapshot: { slides: [{ elements: [{ type: "image", properties: { src: png } }] }] } }],
+      assets: [{ imageDataUrl: png }],
+      versions: [{ snapshot: { slides: [{ elements: [{ type: "image", properties: { src: png } }] }] } }],
+    };
+    const packed = encodeBrowserDatabase(source);
+    expect(packed.length).toBeLessThan(JSON.stringify(source).length / 2);
+    expect(decodeBrowserDatabase(packed)).toEqual(source);
+    // Editing the restored copy does not change the original source object.
+    const restored = decodeBrowserDatabase(packed) as typeof source;
+    restored.assets[0]!.imageDataUrl = "data:image/png;base64,BBBB";
+    expect(source.assets[0]!.imageDataUrl).toBe(png);
+    expect(source.presentations[0]!.slides[0]!.elements[1]!.properties.text).toBe(png);
+  });
+
+  test("browser storage stays compatible with existing data and validates corrupt media references", () => {
+    const legacy = { presentations: [{ title: "Legacy" }], assets: [{ imageDataUrl: "data:image/png;base64,AAAA" }] };
+    expect(decodeBrowserDatabase(JSON.stringify(legacy))).toEqual(legacy);
+    expect(encodeBrowserDatabase(legacy)).toBe(JSON.stringify(legacy));
+    const unique = { images: [{ src: "data:image/png;base64," + "A".repeat(900) }] };
+    expect(encodeBrowserDatabase(unique)).toBe(JSON.stringify(unique));
+    expect(() => decodeBrowserDatabase('{"__meridian_media_pool_v1__":true,"media":[],"data":{"src":"__meridian_image_ref__:99"}}'))
+      .toThrow("Invalid pooled image reference");
+    expect(() => decodeBrowserDatabase('{"__meridian_media_pool_v1__":true,"media":null,"data":{}}'))
+      .toThrow("Invalid pooled browser database");
+  });
+
+
   test("quick-edit text stays on its original slide after navigation and remains immutable", () => {
     const family = getTemplateFamily("creative-portfolio-premium")!;
     const [first, second] = editableTemplateSlides(family, "client-presentation");

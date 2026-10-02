@@ -8,6 +8,7 @@ import { applyVaultMedia, externalVisualSearchQuery } from "../src/lib/assets/au
 import { applyLayout, buildLayout, contentFromSlide } from "../src/lib/editor/layouts";
 import { imageTreatmentOverlay } from "../src/lib/editor/image-treatment";
 import { imageCropControls, imageCropCss, imageCropFocalPreset, imageCropFromControls, imageCropPptx, normalizeImageCrop } from "../src/lib/editor/image-crop";
+import { canStartEditorGesture, isActiveEditorPointer } from "../src/lib/editor/pointer-gesture";
 import { getLayout, LAYOUTS } from "../src/lib/editor/layouts";
 import { getTemplateFamily, templatePreviewSlides, TEMPLATE_FAMILIES } from "../src/lib/templates";
 import { editableTemplateDeckInput, editableTemplateSlides } from "../src/lib/template-starter";
@@ -49,6 +50,15 @@ const asset: AssetRecord = {
 };
 
 describe("design integrity", () => {
+  test("touch edit gestures exclude secondary fingers and mismatched pointer events", () => {
+    expect(canStartEditorGesture({ pointerId: 1, isPrimary: true, button: 0 })).toBe(true);
+    expect(canStartEditorGesture({ pointerId: 2, isPrimary: false, button: 0 })).toBe(false);
+    expect(canStartEditorGesture({ pointerId: 3, isPrimary: true, button: 2 })).toBe(false);
+    expect(isActiveEditorPointer(11, { pointerId: 11 })).toBe(true);
+    expect(isActiveEditorPointer(11, { pointerId: 12 })).toBe(false);
+  });
+
+
   test("all nine photo focal presets retain current zoom and stay in bounds", () => {
     const current = imageCropFromControls(2.5, 47, 61);
     const pos = { left: 0, center: 50, right: 100 } as const;

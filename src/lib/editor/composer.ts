@@ -183,7 +183,10 @@ export function rebuildGeneratedContent(
     );
   }
   const manual = slide.elements.filter((e) => !e.role || e.name === "Evidence Citation").map((e) => ({ ...e }));
-  const merged: SlideElement[] = [...generated, ...manual].map((e, i) => ({ ...e, zIndex: i }));
+  const retainedImage: SlideElement[] = existingMedia?.type === "image" && !generated.some((e) => e.type === "image" && e.role === "media")
+    ? [{ ...existingMedia, role: undefined, name: `${existingMedia.name} (kept)` }]
+    : [];
+  const merged: SlideElement[] = [...generated, ...retainedImage, ...manual].map((e, i) => ({ ...e, zIndex: i }));
   return { ...next, layoutId, elements: merged, updatedAt: new Date().toISOString() };
 }
 

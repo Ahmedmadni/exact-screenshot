@@ -10,6 +10,7 @@ import { imageTreatmentOverlay } from "../src/lib/editor/image-treatment";
 import { getLayout, LAYOUTS } from "../src/lib/editor/layouts";
 import { getTemplateFamily, templatePreviewSlides, TEMPLATE_FAMILIES } from "../src/lib/templates";
 import { editableTemplateDeckInput, editableTemplateSlides } from "../src/lib/template-starter";
+import { withTemplateText, withTemplateImage, clearTemplateImage } from "../src/lib/editor/template-edit";
 import { rebuildGeneratedContent } from "../src/lib/editor/composer";
 import { buildWaterfall } from "../src/lib/editor/waterfall";
 import { analyzeBudgetVariance, analyzeChartBudget, renderedFinancialElements, varianceSummary } from "../src/lib/editor/variance";
@@ -47,6 +48,47 @@ const asset: AssetRecord = {
 };
 
 describe("design integrity", () => {
+  test("template quick edits are immutable and persist independent text changes", () => {
+    const family = getTemplateFamily("brand-storytelling")!;
+    const first = editableTemplateSlides(family, "copy-one");
+    const second = editableTemplateSlides(family, "copy-two");
+    const target = first[0]!.elements.find(element => element.type === "text" && element.role === "title")!;
+    const original = target.type === "text" ? target.properties.text : "";
+    const edited = withTemplateText(target, "A real client brand");
+    expect(edited.type).toBe("text");
+    if (edited.type === "text") expect(edited.properties.text).toBe("A real client brand");
+    if (target.type === "text") expect(target.properties.text).toBe(original);
+    expect(second[0]!.elements.some(el => el.type === "text" && el.properties.text === "A real client brand")).toBe(false);
+    expect(withTemplateText(target, original)).toBe(target);
+  });
+
+  test("template photo upload and clear preserve frame, treatment and other copies", () => {
+    const family = getTemplateFamily("creative-portfolio-premium")!;
+    const original = editableTemplateSlides(family, "copy-one");
+    const separate = editableTemplateSlides(family, "copy-two");
+    const frame = original.flatMap(slide => slide.elements).find(el => el.type === "image")!;
+    const source = frame.type === "image" ? frame.properties.src : "";
+    const changed = withTemplateImage(frame, "data:image/png;base64,AA==");
+    expect(changed).not.toBe(frame);
+    if (changed.type === "image" && frame.type === "image") {
+      expect(changed.properties.src).toBe("data:image/png;base64,AA==");
+      expect(changed.width).toBe(frame.width);
+      expect(changed.height).toBe(frame.height);
+      expect(changed.properties.assetId).toBeUndefined();
+      expect(frame.properties.src).toBe(source);
+    }
+    const cleared = clearTemplateImage(changed);
+    if (cleared.type === "image") {
+      expect(cleared.properties.src).toBe("");
+      expect(cleared.properties.assetId).toBeUndefined();
+      expect(cleared.id).toBe(frame.id);
+    }
+    expect(separate.flatMap(slide => slide.elements).some(el =>
+      el.type === "image" && el.properties.src === "data:image/png;base64,AA==")).toBe(false);
+    expect(withTemplateImage(frame, "  ")).toBe(frame);
+  });
+
+
   test("eight newly added template families expose valid editable layouts and previews", () => {
     for (const id of ["construction-projects", "brand-storytelling", "training-workshop"]) {
       const family = getTemplateFamily(id);

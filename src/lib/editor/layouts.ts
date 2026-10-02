@@ -660,17 +660,16 @@ export const LAYOUTS: LayoutDefinition[] = [
     build: (c) => [
       ...titleBlock(c),
       textEl("Movement thesis", c.subtitle, [100, 210, 1400, 70], { fontSize: 26, fontWeight: 500 }, "subtitle"),
-      shapeEl("Bridge baseline", "rect", [135, 657, 1310, 2], { fill: "theme:line" }),
-      ...[0, 1, 2, 3].flatMap((i) => {
-        const x = 150 + i * 350;
-        const label = ["Baseline", "Increase", "Decrease", "Result"][i]!;
-        return [
-          shapeEl(`Bridge measure ${i + 1}`, "rect", [x, i === 1 ? 372 : i === 2 ? 438 : 320, 210, i === 1 ? 285 : i === 2 ? 219 : 337], { fill: i === 1 ? "theme:accentSoft" : i === 2 ? "theme:secondary" : "theme:accent" }),
-          textEl(`Bridge label ${i + 1}`, label, [x, 680, 230, 45], { fontSize: 22, fontWeight: 600, color: "theme:primary", align: "center" }, "decor"),
-          textEl(`Bridge value ${i + 1}`, c.kpis[i] ?? "—", [x, i === 1 ? 319 : i === 2 ? 383 : 263, 230, 50], { ...H, fontSize: 35, align: "center" }, "kpiValue"),
-        ];
-      }),
-      textEl("Bridge guidance", "Illustrative bridge geometry · Edit bars and values to reflect the actual reconciliation. Verify opening + movements = closing.", [100, 773, 1400, 65], { ...SEC, fontSize: 16 }, "body"),
+      chartEl("Reconciled waterfall", [100, 305, 1400, 460], {
+        label: "Opening + Signed Movements = Closing",
+        chartType: "waterfall",
+        categories: ["Opening", "Inflow", "Outflow"],
+        series: [{ name: "Cash bridge", values: [0, 0, 0] }],
+        showLegend: false,
+        showValues: true,
+        showGrid: true,
+      }, "media"),
+      textEl("Bridge guidance", "Enter the opening balance and signed movements in Chart properties. Closing is calculated automatically; blank data starts at zero.", [100, 790, 1400, 70], { ...SEC, fontSize: 17, lineHeight: 1.2 }, "body"),
     ],
   },
   {

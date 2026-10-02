@@ -925,38 +925,67 @@ export function buildLayout(layoutId: string, content: LayoutContent, slideId: s
  * silently dropped.
  */
 export function applyLayout(slide: Slide, layoutId: string): Slide {
+  // Re-selecting the current design must never reset handcrafted text, frames or photos.
+  if (slide.layoutId === layoutId && slide.elements.length) return slide;
   const content = contentFromElements(slide.elements, contentFromSlide(slide));
-  // Carry edited structured data into the destination slot. A layout change must
-  // never silently reset a user's chart series, table rows or diagram nodes.
   const originalData = slide.elements.filter(
     (e) => e.role && (e.type === "chart" || e.type === "table" || e.type === "diagram"),
   );
   const matchedData = new Set<string>();
-  const previousImage = slide.elements.find((item) => item.type === "image" && item.role === "media");
+  // Include previously retained image slots when returning to a multi-photo layout.
+  const originalImages = slide.elements.filter(
+    (e): e is Extract<SlideElement, { type: "image" }> =>
+      e.type === "image" && (e.role === "media" || e.name.endsWith(" (kept)")) &&
+      !!(e.properties.src || e.properties.assetId),
+  );
+  const matchedImages = new Set<string>();
   const generated = buildLayout(layoutId, content, slide.id, slideIsRtl(slide)).map((element) => {
-    if (element.type === "image" && element.role === "media" && previousImage?.type === "image") {
+    if (element.type === "image" && element.role === "media") {
+      const sameSlot = originalImages.find(old =>
+        !matchedImages.has(old.id) &&
+        (old.name === element.name || old.name === element.name + " (kept)"));
+      const source = sameSlot ?? originalImages.find(old => !matchedImages.has(old.id));
+      if (!source) return element;
+      matchedImages.add(source.id);
       return {
         ...element,
-        properties: { ...element.properties, treatment: previousImage.properties.treatment, crop: previousImage.properties.crop },
+        properties: {
+          ...element.properties,
+          src: source.properties.src,
+          assetId: source.properties.assetId,
+          fit: source.properties.fit,
+          treatment: source.properties.treatment,
+          crop: source.properties.crop,
+        },
       } as SlideElement;
     }
     if (element.type !== "chart" && element.type !== "table" && element.type !== "diagram") return element;
-    const existing = originalData.find((item) => item.type === element.type && !matchedData.has(item.id));
+    const existing = originalData.find(
+      (item) => item.type === element.type && !matchedData.has(item.id),
+    );
     if (!existing || existing.type !== element.type) return element;
     matchedData.add(existing.id);
     return { ...element, properties: { ...existing.properties } } as SlideElement;
   });
-  const free = slide.elements.filter((e) => !e.role || e.name === "Evidence Citation");
+  const free = slide.elements.filter(
+    (e) => (!e.role || e.name === "Evidence Citation") && !matchedImages.has(e.id),
+  );
   const retainedData = originalData
     .filter((element) => !matchedData.has(element.id))
     .map((element) => ({ ...element, role: "media" as const, name: `${element.name} (kept)` }) as SlideElement);
-  const placedText = new Set(generated.flatMap((e) => (e.type === "text" ? [e.properties.text.trim()] : [])));
-  const placedImages = new Set(generated.flatMap((e) => (e.type === "image" ? [e.properties.assetId ?? e.properties.src] : [])));
+  const placedText = new Set(generated.flatMap(
+    (e) => e.type === "text" ? [e.properties.text.trim()] : [],
+  ));
+  const placedImages = new Set(generated.flatMap(
+    (e) => e.type === "image" ? [e.properties.assetId ?? e.properties.src] : [],
+  ));
   const orphans = slide.elements
-    .filter((e) => e.role && e.role !== "decor" && e.name !== "Evidence Citation")
+    .filter((e) => e.role && e.role !== "decor" && e.name !== "Evidence Citation" &&
+      !matchedData.has(e.id) && !matchedImages.has(e.id))
     .filter((e) =>
       e.type === "text" ? e.properties.text.trim() !== "" && !placedText.has(e.properties.text.trim())
-      : e.type === "image" ? !!(e.properties.src || e.properties.assetId) && !placedImages.has(e.properties.assetId ?? e.properties.src)
+      : e.type === "image" ? !!(e.properties.src || e.properties.assetId) &&
+          !placedImages.has(e.properties.assetId ?? e.properties.src)
       : false,
     )
     .map((e) => ({ ...e, role: undefined, name: `${e.name} (kept)` }) as SlideElement);

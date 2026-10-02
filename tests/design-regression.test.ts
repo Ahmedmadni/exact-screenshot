@@ -1,4 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import JSZip from "jszip";
+import { createPresentationPptx } from "../src/lib/export/pptx";
+import type { Presentation } from "../src/lib/types";
 import { applyVaultMedia, externalVisualSearchQuery } from "../src/lib/assets/auto-media";
 import { applyLayout, buildLayout, contentFromSlide } from "../src/lib/editor/layouts";
 import { imageTreatmentOverlay } from "../src/lib/editor/image-treatment";
@@ -41,6 +44,35 @@ const asset: AssetRecord = {
 };
 
 describe("design integrity", () => {
+  test("editable PPTX package contains the financial waterfall and Arabic text", async () => {
+    const financial = slide();
+    financial.layoutId = "financial-variance-bridge";
+    financial.elements = buildLayout(financial.layoutId, contentFromSlide(financial), financial.id)
+      .map(element => element.type === "chart"
+        ? { ...element, properties: {
+            ...element.properties,
+            categories: ["Opening", "Receipts", "Payments"],
+            series: [{ name: "Cash", values: [120, 30, -45] }],
+          } }
+        : element);
+    const deck = {
+      title: "اختبار العرض المالي", language: "Arabic",
+      description: "", objective: "Financial QA", themeId: "executive-light",
+      slides: [financial],
+    } as unknown as Presentation;
+    const pptx = await createPresentationPptx(deck);
+    const blob = await pptx.write({ outputType: "nodebuffer" });
+    const zip = await JSZip.loadAsync(blob);
+    const xml = await zip.file("ppt/slides/slide1.xml")?.async("string");
+    expect(xml).toBeDefined();
+    expect(xml).toContain("Closing");
+    expect(xml).toContain("105");
+    expect(xml).toContain("الاستثمار");
+    expect((xml?.match(/<p:sp>/g) ?? []).length).toBeGreaterThan(5);
+    expect(zip.file("ppt/presentation.xml")).toBeTruthy();
+  });
+
+
   test("Arabic and Persian financial number formats preserve signed amounts", () => {
     expect(parseFinancialNumber("١٬٢٣٤٫٥٠")).toBe(1234.5);
     expect(parseFinancialNumber("۱۲٬۳۴۵٫۶۷")).toBe(12345.67);

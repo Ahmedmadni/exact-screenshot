@@ -35,6 +35,18 @@ export function imageCropControls(crop?: ImageCrop) {
   };
 }
 
+/** Nine-point focal positioning keeps the current zoom and only changes the viewport center. */
+export function imageCropFocalPreset(
+  crop: ImageCrop | undefined,
+  horizontal: "left" | "center" | "right",
+  vertical: "top" | "center" | "bottom",
+): ImageCrop {
+  const { zoom } = imageCropControls(crop);
+  const x = horizontal === "left" ? 0 : horizontal === "right" ? 100 : 50;
+  const y = vertical === "top" ? 0 : vertical === "bottom" ? 100 : 50;
+  return imageCropFromControls(zoom, x, y);
+}
+
 /** Internal percentages relative to the slide image frame, not the screen or original asset. */
 export function imageCropCss(crop?: ImageCrop) {
   const c = normalizeImageCrop(crop);

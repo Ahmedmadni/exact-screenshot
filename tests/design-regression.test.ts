@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { applyVaultMedia, externalVisualSearchQuery } from "../src/lib/assets/auto-media";
 import { applyLayout, buildLayout, contentFromSlide } from "../src/lib/editor/layouts";
+import { imageTreatmentOverlay } from "../src/lib/editor/image-treatment";
 import type { AssetRecord, Slide } from "../src/lib/types";
 
 const slide = (): Slide => ({
@@ -34,6 +35,29 @@ const asset: AssetRecord = {
 };
 
 describe("design integrity", () => {
+  test("image treatments are non-destructive and have bounded opacity", () => {
+    expect(imageTreatmentOverlay("natural")).toBeNull();
+    for (const treatment of ["cinematic", "soft", "brand"] as const) {
+      const overlay = imageTreatmentOverlay(treatment);
+      expect(overlay).not.toBeNull();
+      expect(overlay!.opacity).toBeGreaterThan(0);
+      expect(overlay!.opacity).toBeLessThan(0.5);
+    }
+  });
+
+  test("image treatments survive Magic Design layout changes", () => {
+    const source = slide();
+    source.elements = buildLayout("image-text", contentFromSlide(source), source.id).map((element) =>
+      element.type === "image" && element.role === "media"
+        ? { ...element, properties: { ...element.properties, treatment: "cinematic" as const } }
+        : element,
+    );
+    const result = applyLayout(source, "image-caption");
+    const photo = result.elements.find((element) => element.type === "image" && element.role === "media");
+    expect(photo?.type).toBe("image");
+    if (photo?.type === "image") expect(photo.properties.treatment).toBe("cinematic");
+  });
+
   test("Arabic media queries retain mapped English search concepts", () => {
     const query = externalVisualSearchQuery(slide());
     expect(query).toContain("saudi arabia");

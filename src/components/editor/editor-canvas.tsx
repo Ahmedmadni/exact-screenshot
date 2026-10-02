@@ -75,21 +75,29 @@ export function EditorCanvas({
     pointerId: number,
     onMove: (e: PointerEvent) => void,
     onUp: (e: PointerEvent) => void,
+    onCancel: (e: PointerEvent) => void = onUp,
   ) => {
     const move = (event: PointerEvent) => {
       if (isActiveEditorPointer(pointerId, event)) onMove(event);
     };
-    const finish = (event: PointerEvent) => {
-      if (!isActiveEditorPointer(pointerId, event)) return;
+    const cleanup = () => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", finish);
-      window.removeEventListener("pointercancel", finish);
+      window.removeEventListener("pointercancel", cancel);
+    };
+    const finish = (event: PointerEvent) => {
+      if (!isActiveEditorPointer(pointerId, event)) return;
+      cleanup();
       onUp(event);
+    };
+    const cancel = (event: PointerEvent) => {
+      if (!isActiveEditorPointer(pointerId, event)) return;
+      cleanup();
+      onCancel(event);
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", finish);
-    // OS gestures and touch interruption must not leave stale pointer handlers.
-    window.addEventListener("pointercancel", finish);
+    window.addEventListener("pointercancel", cancel);
   };
 
   const startMove = (e: RPointerEvent, el: SlideElement) => {
@@ -156,6 +164,7 @@ export function EditorCanvas({
         setGuides([]);
         if (moved) api.commit(api.snapshot(), base);
       },
+      () => { setGuides([]); api.setLive(base); },
     );
   };
 
@@ -204,6 +213,7 @@ export function EditorCanvas({
         api.setLive(api.mapElements((els) => els.map((x2) => (x2.id === el.id ? { ...x2, x: Math.round(cx - w / 2), y: Math.round(cy - hh / 2), width: Math.round(w), height: Math.round(hh) } : x2)), base));
       },
       () => api.commit(api.snapshot(), base),
+      () => api.setLive(base),
     );
   };
 
@@ -224,6 +234,7 @@ export function EditorCanvas({
         api.setLive(api.mapElements((els) => els.map((x) => (x.id === el.id ? { ...x, rotation: deg } : x)), base));
       },
       () => api.commit(api.snapshot(), base),
+      () => api.setLive(base),
     );
   };
 

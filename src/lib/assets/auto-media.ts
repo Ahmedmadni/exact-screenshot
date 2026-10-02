@@ -104,7 +104,7 @@ const ARABIC_VISUAL_CONCEPTS: Array<[RegExp, string[]]> = [
 export function externalVisualSearchQuery(slide: Slide, context: string[] = []) {
   const source = [slide.title, slide.keyMessage, slide.purpose, ...context].join(" ");
   const base = visualSearchQuery(slide, context);
-  if (!/[\\u0600-\\u06FF]/.test(source)) return base;
+  if (!/[\u0600-\u06FF]/.test(source)) return base;
 
   const mapped = ARABIC_VISUAL_CONCEPTS.flatMap(([pattern, terms]) => pattern.test(source) ? terms : []);
   const latin = tokens(base).filter((token) => /^[a-z0-9]+$/i.test(token));
@@ -202,7 +202,7 @@ export function applyVaultMedia(
 
   return slides.map((slide) => {
     if (inserted >= maxImages) return slide;
-    const media = slide.elements.find((element) => element.type === "image" && element.role === "media" && !element.properties.src);
+    const media = slide.elements.find((element) => element.type === "image" && element.role === "media" && !element.properties.src && !element.properties.assetId);
     if (!media || media.type !== "image") return slide;
 
     const ranked = library

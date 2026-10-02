@@ -89,6 +89,51 @@ function LayersSection({ api, slide }: { api: EditorApi; slide: NonNullable<Edit
   );
 }
 
+/** Directly edit a template's meaningful content without selecting every canvas layer first. */
+function TemplateQuickEdit({ api, slide }: { api: EditorApi; slide: NonNullable<EditorApi["active"]> }) {
+  const texts = slide.elements.filter((element): element is Extract<SlideElement, { type: "text" }> =>
+    element.type === "text" && element.role !== "decor" && !!element.properties.text.trim(),
+  );
+  const images = slide.elements.filter((element): element is Extract<SlideElement, { type: "image" }> =>
+    element.type === "image",
+  );
+  if (!texts.length && !images.length) return null;
+  return (
+    <Section title="Quick edit · Template content">
+      <p className="text-[11px] text-muted-foreground">Update the visible content without changing the template structure. Choose an image frame to upload a replacement in Image properties.</p>
+      <div className="max-h-80 space-y-3 overflow-y-auto pe-1">
+        {texts.map(element => (
+          <div key={element.id} className="space-y-1">
+            <div className="flex items-center justify-between gap-1">
+              <Label className="min-w-0 truncate text-[11px] text-muted-foreground">{element.name}</Label>
+              <button className="text-[10px] text-primary hover:underline" onClick={() => api.setSelected([element.id])}>Style / position</button>
+            </div>
+            <DataTextarea
+              key={element.id}
+              rows={element.properties.text.length > 100 ? 3 : 2}
+              value={element.properties.text}
+              onCommit={text => {
+                if (text === element.properties.text) return;
+                api.updateElements([element.id], item =>
+                  item.type === "text" ? { ...item, properties: { ...item.properties, text } } : item);
+              }}
+            />
+          </div>
+        ))}
+        {images.map(element => (
+          <div key={element.id} className="flex items-center justify-between gap-2 rounded-md border border-border p-2">
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-xs font-medium">{element.name}</div>
+              <div className="text-[10px] text-muted-foreground">{element.properties.src || element.properties.assetId ? "Image attached" : "Replace placeholder image"}</div>
+            </div>
+            <Button variant="outline" size="sm" className="shrink-0 text-xs" onClick={() => api.setSelected([element.id])}>Replace image</Button>
+          </div>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="space-y-3 border-b border-border px-4 py-4">
@@ -284,6 +329,7 @@ export function PropertiesPanel({ api, theme, onTheme }: { api: EditorApi; theme
           </div>
           <p className="text-[11px] text-muted-foreground">Every preview uses this slide’s real content. Switching layouts preserves your text, images and free elements.</p>
         </Section>
+        <TemplateQuickEdit api={api} slide={slide} />
         <Section title="Slide background">
           <div className="flex items-center gap-2">
             <Button size="sm" variant={slide.background ? "outline" : "secondary"} className="h-7 text-xs" onClick={() => api.updateActiveSlide({ background: undefined })}>Theme default</Button>
@@ -315,6 +361,7 @@ export function PropertiesPanel({ api, theme, onTheme }: { api: EditorApi; theme
         </div>
       </div>
 
+      <TemplateQuickEdit api={api} slide={slide} />
       <Section title={sel.length > 1 ? "Align selection" : "Align to slide"}>
         <div className="flex justify-between">
           {([["l", AlignStartVertical], ["c", AlignCenterVertical], ["r", AlignEndVertical], ["t", AlignStartHorizontal], ["m", AlignCenterHorizontal], ["b", AlignEndHorizontal]] as const).map(([m, I]) => (

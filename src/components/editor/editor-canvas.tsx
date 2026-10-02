@@ -7,6 +7,7 @@ import { ElementBody, elementBoxStyle, slideBackground, useFitScale } from "./sl
 import { renderedFinancialElements } from "@/lib/editor/variance";
 import type { EditorApi } from "./use-editor";
 import type { PresenceParticipant } from "@/lib/collaboration-presence";
+import { canStartEditorGesture, isActiveEditorPointer } from "@/lib/editor/pointer-gesture";
 
 type Handle = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
 const HANDLES: Handle[] = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
@@ -70,18 +71,29 @@ export function EditorCanvas({
     return { x: (e.clientX - r.left) / scale, y: (e.clientY - r.top) / scale };
   };
 
-  const track = (onMove: (e: PointerEvent) => void, onUp: (e: PointerEvent) => void) => {
-    const move = (e: PointerEvent) => onMove(e);
-    const up = (e: PointerEvent) => {
+  const track = (
+    pointerId: number,
+    onMove: (e: PointerEvent) => void,
+    onUp: (e: PointerEvent) => void,
+  ) => {
+    const move = (event: PointerEvent) => {
+      if (isActiveEditorPointer(pointerId, event)) onMove(event);
+    };
+    const finish = (event: PointerEvent) => {
+      if (!isActiveEditorPointer(pointerId, event)) return;
       window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", up);
-      onUp(e);
+      window.removeEventListener("pointerup", finish);
+      window.removeEventListener("pointercancel", finish);
+      onUp(event);
     };
     window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", up);
+    window.addEventListener("pointerup", finish);
+    // OS gestures and touch interruption must not leave stale pointer handlers.
+    window.addEventListener("pointercancel", finish);
   };
 
   const startMove = (e: RPointerEvent, el: SlideElement) => {
+    if (!canStartEditorGesture(e)) return;
     e.stopPropagation();
     if (editingId === el.id || remoteLock(el.id)) return;
     let ids = api.selected;
@@ -108,6 +120,7 @@ export function EditorCanvas({
     const origin = toLogical(e);
     let moved = false;
     track(
+      e.pointerId,
       (ev) => {
         const p = toLogical(ev);
         let dx = p.x - origin.x;
@@ -147,6 +160,7 @@ export function EditorCanvas({
   };
 
   const startResize = (e: RPointerEvent, el: SlideElement, h: Handle) => {
+    if (!canStartEditorGesture(e)) return;
     e.stopPropagation();
     if (remoteLock(el.id)) return;
     const base = api.snapshot();
@@ -160,6 +174,7 @@ export function EditorCanvas({
     const MIN_W = 8;
     const MIN_H = 4;
     track(
+      e.pointerId,
       (ev) => {
         const p = toLogical(ev);
         const wx = p.x - origin.x;
@@ -193,12 +208,14 @@ export function EditorCanvas({
   };
 
   const startRotate = (e: RPointerEvent, el: SlideElement) => {
+    if (!canStartEditorGesture(e)) return;
     e.stopPropagation();
     if (remoteLock(el.id)) return;
     const base = api.snapshot();
     const cx = el.x + el.width / 2;
     const cy = el.y + el.height / 2;
     track(
+      e.pointerId,
       (ev) => {
         const p = toLogical(ev);
         let deg = (Math.atan2(p.y - cy, p.x - cx) * 180) / Math.PI + 90;
@@ -211,7 +228,7 @@ export function EditorCanvas({
   };
 
   const startMarquee = (e: RPointerEvent) => {
-    if (e.button !== 0) return;
+    if (!canStartEditorGesture(e)) return;
     setEditingId(null);
     onTextEditingChange?.(undefined);
     const o = toLogical(e);
@@ -219,6 +236,7 @@ export function EditorCanvas({
     const prior = api.selected;
     if (!additive) api.setSelected([]);
     track(
+      e.pointerId,
       (ev) => {
         const p = toLogical(ev);
         const box = { x: Math.min(o.x, p.x), y: Math.min(o.y, p.y), w: Math.abs(p.x - o.x), h: Math.abs(p.y - o.y) };
@@ -240,7 +258,7 @@ export function EditorCanvas({
         <div
           ref={stageRef}
           dir="ltr"
-          className="relative shrink-0 shadow-xl"
+          className="relative shrink-0 shadow-xl touch-none"
           style={{ width: SLIDE_W * scale, height: SLIDE_H * scale }}
           onPointerDown={(e) => { e.stopPropagation(); startMarquee(e); }}
           onPointerMove={(e) => {

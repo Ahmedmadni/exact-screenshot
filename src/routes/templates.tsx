@@ -13,7 +13,8 @@ import {
   templatePreviewSlides,
   type TemplateFamily,
 } from "@/lib/templates";
-import { savedTemplateRepository, useDatabase } from "@/lib/data/store";
+import { presentationRepository, savedTemplateRepository, useDatabase } from "@/lib/data/store";
+import { editableTemplateDeckInput, editableTemplateSlides } from "@/lib/template-starter";
 
 export const Route = createFileRoute("/templates")({
   head: () => ({
@@ -156,6 +157,10 @@ function TemplatesPage() {
                       >
                         <Copy className="size-4" /> Create deck
                       </Button>
+                      <Button variant="outline" size="sm" onClick={() => {
+                        const deck = savedTemplateRepository.createPresentation(template.id);
+                        if (deck) navigate({ to: "/presentations/$presentationId/editor", params: { presentationId: deck.id } });
+                      }}>Edit copy</Button>
                       <Button size="icon" variant="ghost" aria-label="Delete template" onClick={() => savedTemplateRepository.remove(template.id)}>
                         <Trash2 className="size-4" />
                       </Button>
@@ -228,7 +233,7 @@ function TemplatesPage() {
           <LayoutTemplate className="size-5 text-accent" />
           <div>
             <div className="text-sm font-medium text-foreground">A template is a system, not a fixed deck</div>
-            <div className="text-xs text-muted-foreground">Switch layouts slide-by-slide without losing content, then apply brand colors and fonts on top.</div>
+            <div className="text-xs text-muted-foreground">Choose Edit sample to open a fully editable copy: rewrite any text, replace images, recolor shapes, edit chart data, then save your customized deck as a reusable template.</div>
           </div>
         </div>
       </div>
@@ -237,6 +242,13 @@ function TemplatesPage() {
 }
 
 function TemplateCard({ template, featured = false }: { template: TemplateFamily; featured?: boolean }) {
+  const navigate = useNavigate();
+  const editSample = () => {
+    const input = editableTemplateDeckInput(template);
+    const deck = presentationRepository.create({ ...input, slides: [] });
+    presentationRepository.replaceSlides(deck.id, editableTemplateSlides(template, deck.id));
+    navigate({ to: "/presentations/$presentationId/editor", params: { presentationId: deck.id } });
+  };
   const previews = useMemo(() => templatePreviewSlides(template), [template.id]);
   const theme = getTheme(template.themeId);
   return (
@@ -287,6 +299,9 @@ function TemplateCard({ template, featured = false }: { template: TemplateFamily
           <div className="text-xs text-muted-foreground">{template.tone} · {template.lengthPreset}</div>
           <div className="flex gap-2">
             <TemplatePreviewDialog template={template} previews={previews} />
+            <Button variant="outline" size="sm" onClick={editSample}>
+              <Copy className="size-3.5" /> Edit sample
+            </Button>
             <Button asChild size="sm">
               <Link to="/new" search={{ template: template.id }}>Use template</Link>
             </Button>

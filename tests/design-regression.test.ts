@@ -11,6 +11,7 @@ import { imageCropControls, imageCropCss, imageCropFocalPreset, imageCropFromCon
 import { canStartEditorGesture, isActiveEditorPointer } from "../src/lib/editor/pointer-gesture";
 import { moveItemByStep } from "../src/lib/editor/slide-order";
 import { encodeBrowserDatabase, decodeBrowserDatabase } from "../src/lib/data/storage-codec";
+import { cloneSlidesForPresentation } from "../src/lib/data/presentation-clone";
 import { getLayout, LAYOUTS } from "../src/lib/editor/layouts";
 import { getTemplateFamily, templatePreviewSlides, TEMPLATE_FAMILIES } from "../src/lib/templates";
 import { editableTemplateDeckInput, editableTemplateSlides } from "../src/lib/template-starter";
@@ -52,6 +53,68 @@ const asset: AssetRecord = {
 };
 
 describe("design integrity", () => {
+  test("100-slide media-heavy presentation round-trips with zero image or text loss", () => {
+    const pool = Array.from({ length: 6 }, (_, i) =>
+      "data:image/png;base64," + String(i).repeat(11_000));
+    const slides = Array.from({ length: 100 }, (_, i) => ({
+      id: "slide-" + i,
+      elements: Array.from({ length: 8 }, (_, j) => ({
+        id: "element-" + i + "-" + j,
+        type: j % 4 === 0 ? "text" : "image",
+        properties: j % 4 === 0
+          ? { text: "Performance slide " + i + " content element " + j }
+          : { src: pool[(i + j) % pool.length], crop: { x: 0.1, y: 0.15, width: 0.7, height: 0.7 } },
+      })),
+    }));
+    const db = { presentations: [{ id: "stress", slides }], savedTemplates: [
+      { snapshot: { slides: structuredClone(slides) } },
+    ], versions: [{ snapshot: { slides: structuredClone(slides) } }] };
+    const plainSize = JSON.stringify(db).length;
+    const stored = encodeBrowserDatabase(db);
+    expect(plainSize).toBeGreaterThan(6_000_000);
+    expect(stored.length).toBeLessThan(plainSize * 0.2);
+    const result = decodeBrowserDatabase(stored);
+    expect(result).toEqual(db);
+    expect(decodeBrowserDatabase(encodeBrowserDatabase(result))).toEqual(db);
+  });
+
+  test("cloning 100 slides regenerates every nested element id and isolates edits", () => {
+    const family = getTemplateFamily("creative-portfolio-premium")!;
+    const preview = editableTemplateSlides(family, "original");
+    const original = Array.from({ length: 100 }, (_, index) => {
+      const base = structuredClone(preview[index % preview.length]!);
+      const slideId = "source-slide-" + index;
+      return {
+        ...base, id: slideId, presentationId: "original",
+        elements: base.elements.map((element, i) => ({
+          ...element, id: "source-element-" + index + "-" + i, slideId,
+        })),
+      };
+    });
+    let nextId = 0;
+    const created = cloneSlidesForPresentation(original, "copy", () => "copy-id-" + (++nextId), "2026-10-03T00:00:00Z");
+    expect(created).toHaveLength(100);
+    expect(new Set(created.map(slide => slide.id)).size).toBe(100);
+    const oldIds = new Set(original.flatMap(slide => [slide.id, ...slide.elements.map(el => el.id)]));
+    const newIds = created.flatMap(slide => [slide.id, ...slide.elements.map(el => el.id)]);
+    expect(new Set(newIds).size).toBe(newIds.length);
+    expect(newIds.some(id => oldIds.has(id))).toBe(false);
+    created.forEach((slide, index) => {
+      expect(slide.presentationId).toBe("copy");
+      expect(slide.sortOrder).toBe(index);
+      expect(slide.slideNumber).toBe(index + 1);
+      expect(slide.elements.every(element => element.slideId === slide.id)).toBe(true);
+    });
+    const text = created.flatMap(slide => slide.elements).find(element => element.type === "text");
+    const originalText = original.flatMap(slide => slide.elements).find(element => element.type === "text");
+    expect(text?.type).toBe("text");
+    if (text?.type === "text" && originalText?.type === "text") {
+      text.properties.text = "Only in independent duplicate";
+      expect(originalText.properties.text).not.toBe(text.properties.text);
+    }
+  });
+
+
   test("duplicate pictures in deck versions and saved templates are pooled losslessly", () => {
     const png = "data:image/png;base64," + "A".repeat(12_000);
     const source = {

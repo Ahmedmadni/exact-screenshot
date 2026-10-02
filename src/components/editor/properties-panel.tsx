@@ -21,6 +21,8 @@ import { cloneElement } from "@/lib/editor/elements";
 import { cn } from "@/lib/utils";
 import { chartToText, diagramToText, recommendChartType, tableToText, textToChart, textToDiagram, textToTable } from "@/lib/editor/data-utils";
 import { analyzeChartBudget, formatVariance, varianceSummary } from "@/lib/editor/variance";
+import { importedRowsToChart, importedRowsToTable, readFinancialFile } from "@/lib/editor/financial-import";
+import { toast } from "sonner";
 import type { EditorApi } from "./use-editor";
 import { IconPicker } from "./icon-picker";
 import { readImage } from "./image-upload";
@@ -426,6 +428,24 @@ function ChartSection({ p, theme, setProps }: { p: ChartProps; theme: SlideTheme
           rows={7}
         />
         <p className="text-[11px] text-muted-foreground">{p.chartType === "waterfall" ? "First row = opening balance; each subsequent row = signed movement (+ or −). Closing is computed automatically." : "Paste from Excel or use tab/comma-separated data."}</p>
+        <label className="inline-flex h-9 w-full cursor-pointer items-center justify-center rounded-md border border-input bg-background px-3 text-xs font-medium hover:bg-muted">
+          Import CSV / Excel
+          <input type="file" accept=".csv,.tsv,.xls,.xlsx" className="sr-only" onChange={async (event) => {
+            const file = event.currentTarget.files?.[0];
+            event.currentTarget.value = "";
+            if (!file) return;
+            try {
+              const rows = await readFinancialFile(file);
+              const parsed = importedRowsToChart(rows);
+              if (!parsed.ok) { toast.error(parsed.error); return; }
+              setProps(parsed.value);
+              toast.success(`Imported ${parsed.rows} data rows from ${file.name}`);
+            } catch (error) {
+              toast.error(error instanceof Error ? error.message : "Could not read the file.");
+            }
+          }} />
+        </label>
+
       </div>
       {p.series.length === 2 && p.chartType !== "waterfall" && (
         <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
@@ -469,6 +489,24 @@ function TableSection({ p, theme, setProps }: { p: TableProps; theme: SlideTheme
         <Label className="text-xs text-muted-foreground">Paste cells</Label>
         <DataTextarea value={tableToText(p.rows)} onCommit={(value) => setProps({ rows: textToTable(value) })} rows={8} />
         <p className="text-[11px] text-muted-foreground">Tabs and commas are both supported.</p>
+        <label className="inline-flex h-9 w-full cursor-pointer items-center justify-center rounded-md border border-input bg-background px-3 text-xs font-medium hover:bg-muted">
+          Import CSV / Excel
+          <input type="file" accept=".csv,.tsv,.xls,.xlsx" className="sr-only" onChange={async (event) => {
+            const file = event.currentTarget.files?.[0];
+            event.currentTarget.value = "";
+            if (!file) return;
+            try {
+              const rows = await readFinancialFile(file);
+              const parsed = importedRowsToTable(rows);
+              if (!parsed.ok) { toast.error(parsed.error); return; }
+              setProps({ rows: parsed.value });
+              toast.success(`Imported ${parsed.rows} table rows from ${file.name}`);
+            } catch (error) {
+              toast.error(error instanceof Error ? error.message : "Could not read the file.");
+            }
+          }} />
+        </label>
+
       </div>
       <ToggleRow label="Header row" checked={p.headerRow} onChange={(headerRow) => setProps({ headerRow })} />
       <ToggleRow label="Banded rows" checked={p.bandedRows} onChange={(bandedRows) => setProps({ bandedRows })} />

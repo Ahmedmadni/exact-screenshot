@@ -124,7 +124,7 @@ export function reviewPresentation(presentation: Presentation): QualityIssue[] {
         if (ratio !== null && ratio < min) {
           issues.push(issue("warning", "contrast", `${el.name} has low text contrast (${ratio.toFixed(1)}:1).`, slide));
         }
-      } else if (el.type === "image" && !el.properties.src) {
+      } else if (el.type === "image" && !el.properties.src && !el.properties.assetId) {
         issues.push(issue("warning", "missing-image", `${el.name} has no image assigned.`, slide));
       } else if (el.type === "chart") {
         if (!el.properties.categories.length || !el.properties.series.length) issues.push(issue("warning", "chart-empty", `${el.name} has no usable chart data.`, slide));

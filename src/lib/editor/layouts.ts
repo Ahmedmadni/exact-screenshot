@@ -174,6 +174,83 @@ export const LAYOUTS: LayoutDefinition[] = [
     ],
   },
   {
+    id: "cover-annual-insights",
+    name: "Annual Report · Typographic Edition",
+    intents: ["Cover"],
+    build: (c) => [
+      shapeEl("Annual left monolith", "rect", [0, 0, 590, 900], { fill: "theme:primary" }),
+      shapeEl("Annual issue bar", "rect", [590, 0, 14, 900], { fill: "theme:accent" }),
+      textEl("Annual edition", "ANNUAL / PERFORMANCE", [80, 100, 460, 44], { fontSize: 16, fontWeight: 800, color: "theme:onAccent", letterSpacing: 2 }, "decor"),
+      textEl("Annual feature number", "26", [65, 350, 510, 300], { ...H, fontSize: 256, color: "theme:onAccent" }, "decor"),
+      textEl("Title", c.title, [690, 208, 800, 235], { ...H, fontSize: adaptiveType(c.title, 74, 43, 32), lineHeight: 1.06 }, "title"),
+      textEl("Subtitle", c.subtitle, [690, 492, 770, 150], { ...SEC, fontSize: 25, lineHeight: 1.35 }, "subtitle"),
+      shapeEl("Annual underline", "rect", [690, 718, 800, 3], { fill: "theme:line" }),
+      textEl("Report context", c.body, [690, 747, 780, 87], { ...SEC, fontSize: 17 }, "body"),
+    ],
+  },
+  {
+    id: "cover-product-launch",
+    name: "Product Launch · Showcase",
+    intents: ["Cover"],
+    build: (c) => [
+      shapeEl("Launch background block", "rect", [0, 0, 1600, 900], { fill: "theme:background" }),
+      shapeEl("Launch media plate", "roundRect", [825, 100, 695, 690], { fill: "theme:accentSoft", radius: 28 }),
+      imageEl("Product hero image", [850, 124, 645, 640], { src: c.media, assetId: c.mediaAssetId, radius: 20, fit: "cover" }),
+      shapeEl("Launch top signal", "rect", [102, 117, 110, 6], { fill: "theme:accent" }),
+      textEl("Launch eyebrow", "PRODUCT / INNOVATION", [103, 163, 630, 43], { fontSize: 16, fontWeight: 700, color: "theme:accent", letterSpacing: 1.4 }, "decor"),
+      textEl("Title", c.title, [103, 285, 655, 240], { ...H, fontSize: adaptiveType(c.title, 79, 42, 30), lineHeight: 1.05 }, "title"),
+      textEl("Subtitle", c.subtitle, [103, 576, 635, 144], { ...SEC, fontSize: 24, lineHeight: 1.3 }, "subtitle"),
+      textEl("Launch context", c.body, [103, 772, 630, 64], { ...SEC, fontSize: 16 }, "body"),
+    ],
+  },
+  {
+    id: "cover-editorial-gallery",
+    name: "Editorial Portfolio · Gallery",
+    intents: ["Cover"],
+    build: (c) => [
+      imageEl("Gallery hero", [870, 75, 630, 730], { src: c.media, assetId: c.mediaAssetId, fit: "cover", radius: 8 }),
+      shapeEl("Gallery marker", "rect", [100, 105, 300, 7], { fill: "theme:accent" }),
+      textEl("Gallery collection", "SELECTED WORK / PORTFOLIO", [100, 148, 675, 42], { fontSize: 16, fontWeight: 750, color: "theme:accent", letterSpacing: 1.6 }, "decor"),
+      textEl("Title", c.title, [100, 280, 720, 228], { ...H, fontSize: adaptiveType(c.title, 82, 45, 34) }, "title"),
+      textEl("Subtitle", c.subtitle, [100, 560, 700, 137], { ...SEC, fontSize: 26 }, "subtitle"),
+      shapeEl("Gallery footer rule", "rect", [100, 774, 700, 2], { fill: "theme:line" }),
+      textEl("Gallery context", c.body, [100, 789, 690, 66], { ...SEC, fontSize: 16 }, "body"),
+    ],
+  },
+  {
+    id: "case-study-editorial",
+    name: "Case Study · Evidence + Visual",
+    intents: ["Case Study", "Solution", "Opportunity", "Portfolio"],
+    build: (c) => [
+      ...titleBlock(c),
+      imageEl("Evidence visual", [100, 265, 735, 480], { src: c.media, assetId: c.mediaAssetId, radius: 14, fit: "cover" }),
+      shapeEl("Evidence indicator", "rect", [892, 280, 5, 410], { fill: "theme:accent" }),
+      textEl("Evidence heading", item(c, 0).title, [932, 286, 570, 77], { ...H, fontSize: 35 }, "itemTitle"),
+      textEl("Evidence statement", item(c, 0).text || c.subtitle, [932, 385, 545, 132], { ...SEC, fontSize: 22, lineHeight: 1.34 }, "item"),
+      textEl("Evidence metric", c.kpis[0] ?? "—", [932, 535, 540, 91], { ...H, fontSize: 67, color: "theme:accent" }, "kpiValue"),
+      textEl("Case context", c.body, [100, 778, 1390, 66], { ...SEC, fontSize: 17 }, "body"),
+    ],
+  },
+  {
+    id: "board-dashboard-tiles",
+    name: "Board Dashboard · Four Signals",
+    intents: ["Dashboard", "Financial", "Executive Summary", "Data Story"],
+    build: (c) => [
+      ...titleBlock(c),
+      textEl("Dashboard thesis", c.subtitle, [100, 204, 1390, 65], { fontSize: 25 }, "subtitle"),
+      ...[0, 1, 2, 3].flatMap((i) => {
+        const x = 100 + (i % 2) * 715, y = 316 + Math.floor(i / 2) * 220;
+        return [
+          shapeEl(`Signal card ${i + 1}`, "roundRect", [x, y, 670, 194], { fill: i === 0 ? "theme:accentSoft" : "theme:surface", stroke: "theme:line", strokeWidth: 1, radius: 15 }),
+          shapeEl(`Signal accent ${i + 1}`, "rect", [x + 30, y + 30, 55, 4], { fill: "theme:accent" }),
+          textEl(`Signal label ${i + 1}`, item(c, i).title, [x + 30, y + 54, 570, 45], { ...SEC, fontSize: 18, fontWeight: 650 }, "itemTitle"),
+          textEl(`Signal value ${i + 1}`, c.kpis[i] ?? "—", [x + 30, y + 111, 550, 65], { ...H, fontSize: 54, color: i === 0 ? "theme:accent" : "theme:primary" }, "kpiValue"),
+        ];
+      }),
+      textEl("Dashboard footnote", c.body, [100, 795, 1360, 46], { ...SEC, fontSize: 15 }, "body"),
+    ],
+  },
+  {
     id: "section-divider",
     name: "Section Divider",
     intents: ["Section Divider", "Agenda", "Quote"],

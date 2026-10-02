@@ -39,10 +39,10 @@ export function inferAssetClass(asset: Pick<AssetRecord, "kind" | "name" | "asse
   if (asset.assetClass) return asset.assetClass;
   if (asset.kind !== "image") return "source";
   const name = cleanToken(asset.name);
-  if (/logo|شعار/.test(name)) return "logo";
-  if (/icon|أيقون/.test(name)) return "icon";
-  if (/illustration|vector|رسم|illustr/.test(name)) return "illustration";
-  if (/background|bg|خلفية/.test(name)) return "background";
+  if (/\blogo\b|شعار/.test(name)) return "logo";
+  if (/\bicon\b|أيقون/.test(name)) return "icon";
+  if (/\billustration\b|\bvector\b|رسم|illustr/.test(name)) return "illustration";
+  if (/\bbackground\b|\bbg\b|خلفية/.test(name)) return "background";
   return "photo";
 }
 
@@ -57,7 +57,7 @@ export function inferAssetCategory(name: string, tags: string[] = []): AssetCate
 }
 
 export function inferAssetTags(name: string, extra: string[] = []) {
-  const normalized = cleanToken(name.replace(/.[a-z0-9]+$/i, ""));
+  const normalized = cleanToken(name.replace(/\.[a-z0-9]+$/i, ""));
   const tokens = normalized
     .split(/[^\p{L}\p{N}]+/u)
     .map((token) => token.trim())

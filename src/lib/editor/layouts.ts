@@ -251,6 +251,40 @@ export const LAYOUTS: LayoutDefinition[] = [
     ],
   },
   {
+    id: "project-risk-register",
+    name: "Project Control · Risk Register",
+    intents: ["Dashboard", "Portfolio", "Comparison", "Executive Summary"],
+    build: (c) => [
+      ...titleBlock(c),
+      textEl("Risk register thesis", c.subtitle, [100, 205, 1400, 60], { ...SEC, fontSize: 23 }, "subtitle"),
+      ...[0, 1, 2].flatMap((i) => {
+        const y = 315 + i * 153;
+        return [
+          shapeEl(`Risk row ${i + 1}`, "roundRect", [100, y, 1400, 126], { fill: i % 2 ? "theme:surface" : "theme:accentSoft", radius: 12 }),
+          shapeEl(`Risk indicator ${i + 1}`, "rect", [100, y + 14, 7, 98], { fill: "theme:accent" }),
+          textEl(`Risk heading ${i + 1}`, item(c, i).title, [145, y + 17, 450, 46], { ...H, fontSize: 27 }, "itemTitle"),
+          textEl(`Risk action ${i + 1}`, item(c, i).text, [635, y + 16, 820, 91], { ...SEC, fontSize: 20, lineHeight: 1.25 }, "item"),
+        ];
+      }),
+      shapeEl("Risk footer rule", "rect", [100, 794, 1400, 2], { fill: "theme:line" }),
+      textEl("Risk context", c.body, [100, 808, 1350, 57], { ...SEC, fontSize: 15 }, "body"),
+    ],
+  },
+  {
+    id: "editorial-image-duo",
+    name: "Editorial · Two-Image Story",
+    intents: ["Portfolio", "Case Study", "Opportunity", "Solution", "Before / After"],
+    build: (c) => [
+      ...titleBlock(c),
+      textEl("Gallery introduction", c.subtitle, [100, 197, 1400, 68], { ...SEC, fontSize: 23 }, "subtitle"),
+      imageEl("Lead project photo", [100, 294, 885, 430], { src: c.media, assetId: c.mediaAssetId, fit: "cover", radius: 15 }),
+      imageEl("Detail photo", [1022, 294, 478, 430], { src: "", fit: "cover", radius: 15 }),
+      textEl("Lead photo label", item(c, 0).title, [100, 746, 872, 38], { ...H, fontSize: 23 }, "itemTitle"),
+      textEl("Detail photo label", item(c, 1).title, [1022, 746, 478, 38], { ...H, fontSize: 23 }, "itemTitle"),
+      textEl("Image story", c.body, [100, 811, 1400, 44], { ...SEC, fontSize: 16 }, "body"),
+    ],
+  },
+  {
     id: "section-divider",
     name: "Section Divider",
     intents: ["Section Divider", "Agenda", "Quote"],
@@ -843,6 +877,8 @@ const RTL_MIRRORABLE_LAYOUTS = new Set([
   "cover-editorial-gallery",
   "case-study-editorial",
   "board-dashboard-tiles",
+  "project-risk-register",
+  "editorial-image-duo",
   "hero-editorial",
   "title-content",
   "image-text",

@@ -50,13 +50,44 @@ test("100-slide deck keeps only nearby rail previews mounted while scrolling", a
   }, deckId!);
   expect(created).toBe(true);
 
+  const openStart = Date.now();
   await page.goto(editorUrl);
   const frames = page.getByTestId("rail-thumb-frame");
   await expect(frames).toHaveCount(100);
   await expect(page.getByTestId("rail-thumb-rendered").first()).toBeVisible();
-  // Only thumbnails close to the viewport should have expensive slide stages mounted.
-  expect(await page.getByTestId("rail-thumb-rendered").count()).toBeLessThan(30);
-  await frames.last().scrollIntoViewIfNeeded();
-  await expect(frames.last().getByTestId("rail-thumb-rendered")).toBeVisible();
-  expect(await page.getByTestId("rail-thumb-rendered").count()).toBeLessThan(30);
+  const openMs = Date.now() - openStart;
+  const counts: number[] = [await page.getByTestId("rail-thumb-rendered").count()];
+  expect(counts[0]).toBeLessThan(30);
+
+  const scrollStart = Date.now();
+  // Test both directions more than once. Old observers must release distant frames.
+  for (const index of [99, 0, 70, 15, 99]) {
+    const target = frames.nth(index);
+    await target.scrollIntoViewIfNeeded();
+    await expect(target.getByTestId("rail-thumb-rendered")).toBeVisible();
+    // Intersection notifications run asynchronously after the scroll.
+    await expect.poll(async () => page.getByTestId("rail-thumb-rendered").count())
+      .toBeLessThan(30);
+    counts.push(await page.getByTestId("rail-thumb-rendered").count());
+  }
+  const scrollMs = Date.now() - scrollStart;
+
+  // Chromium memory is optional: do not fail a valid browser without this API.
+  const memoryBytes = await page.evaluate(() => {
+    const perf = performance as Performance & { memory?: { usedJSHeapSize: number } };
+    return perf.memory?.usedJSHeapSize ?? null;
+  });
+  const metrics = {
+    slideCount: 100,
+    openMs,
+    scrollMs,
+    renderedCounts: counts,
+    maxRendered: Math.max(...counts),
+    memoryBytes,
+  };
+  await info.attach("large-deck-performance.json", {
+    body: Buffer.from(JSON.stringify(metrics, null, 2)),
+    contentType: "application/json",
+  });
+  console.log("LARGE_DECK_PERFORMANCE " + JSON.stringify(metrics));
 });

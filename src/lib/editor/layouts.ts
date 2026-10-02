@@ -644,8 +644,23 @@ export function buildLayout(layoutId: string, content: LayoutContent, slideId: s
  */
 export function applyLayout(slide: Slide, layoutId: string): Slide {
   const content = contentFromElements(slide.elements, contentFromSlide(slide));
-  const generated = buildLayout(layoutId, content, slide.id, slideIsRtl(slide));
+  // Carry edited structured data into the destination slot. A layout change must
+  // never silently reset a user's chart series, table rows or diagram nodes.
+  const originalData = slide.elements.filter(
+    (e) => e.role && (e.type === "chart" || e.type === "table" || e.type === "diagram"),
+  );
+  const matchedData = new Set<string>();
+  const generated = buildLayout(layoutId, content, slide.id, slideIsRtl(slide)).map((element) => {
+    if (element.type !== "chart" && element.type !== "table" && element.type !== "diagram") return element;
+    const existing = originalData.find((item) => item.type === element.type && !matchedData.has(item.id));
+    if (!existing || existing.type !== element.type) return element;
+    matchedData.add(existing.id);
+    return { ...element, properties: { ...existing.properties } } as SlideElement;
+  });
   const free = slide.elements.filter((e) => !e.role || e.name === "Evidence Citation");
+  const retainedData = originalData
+    .filter((element) => !matchedData.has(element.id))
+    .map((element) => ({ ...element, role: undefined, name: `${element.name} (kept)` }) as SlideElement);
   const placedText = new Set(generated.flatMap((e) => (e.type === "text" ? [e.properties.text.trim()] : [])));
   const placedImages = new Set(generated.flatMap((e) => (e.type === "image" ? [e.properties.assetId ?? e.properties.src] : [])));
   const orphans = slide.elements
@@ -656,7 +671,7 @@ export function applyLayout(slide: Slide, layoutId: string): Slide {
       : false,
     )
     .map((e) => ({ ...e, role: undefined, name: `${e.name} (kept)` }) as SlideElement);
-  const elements = [...generated, ...orphans, ...free].map((e, i) => ({ ...e, zIndex: i }));
+  const elements = [...generated, ...orphans, ...retainedData, ...free].map((e, i) => ({ ...e, zIndex: i }));
   return { ...slide, layoutId, elements };
 }
 

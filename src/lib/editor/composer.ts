@@ -175,6 +175,8 @@ export function rebuildGeneratedContent(
               ...e.properties,
               src: existingMedia.properties.src,
               assetId: existingMedia.properties.assetId,
+              treatment: existingMedia.properties.treatment,
+              crop: existingMedia.properties.crop,
             },
           }
         : e,

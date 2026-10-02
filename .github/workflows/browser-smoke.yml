@@ -9,6 +9,8 @@ on:
       - "src/components/editor/**"
       - "src/components/ui/slider.tsx"
       - "src/lib/editor/**"
+      - "src/lib/data/store.ts"
+      - "src/lib/data/storage-codec.ts"
       - "src/lib/export/pptx.ts"
       - "src/lib/template-starter.ts"
       - "src/routes/templates.tsx"

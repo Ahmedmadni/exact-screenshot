@@ -39,7 +39,7 @@ test("replace image, crop the native picture, reload, and download an editable P
 
   // The frame remains a separately selectable picture, with native zoom controls.
   await page.getByRole("button", { name: "More", exact: true }).first().click();
-  await expect(page.getByText("Photo crop · Pan & zoom")).toBeVisible();
+  await expect(page.getByText("Photo crop · Pan & zoom").last()).toBeVisible();
   const zoom = page.getByRole("slider", { name: "Zoom" });
   await zoom.focus();
   await zoom.press("ArrowRight");

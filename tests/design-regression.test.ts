@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { applyVaultMedia, externalVisualSearchQuery } from "../src/lib/assets/auto-media";
 import { applyLayout, buildLayout, contentFromSlide } from "../src/lib/editor/layouts";
 import { imageTreatmentOverlay } from "../src/lib/editor/image-treatment";
+import { rebuildGeneratedContent } from "../src/lib/editor/composer";
 import type { AssetRecord, Slide } from "../src/lib/types";
 
 const slide = (): Slide => ({
@@ -97,6 +98,33 @@ describe("design integrity", () => {
     if (chart?.type === "chart") {
       expect(chart.properties.categories).toEqual(["Jan", "Feb", "Mar"]);
       expect(chart.properties.series[0]?.values).toEqual([18, 21, 26]);
+    }
+  });
+
+  test("regenerating content preserves selected image and treatment", () => {
+    const source = slide();
+    source.elements = buildLayout("image-text", contentFromSlide(source), source.id).map((element) =>
+      element.type === "image" && element.role === "media"
+        ? { ...element, properties: { ...element.properties, src: "", assetId: "my-photo", treatment: "brand" as const } }
+        : element,
+    );
+    const next = rebuildGeneratedContent(source, {
+      title: source.title,
+      keyMessage: source.keyMessage,
+      purpose: source.purpose,
+      contentSummary: "Updated executive story",
+      bullets: source.bullets,
+      kpis: source.kpis,
+      visualType: source.visualType,
+      slideIntent: source.slideIntent,
+    });
+    const image = next.elements.find((element) => element.type === "image" && element.role === "media");
+    if (image?.type === "image") {
+      expect(image.properties.assetId).toBe("my-photo");
+      expect(image.properties.treatment).toBe("brand");
+    } else {
+      // A data-first destination may not contain a photo slot; the photo should be retained.
+      expect(next.elements.some((element) => element.type === "image" && element.properties.assetId === "my-photo")).toBe(true);
     }
   });
 

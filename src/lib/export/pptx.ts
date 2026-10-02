@@ -7,6 +7,7 @@ import { getTheme, resolveColor, type SlideTheme } from "@/lib/editor/themes";
 import { getIcon } from "@/lib/editor/icons";
 import { safeExportFilename } from "./validate";
 import { resolveImageSource } from "@/lib/assets/resolve";
+import { imageTreatmentOverlay } from "@/lib/editor/image-treatment";
 
 const PPT_W = 13.333333;
 const PPT_H = 7.5;
@@ -145,7 +146,7 @@ function addShape(pptx: any, pptxSlide: any, el: Extract<SlideElement, { type: "
   pptxSlide.addShape(type, common);
 }
 
-function addImage(pptxSlide: any, el: Extract<SlideElement, { type: "image" }>) {
+function addImage(pptx: any, pptxSlide: any, el: Extract<SlideElement, { type: "image" }>, theme: SlideTheme) {
   const src = resolveImageSource(el.properties);
   if (!src) return;
   const box = pos(el);
@@ -157,6 +158,16 @@ function addImage(pptxSlide: any, el: Extract<SlideElement, { type: "image" }>) 
     transparency: transparency(el.opacity),
     altText: el.name,
   });
+  const treatment = imageTreatmentOverlay(el.properties.treatment);
+  if (treatment) {
+    const color = resolved(treatment.color, theme);
+    if (color) pptxSlide.addShape(pptx.ShapeType.rect, {
+      ...box,
+      rotate: Math.round(el.rotation),
+      line: { color, transparency: 100 },
+      fill: { color, transparency: transparency(treatment.opacity * el.opacity) },
+    });
+  }
 }
 
 function addIcon(pptxSlide: any, el: Extract<SlideElement, { type: "icon" }>, theme: SlideTheme) {
@@ -371,7 +382,7 @@ function addElement(pptx: any, pptxSlide: any, el: SlideElement, theme: SlideThe
   if (!el.visible) return;
   if (el.type === "text") addText(pptxSlide, el, theme);
   else if (el.type === "shape") addShape(pptx, pptxSlide, el, theme);
-  else if (el.type === "image") addImage(pptxSlide, el);
+  else if (el.type === "image") addImage(pptx, pptxSlide, el, theme);
   else if (el.type === "icon") addIcon(pptxSlide, el, theme);
   else if (el.type === "chart") addChart(pptx, pptxSlide, el, theme);
   else if (el.type === "table") addTable(pptxSlide, el, theme);

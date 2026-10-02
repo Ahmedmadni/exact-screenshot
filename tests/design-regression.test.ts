@@ -53,7 +53,7 @@ describe("design integrity", () => {
     expect(title).toBeDefined();
     if (!title) return;
     source.elements = [{ ...title, x: 1550, width: 220, name: "Escaped title" }];
-    const deck = { themeId: "executive-light", slides: [source] } as unknown as Presentation;
+    const deck = { themeId: "executive-light", coreMessage: "Quality smoke test", slides: [source] } as unknown as Presentation;
     const warnings = reviewPresentation(deck);
     expect(warnings.some(item =>
       item.code === "element-outside-slide" &&
@@ -69,7 +69,7 @@ describe("design integrity", () => {
         .find(element => element.type === "image")!,
       properties: { src: "", assetId: "existing-approved-photo", fit: "cover" as const, radius: 0 },
     }];
-    const deck = { themeId: "executive-light", slides: [source] } as unknown as Presentation;
+    const deck = { themeId: "executive-light", coreMessage: "Quality smoke test", slides: [source] } as unknown as Presentation;
     expect(reviewPresentation(deck).some(item => item.code === "missing-image")).toBe(false);
   });
 

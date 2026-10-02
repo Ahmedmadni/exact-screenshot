@@ -40,7 +40,7 @@ export function editableTemplateDeckInput(template: TemplateFamily):
     purpose: "Inform",
     audience: "Executive Management",
     presentationType: template.presentationType,
-    language: template.id === "healthcare-executive" ? "English" : "English",
+    language: template.id === "arabic-executive" ? "Arabic" : "English",
     tone: template.tone,
     status: "Draft",
     lengthPreset: template.lengthPreset,

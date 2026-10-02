@@ -628,6 +628,73 @@ export const LAYOUTS: LayoutDefinition[] = [
     ],
   },
   {
+    id: "financial-actual-budget",
+    name: "Actual vs Budget · Executive Review",
+    intents: ["Financial", "Dashboard", "Data Story", "Comparison"],
+    build: (c) => [
+      ...titleBlock(c),
+      textEl("Financial thesis", c.subtitle, [100, 215, 1330, 65], { fontSize: 26, fontWeight: 500 }, "subtitle"),
+      shapeEl("Benchmark rule", "rect", [100, 302, 1400, 2], { fill: "theme:line" }),
+      chartEl("Actual vs Budget", [100, 332, 960, 415], {
+        label: "Actual versus Budget",
+        chartType: "column",
+        categories: ["Q1", "Q2", "Q3", "Q4"],
+        series: [
+          { name: "Actual", values: [0, 0, 0, 0] },
+          { name: "Budget", values: [0, 0, 0, 0] },
+        ],
+        showLegend: true,
+        showValues: true,
+        showGrid: true,
+      }, "media"),
+      shapeEl("Insight rail", "rect", [1120, 335, 5, 398], { fill: "theme:accent" }),
+      textEl("Management note label", "BUDGET PERFORMANCE", [1155, 350, 340, 35], { fontSize: 15, fontWeight: 700, color: "theme:accent", letterSpacing: 1.1 }, "decor"),
+      textEl("Main takeaway", c.body || "Enter actual and budget data in Chart properties to display the comparison.", [1155, 418, 315, 230], { ...SEC, fontSize: 22, lineHeight: 1.42 }, "body"),
+      textEl("Chart instruction", "DATA REQUIRED · Edit the chart series", [100, 785, 950, 35], { ...SEC, fontSize: 14 }, "decor"),
+    ],
+  },
+  {
+    id: "financial-variance-bridge",
+    name: "Variance Bridge · Editable Movements",
+    intents: ["Financial", "Dashboard", "Data Story", "Comparison"],
+    build: (c) => [
+      ...titleBlock(c),
+      textEl("Movement thesis", c.subtitle, [100, 210, 1400, 70], { fontSize: 26, fontWeight: 500 }, "subtitle"),
+      shapeEl("Bridge baseline", "rect", [135, 657, 1310, 2], { fill: "theme:line" }),
+      ...[0, 1, 2, 3].flatMap((i) => {
+        const x = 150 + i * 350;
+        const label = ["Baseline", "Increase", "Decrease", "Result"][i]!;
+        return [
+          shapeEl(`Bridge measure ${i + 1}`, "rect", [x, i === 1 ? 372 : i === 2 ? 438 : 320, 210, i === 1 ? 285 : i === 2 ? 219 : 337], { fill: i === 1 ? "theme:accentSoft" : i === 2 ? "theme:secondary" : "theme:accent" }),
+          textEl(`Bridge label ${i + 1}`, label, [x, 680, 230, 45], { fontSize: 22, fontWeight: 600, color: "theme:primary", align: "center" }, "decor"),
+          textEl(`Bridge value ${i + 1}`, c.kpis[i] ?? "—", [x, i === 1 ? 319 : i === 2 ? 383 : 263, 230, 50], { ...H, fontSize: 35, align: "center" }, "kpiValue"),
+        ];
+      }),
+      textEl("Bridge guidance", "Illustrative bridge geometry · Edit bars and values to reflect the actual reconciliation. Verify opening + movements = closing.", [100, 773, 1400, 65], { ...SEC, fontSize: 16 }, "body"),
+    ],
+  },
+  {
+    id: "financial-cash-flow",
+    name: "Cash Flow · Liquidity Dashboard",
+    intents: ["Financial", "Dashboard", "Data Story"],
+    build: (c) => [
+      ...titleBlock(c),
+      textEl("Liquidity thesis", c.subtitle, [100, 210, 1360, 65], { fontSize: 26, fontWeight: 500 }, "subtitle"),
+      ...[0, 1, 2].flatMap((i) => {
+        const x = 100 + i * 475;
+        const name = ["Operating", "Investing", "Financing"][i]!;
+        return [
+          shapeEl(`Cash flow divider ${i}`, "rect", [x, 316, 425, 3], { fill: i === 0 ? "theme:accent" : "theme:line" }),
+          textEl(`Cash heading ${i}`, name.toUpperCase(), [x, 340, 425, 35], { color: "theme:secondary", fontSize: 15, fontWeight: 700, letterSpacing: 1.1 }, "decor"),
+          textEl(`Cash amount ${i}`, c.kpis[i] ?? "—", [x, 408, 425, 110], { ...H, fontSize: 75, color: i === 0 ? "theme:accent" : "theme:primary" }, "kpiValue"),
+          textEl(`Cash note ${i}`, item(c, i).text, [x, 535, 425, 112], { ...SEC, fontSize: 20, lineHeight: 1.28 }, "item"),
+        ];
+      }),
+      shapeEl("Liquidity closing rule", "rect", [100, 688, 1400, 2], { fill: "theme:line" }),
+      textEl("Liquidity takeaway", c.body || "Add period cash-flow figures and reconcile to the opening and closing cash balances.", [100, 720, 1330, 120], { ...SEC, fontSize: 22, lineHeight: 1.3 }, "body"),
+    ],
+  },
+  {
     id: "executive-two-column",
     name: "Executive Two-column",
     intents: ["Executive Summary", "Problem", "Solution", "Opportunity", "Comparison"],

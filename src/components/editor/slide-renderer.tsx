@@ -7,6 +7,7 @@ import { getIcon } from "@/lib/editor/icons";
 import { resolveImageSource } from "@/lib/assets/resolve";
 import { renderedFinancialElements } from "@/lib/editor/variance";
 import { imageTreatmentOverlay } from "@/lib/editor/image-treatment";
+import { imageCropCss } from "@/lib/editor/image-crop";
 import { ChartBody, DiagramBody, TableBody } from "./data-elements";
 
 /** Visual body of an element, positioned by the caller. Pure: same output for canvas, preview and thumbnails. */
@@ -66,7 +67,7 @@ export function ElementBody({ el, theme }: { el: SlideElement; theme: SlideTheme
       const treatment = imageTreatmentOverlay(p.treatment);
       return (
         <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", borderRadius: p.radius }}>
-          <img src={src} alt={el.name} draggable={false} style={{ width: "100%", height: "100%", objectFit: p.fit, display: "block" }} />
+          <img src={src} alt={el.name} draggable={false} style={{ ...(p.fit === "cover" && p.crop ? imageCropCss(p.crop) : { width: "100%", height: "100%", display: "block" }), objectFit: p.fit }} />
           {treatment && <div aria-hidden="true" style={{ position: "absolute", inset: 0, pointerEvents: "none", backgroundColor: resolveColor(treatment.color, theme), opacity: treatment.opacity }} />}
         </div>
       );

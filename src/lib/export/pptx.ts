@@ -45,7 +45,8 @@ function fontFace(value: string, theme: SlideTheme, rtl: boolean) {
     value === "theme:heading" ? theme.fonts.heading :
     value === "theme:body" ? theme.fonts.body :
     value;
-  return rtl ? (family === "IBM Plex Sans Arabic" ? family : "Arial") : family;
+  // Preserve the selected Arabic display font in editable PowerPoint text.
+  return family;
 }
 
 function alignFor(align: "start" | "center" | "end" | "justify", rtl: boolean) {

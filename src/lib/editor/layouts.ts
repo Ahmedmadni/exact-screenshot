@@ -638,6 +638,7 @@ export const LAYOUTS: LayoutDefinition[] = [
       chartEl("Actual vs Budget", [100, 332, 960, 415], {
         label: "Actual versus Budget",
         chartType: "column",
+        varianceDirection: "higher-is-better",
         categories: ["Q1", "Q2", "Q3", "Q4"],
         series: [
           { name: "Actual", values: [0, 0, 0, 0] },
@@ -649,8 +650,8 @@ export const LAYOUTS: LayoutDefinition[] = [
       }, "media"),
       shapeEl("Insight rail", "rect", [1120, 335, 5, 398], { fill: "theme:accent" }),
       textEl("Management note label", "BUDGET PERFORMANCE", [1155, 350, 340, 35], { fontSize: 15, fontWeight: 700, color: "theme:accent", letterSpacing: 1.1 }, "decor"),
-      textEl("Main takeaway", c.body || "Enter actual and budget data in Chart properties to display the comparison.", [1155, 418, 315, 230], { ...SEC, fontSize: 22, lineHeight: 1.42 }, "body"),
-      textEl("Chart instruction", "DATA REQUIRED · Edit the chart series", [100, 785, 950, 35], { ...SEC, fontSize: 14 }, "decor"),
+      textEl("Auto variance insight", "Enter actual and budget values to calculate the variance.", [1155, 418, 325, 250], { ...SEC, fontSize: 21, lineHeight: 1.42 }, "decor"),
+      textEl("Management commentary", c.body, [100, 766, 1400, 48], { ...SEC, fontSize: 17 }, "body"),
     ],
   },
   {

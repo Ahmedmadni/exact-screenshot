@@ -153,6 +153,7 @@ describe("design integrity", () => {
     const family = getTemplateFamily("annual-report-premium")!;
     const input = editableTemplateDeckInput(family);
     expect(input.status).toBe("Draft");
+    expect(editableTemplateDeckInput(getTemplateFamily("arabic-executive")!).language).toBe("Arabic");
     expect(input.themeId).toBe(family.themeId);
     expect(input.slides).toHaveLength(3);
     expect(input.slides.every(item => item.elements.length > 0)).toBe(true);

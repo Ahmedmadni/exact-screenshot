@@ -1,0 +1,43 @@
+name: Browser Smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "tests/browser/**"
+      - "playwright.config.ts"
+      - "src/components/editor/**"
+      - "src/routes/templates.tsx"
+      - "src/routes/presentations_.$presentationId.editor.tsx"
+      - "package.json"
+      - ".github/workflows/browser-smoke.yml"
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  chromium-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        run: bun install --no-save
+      - name: Install Chromium
+        run: bunx playwright install --with-deps chromium
+      - name: Run desktop and mobile smoke tests
+        run: bun run test:browser
+      - name: Upload diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-smoke-diagnostics
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

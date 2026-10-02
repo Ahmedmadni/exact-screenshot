@@ -7,7 +7,7 @@ import { getTemplateFamily, templatePreviewSlides } from "../src/lib/templates";
 import { rebuildGeneratedContent } from "../src/lib/editor/composer";
 import { buildWaterfall } from "../src/lib/editor/waterfall";
 import { analyzeBudgetVariance, analyzeChartBudget, renderedFinancialElements, varianceSummary } from "../src/lib/editor/variance";
-import { importedRowsToChart, importedRowsToTable, mapFinancialColumns, normalizeImportedRows, parseDelimited } from "../src/lib/editor/financial-import";
+import { importedRowsToChart, importedRowsToTable, mapFinancialColumns, normalizeImportedRows, parseDelimited, parseFinancialNumber } from "../src/lib/editor/financial-import";
 import type { AssetRecord, Slide } from "../src/lib/types";
 
 const slide = (): Slide => ({
@@ -41,6 +41,30 @@ const asset: AssetRecord = {
 };
 
 describe("design integrity", () => {
+  test("Arabic and Persian financial number formats preserve signed amounts", () => {
+    expect(parseFinancialNumber("١٬٢٣٤٫٥٠")).toBe(1234.5);
+    expect(parseFinancialNumber("۱۲٬۳۴۵٫۶۷")).toBe(12345.67);
+    expect(parseFinancialNumber("(٢٬٥٠٠٫٧٥)")).toBe(-2500.75);
+    expect(parseFinancialNumber("-٣٥٠")).toBe(-350);
+    expect(parseFinancialNumber("1,234.50")).toBe(1234.5);
+    expect(parseFinancialNumber("١٢٫٥٪")).toBeNull();
+    expect(parseFinancialNumber("1,23")).toBeNull();
+    expect(parseFinancialNumber("1.234,56")).toBeNull();
+    expect(parseFinancialNumber("1,00,000")).toBeNull();
+    expect(parseFinancialNumber("١٢٣٤غيررقمي")).toBeNull();
+    const imported = importedRowsToChart([
+      ["الفترة", "الفعلي", "الموازنة"],
+      ["يناير", "١٬٢٠٠", "١٬١٠٠"],
+      ["فبراير", "(٣٥٠)", "٤٠٠"],
+    ]);
+    expect(imported.ok).toBe(true);
+    if (imported.ok) {
+      expect(imported.value.series[0]?.values).toEqual([1200, -350]);
+      expect(imported.value.series[1]?.values).toEqual([1100, 400]);
+    }
+  });
+
+
   test("column mapping selects the correct worksheet metrics without changing source cells", () => {
     const source = [
       ["Notes", "Budget", "Period", "Actual", "Ignored"],

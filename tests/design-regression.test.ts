@@ -5,6 +5,7 @@ import { imageTreatmentOverlay } from "../src/lib/editor/image-treatment";
 import { getLayout, LAYOUTS } from "../src/lib/editor/layouts";
 import { getTemplateFamily, templatePreviewSlides } from "../src/lib/templates";
 import { rebuildGeneratedContent } from "../src/lib/editor/composer";
+import { buildWaterfall } from "../src/lib/editor/waterfall";
 import type { AssetRecord, Slide } from "../src/lib/types";
 
 const slide = (): Slide => ({
@@ -38,6 +39,44 @@ const asset: AssetRecord = {
 };
 
 describe("design integrity", () => {
+  test("signed waterfall reconciles positive and negative movements", () => {
+    const result = buildWaterfall(
+      ["Opening", "Collections", "Payments", "Financing"],
+      [100, 45, -68, -12],
+    );
+    expect(result.valid).toBe(true);
+    expect(result.closing).toBe(65);
+    expect(result.steps.map(step => step.end)).toEqual([100, 145, 77, 65, 65]);
+    expect(result.steps.map(step => step.kind)).toEqual([
+      "opening", "increase", "decrease", "decrease", "closing",
+    ]);
+  });
+
+  test("waterfall handles negative running balances and rejects incomplete input", () => {
+    const model = buildWaterfall(["Opening", "Payment"], [20, -65]);
+    expect(model.valid).toBe(true);
+    expect(model.closing).toBe(-45);
+    expect(model.min).toBeLessThan(-45);
+    expect(model.max).toBeGreaterThan(20);
+    expect(buildWaterfall(["Opening", "Change"], [20]).valid).toBe(false);
+    expect(buildWaterfall(["Opening", "Change"], [20, Number.NaN]).valid).toBe(false);
+    expect(buildWaterfall([], []).valid).toBe(false);
+  });
+
+  test("variance bridge layout is data-bound rather than static decorative bars", () => {
+    const source = slide();
+    const components = buildLayout("financial-variance-bridge", contentFromSlide(source), source.id);
+    const waterfall = components.find(el => el.type === "chart" && el.role === "media");
+    expect(waterfall?.type).toBe("chart");
+    if (waterfall?.type === "chart") {
+      expect(waterfall.properties.chartType).toBe("waterfall");
+      expect(waterfall.properties.series[0]?.values).toEqual([0, 0, 0]);
+      expect(buildWaterfall(waterfall.properties.categories, waterfall.properties.series[0]!.values).closing).toBe(0);
+    }
+    expect(components.filter(el => el.name.startsWith("Bridge measure"))).toHaveLength(0);
+  });
+
+
   test("financial layouts keep all content editable and avoid invented financial values", () => {
     const layouts = ["financial-actual-budget", "financial-variance-bridge", "financial-cash-flow"];
     for (const id of layouts) {

@@ -91,6 +91,6 @@ test("100-slide deck keeps only nearby rail previews mounted while scrolling", a
     contentType: "application/json",
   });
   await mkdir("test-results", { recursive: true });
-  await writeFile("test-results/large-deck-benchmark.json", JSON.stringify(metrics, null, 2) + "\\n");
+  await writeFile("test-results/large-deck-benchmark.json", JSON.stringify(metrics, null, 2));
   console.log("LARGE_DECK_PERFORMANCE " + JSON.stringify(metrics));
 });

@@ -6,6 +6,7 @@ import { getLayout, LAYOUTS } from "../src/lib/editor/layouts";
 import { getTemplateFamily, templatePreviewSlides } from "../src/lib/templates";
 import { rebuildGeneratedContent } from "../src/lib/editor/composer";
 import { buildWaterfall } from "../src/lib/editor/waterfall";
+import { analyzeBudgetVariance, analyzeChartBudget, renderedFinancialElements, varianceSummary } from "../src/lib/editor/variance";
 import type { AssetRecord, Slide } from "../src/lib/types";
 
 const slide = (): Slide => ({
@@ -39,6 +40,68 @@ const asset: AssetRecord = {
 };
 
 describe("design integrity", () => {
+  test("budget variance computes revenue totals and period-level percentages", () => {
+    const result = analyzeBudgetVariance(["Q1", "Q2"], [115, 85], [100, 100]);
+    expect(result.valid).toBe(true);
+    expect(result.actualTotal).toBe(200);
+    expect(result.budgetTotal).toBe(200);
+    expect(result.difference).toBe(0);
+    expect(result.status).toBe("on-target");
+    expect(result.rows[0]?.difference).toBe(15);
+    expect(result.rows[0]?.percent).toBe(15);
+    expect(result.rows[1]?.status).toBe("unfavorable");
+  });
+
+  test("expense variance reverses favorability without altering numerical difference", () => {
+    const income = analyzeBudgetVariance(["Q1"], [90], [100]);
+    const expense = analyzeBudgetVariance(["Q1"], [90], [100], "lower-is-better");
+    expect(income.status).toBe("unfavorable");
+    expect(expense.status).toBe("favorable");
+    expect(expense.difference).toBe(-10);
+    expect(expense.percent).toBe(-10);
+  });
+
+  test("zero budget and negative budget avoid division by zero", () => {
+    const noBudget = analyzeBudgetVariance(["Month"], [25], [0]);
+    expect(noBudget.valid).toBe(true);
+    expect(noBudget.percent).toBeNull();
+    expect(noBudget.rows[0]?.percent).toBeNull();
+    expect(varianceSummary(noBudget)).toContain("N/A");
+    const negative = analyzeBudgetVariance(["Month"], [-120], [-100], "lower-is-better");
+    expect(negative.percent).toBe(-20);
+    expect(negative.status).toBe("favorable");
+  });
+
+  test("placeholder and malformed comparisons never produce fabricated insights", () => {
+    expect(analyzeBudgetVariance(["Jan"], [0], [0]).valid).toBe(false);
+    expect(analyzeBudgetVariance(["Jan", "Feb"], [1], [2, 3]).valid).toBe(false);
+    expect(analyzeBudgetVariance(["Jan"], [Number.NaN], [2]).valid).toBe(false);
+  });
+
+  test("live financial insight follows edited chart and leaves source slide untouched", () => {
+    const source = slide();
+    source.layoutId = "financial-actual-budget";
+    source.elements = buildLayout(source.layoutId, contentFromSlide(source), source.id).map(el =>
+      el.type === "chart" ? { ...el, properties: {
+        ...el.properties,
+        series: [
+          { name: "Actual", values: [120, 120, 120, 120] },
+          { name: "Budget", values: [100, 100, 100, 100] },
+        ],
+      } } : el,
+    );
+    const original = source.elements.find(el => el.name === "Auto variance insight");
+    const rendered = renderedFinancialElements(source);
+    const updated = rendered.find(el => el.name === "Auto variance insight");
+    expect(updated?.type).toBe("text");
+    if (updated?.type === "text") expect(updated.properties.text).toContain("+80");
+    expect(original).not.toBe(updated);
+    if (original?.type === "text") expect(original.properties.text).not.toContain("+80");
+    const chart = source.elements.find(el => el.type === "chart");
+    if (chart?.type === "chart") expect(analyzeChartBudget(chart.properties).status).toBe("favorable");
+  });
+
+
   test("signed waterfall reconciles positive and negative movements", () => {
     const result = buildWaterfall(
       ["Opening", "Collections", "Payments", "Financing"],

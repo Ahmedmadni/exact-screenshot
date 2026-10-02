@@ -20,6 +20,7 @@ import { SlideStage, useFitScale } from "@/components/editor/slide-renderer";
 import { cloneElement } from "@/lib/editor/elements";
 import { cn } from "@/lib/utils";
 import { chartToText, diagramToText, recommendChartType, tableToText, textToChart, textToDiagram, textToTable } from "@/lib/editor/data-utils";
+import { analyzeChartBudget, formatVariance, varianceSummary } from "@/lib/editor/variance";
 import type { EditorApi } from "./use-editor";
 import { IconPicker } from "./icon-picker";
 import { readImage } from "./image-upload";
@@ -426,6 +427,29 @@ function ChartSection({ p, theme, setProps }: { p: ChartProps; theme: SlideTheme
         />
         <p className="text-[11px] text-muted-foreground">{p.chartType === "waterfall" ? "First row = opening balance; each subsequent row = signed movement (+ or −). Closing is computed automatically." : "Paste from Excel or use tab/comma-separated data."}</p>
       </div>
+      {p.series.length === 2 && p.chartType !== "waterfall" && (
+        <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+          <Label className="text-xs font-semibold">Actual vs Budget · auto-analysis</Label>
+          <Select value={p.varianceDirection ?? "higher-is-better"} onValueChange={(varianceDirection) => setProps({ varianceDirection: varianceDirection as ChartProps["varianceDirection"] })}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="higher-is-better">Revenue / income · higher is favorable</SelectItem>
+              <SelectItem value="lower-is-better">Costs / expenses · lower is favorable</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="whitespace-pre-wrap text-xs text-foreground">{varianceSummary(analyzeChartBudget(p))}</p>
+          {analyzeChartBudget(p).valid && (
+            <div className="max-h-44 overflow-auto space-y-1">
+              {analyzeChartBudget(p).rows.map((row, i) => (
+                <div key={i} className="flex justify-between gap-2 text-[11px] border-t border-border pt-1">
+                  <span className="truncate">{row.category}</span>
+                  <span className="shrink-0 tabular-nums">{row.difference > 0 ? "+" : ""}{formatVariance(row.difference)} · {row.percent === null ? "N/A" : row.percent.toFixed(1) + "%"}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       <ToggleRow label="Show legend" checked={p.showLegend} onChange={(showLegend) => setProps({ showLegend })} />
       <ToggleRow label="Show values" checked={p.showValues} onChange={(showValues) => setProps({ showValues })} />
       <ToggleRow label="Show grid" checked={p.showGrid} onChange={(showGrid) => setProps({ showGrid })} />

@@ -172,6 +172,9 @@ export const presentationRepository: PresentationRepository = {
       id: newId,
       title: `${source.title} (copy)`,
       status: "Draft",
+      // A duplicate is a new private draft, not a participant in the original live room.
+      collaboration: undefined,
+      rehearsals: [],
       createdAt: stamp,
       updatedAt: stamp,
       slides: cloneSlidesForPresentation(source.slides, newId, uid, stamp),

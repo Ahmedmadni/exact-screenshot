@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { queueCloudDelete } from "@/lib/cloud/delete-queue";
 import type { AssetRecord, BrandKit, Presentation, PresentationVersion, ReviewComment, ReviewDecision, SavedTemplate, Slide, ThemeRecord } from "@/lib/types";
 import { SEED_ASSETS, SEED_BRAND_KITS, SEED_PRESENTATIONS, SEED_THEMES } from "./seed";
+import { encodeBrowserDatabase, decodeBrowserDatabase } from "./storage-codec";
 
 const STORAGE_KEY = "aps.db.v1";
 
@@ -43,7 +44,7 @@ let warnedFull = false;
 
 function persist() {
   if (typeof window === "undefined") return;
-  const payload = JSON.stringify(db);
+  const payload = encodeBrowserDatabase(db);
   try {
     window.localStorage.setItem(STORAGE_KEY, payload);
     warnedFull = false;
@@ -66,7 +67,7 @@ function hydrate() {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (raw) {
-      const parsed = JSON.parse(raw) as Partial<Database>;
+      const parsed = decodeBrowserDatabase(raw) as Partial<Database>;
       db = {
         ...initial(),
         ...parsed,

@@ -17,6 +17,40 @@ export function duplicateSlide(s: Slide): Slide {
 }
 
 /**
+ * Share a single viewport observer across a rail, instead of allocating one for
+ * every thumbnail. Release it when the last thumbnail leaves the editor.
+ */
+const thumbCallbacks = new Map<Element, (visible: boolean) => void>();
+let thumbObserver: IntersectionObserver | null = null;
+
+function observeThumbnail(element: Element, onVisible: (visible: boolean) => void): () => void {
+  if (typeof IntersectionObserver === "undefined") {
+    onVisible(true);
+    return () => {};
+  }
+  if (!thumbObserver) {
+    thumbObserver = new IntersectionObserver(
+      entries => {
+        for (const entry of entries) {
+          thumbCallbacks.get(entry.target)?.(entry.isIntersecting);
+        }
+      },
+      { rootMargin: "300px 0px" },
+    );
+  }
+  thumbCallbacks.set(element, onVisible);
+  thumbObserver.observe(element);
+  return () => {
+    thumbObserver?.unobserve(element);
+    thumbCallbacks.delete(element);
+    if (thumbCallbacks.size === 0) {
+      thumbObserver?.disconnect();
+      thumbObserver = null;
+    }
+  };
+}
+
+/**
  * Hundreds of slide thumbnails can mount thousands of canvas/chart/image nodes.
  * Keep the frame visible, but render the expensive slide only near the viewport.
  * Active slides always render, even when outside the observed range.
@@ -34,16 +68,7 @@ function VisibleSlideThumb({
   useEffect(() => {
     const node = nodeRef.current;
     if (!node) return;
-    if (typeof IntersectionObserver === "undefined") {
-      setNearViewport(true);
-      return;
-    }
-    const observer = new IntersectionObserver(
-      ([entry]) => setNearViewport(Boolean(entry?.isIntersecting)),
-      { rootMargin: "300px 0px" },
-    );
-    observer.observe(node);
-    return () => observer.disconnect();
+    return observeThumbnail(node, setNearViewport);
   }, []);
   return (
     <div ref={nodeRef} className="aspect-video w-full" data-testid="rail-thumb-frame">

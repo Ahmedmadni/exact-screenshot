@@ -4,6 +4,7 @@ import { queueCloudDelete } from "@/lib/cloud/delete-queue";
 import type { AssetRecord, BrandKit, Presentation, PresentationVersion, ReviewComment, ReviewDecision, SavedTemplate, Slide, ThemeRecord } from "@/lib/types";
 import { SEED_ASSETS, SEED_BRAND_KITS, SEED_PRESENTATIONS, SEED_THEMES } from "./seed";
 import { encodeBrowserDatabase, decodeBrowserDatabase } from "./storage-codec";
+import { cloneSlidesForPresentation } from "./presentation-clone";
 
 const STORAGE_KEY = "aps.db.v1";
 
@@ -173,7 +174,7 @@ export const presentationRepository: PresentationRepository = {
       status: "Draft",
       createdAt: stamp,
       updatedAt: stamp,
-      slides: source.slides.map((s) => ({ ...s, id: uid(), presentationId: newId })),
+      slides: cloneSlidesForPresentation(source.slides, newId, uid, stamp),
     };
     mutate((d) => ({ ...d, presentations: [copy, ...d.presentations] }));
     return copy;

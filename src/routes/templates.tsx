@@ -298,7 +298,7 @@ function TemplateCard({ template, featured = false }: { template: TemplateFamily
         <div className="mt-5 flex items-center justify-between gap-3 border-t border-border pt-4">
           <div className="text-xs text-muted-foreground">{template.tone} · {template.lengthPreset}</div>
           <div className="flex gap-2">
-            <TemplatePreviewDialog template={template} previews={previews} />
+            <TemplatePreviewDialog template={template} previews={previews} onEditSample={editSample} />
             <Button variant="outline" size="sm" onClick={editSample}>
               <Copy className="size-3.5" /> Edit sample
             </Button>
@@ -315,9 +315,11 @@ function TemplateCard({ template, featured = false }: { template: TemplateFamily
 function TemplatePreviewDialog({
   template,
   previews,
+  onEditSample,
 }: {
   template: TemplateFamily;
   previews: ReturnType<typeof templatePreviewSlides>;
+  onEditSample: () => void;
 }) {
   const sceneLabels = ["Opening statement", "Evidence / proof", "Decision / next step"];
   return (
@@ -391,9 +393,10 @@ function TemplatePreviewDialog({
             </div>
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button variant="outline" onClick={onEditSample}><Copy className="size-4" /> Edit these slides now</Button>
             <Button asChild>
-              <Link to="/new" search={{ template: template.id }}>Use {template.name}</Link>
+              <Link to="/new" search={{ template: template.id }}>Create a new presentation</Link>
             </Button>
           </div>
         </div>

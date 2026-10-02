@@ -660,7 +660,7 @@ export function applyLayout(slide: Slide, layoutId: string): Slide {
   const free = slide.elements.filter((e) => !e.role || e.name === "Evidence Citation");
   const retainedData = originalData
     .filter((element) => !matchedData.has(element.id))
-    .map((element) => ({ ...element, role: undefined, name: `${element.name} (kept)` }) as SlideElement);
+    .map((element) => ({ ...element, role: "media" as const, name: `${element.name} (kept)` }) as SlideElement);
   const placedText = new Set(generated.flatMap((e) => (e.type === "text" ? [e.properties.text.trim()] : [])));
   const placedImages = new Set(generated.flatMap((e) => (e.type === "image" ? [e.properties.assetId ?? e.properties.src] : [])));
   const orphans = slide.elements

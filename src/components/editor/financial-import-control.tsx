@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   importedRowsToTable,
@@ -25,6 +25,9 @@ export function FinancialImportControl({
   const [seriesIndices, setSeriesIndices] = useState<number[]>([1, 2]);
   const [filename, setFilename] = useState("");
   const [loading, setLoading] = useState(false);
+  // A cancelled or superseded file read cannot replace a newer preview.
+  const requestVersion = useRef(0);
+  useEffect(() => () => { requestVersion.current += 1; }, []);
   const sheet = sheets[sheetIndex];
   const headers = sheet?.rows[0] ?? [];
   const width = headers.length;
@@ -41,6 +44,8 @@ export function FinancialImportControl({
   }, [sheetIndex, sheet]);
 
   const clear = () => {
+    requestVersion.current += 1;
+    setLoading(false);
     setSheets([]);
     setSheetIndex(0);
     setCategoryIndex(0);
@@ -50,16 +55,18 @@ export function FinancialImportControl({
 
   const chooseFile = async (file: File) => {
     clear();
+    const version = requestVersion.current;
     setLoading(true);
     try {
       const imported = await readFinancialWorkbook(file);
+      if (version !== requestVersion.current) return;
       setSheets(imported);
       setFilename(file.name);
       setSeriesIndices((imported[0]?.rows[0] ?? []).map((_, i) => i).filter(i => i !== 0).slice(0, 2));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not read this file.");
+      if (version === requestVersion.current) toast.error(error instanceof Error ? error.message : "Could not read this file.");
     } finally {
-      setLoading(false);
+      if (version === requestVersion.current) setLoading(false);
     }
   };
 
@@ -92,10 +99,11 @@ export function FinancialImportControl({
           }}
         />
       </label>
-      {sheet && (
+      {(sheet || loading) && (
         <div className="space-y-3" aria-label="Financial import preview">
-          <p className="break-all text-[11px] text-muted-foreground">{filename} · Local preview, not imported yet</p>
-          {sheets.length > 1 && (
+          {loading && <p className="text-xs text-muted-foreground">Reading workbook locally…</p>}
+          {sheet && <p className="break-all text-[11px] text-muted-foreground">{filename} · Local preview, not imported yet</p>}
+          {sheet && sheets.length > 1 && (
             <label className="block space-y-1 text-xs">
               <span>Worksheet</span>
               <select className="h-9 w-full rounded-md border border-input bg-background px-2" value={sheetIndex}
@@ -104,7 +112,7 @@ export function FinancialImportControl({
               </select>
             </label>
           )}
-          {mode === "chart" && (
+          {sheet && mode === "chart" && (
             <>
               <label className="block space-y-1 text-xs">
                 <span>Category / period column</span>
@@ -136,7 +144,7 @@ export function FinancialImportControl({
               </div>
             </>
           )}
-          <div className="overflow-x-auto rounded-md border border-border">
+          {sheet && <div className="overflow-x-auto rounded-md border border-border">
             <table className="w-full min-w-max text-[11px]">
               <thead><tr className="bg-muted">
                 {headers.map((heading, i) => <th key={i} className="px-2 py-1 text-start font-semibold">{heading || `Column ${i + 1}`}</th>)}
@@ -149,17 +157,17 @@ export function FinancialImportControl({
                 ))}
               </tbody>
             </table>
-          </div>
-          <p className="text-[11px] text-muted-foreground">
+          </div>}
+          {sheet && <p className="text-[11px] text-muted-foreground">
             Showing up to five rows · {Math.max(0, sheet.rows.length - 1)} data rows detected
-          </p>
+          </p>}
           {proposed && !proposed.ok && <p role="alert" className="text-xs text-destructive">{proposed.error}</p>}
           {proposed?.ok && <p className="text-xs text-green-700 dark:text-green-400">
             Validated {proposed.rows} {mode === "chart" ? "numeric data" : "table"} rows.
           </p>}
           <div className="grid grid-cols-2 gap-2">
             <Button variant="outline" size="sm" onClick={clear}>Cancel</Button>
-            <Button size="sm" onClick={apply} disabled={!proposed?.ok}>Apply import</Button>
+            <Button size="sm" onClick={apply} disabled={loading || !proposed?.ok}>Apply import</Button>
           </div>
         </div>
       )}

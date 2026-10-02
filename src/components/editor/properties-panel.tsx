@@ -142,7 +142,7 @@ function TemplateQuickEdit({ api, slide }: { api: EditorApi; slide: NonNullable<
                 <button type="button" className="text-[10px] text-muted-foreground hover:text-destructive"
                   aria-label={`Clear image for ${element.name}`}
                   onClick={() => api.updateElements([element.id], clearTemplateImage)}>Clear</button>
-              )
+              )}
             </div>
           </div>
         ))}

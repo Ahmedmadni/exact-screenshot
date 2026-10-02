@@ -47,6 +47,42 @@ const asset: AssetRecord = {
 };
 
 describe("design integrity", () => {
+  test("eight newly added template families expose valid editable layouts and previews", () => {
+    for (const id of ["construction-projects", "brand-storytelling", "training-workshop"]) {
+      const family = getTemplateFamily(id);
+      expect(family).toBeDefined();
+      if (!family) continue;
+      expect(family.previewLayouts).toHaveLength(3);
+      expect(family.previewLayouts.every(layout => getLayout(layout))).toBe(true);
+      const preview = templatePreviewSlides(family);
+      expect(preview).toHaveLength(3);
+      expect(preview.every(page => page.elements.length > 5)).toBe(true);
+      const created = editableTemplateSlides(family, "fresh-deck-id");
+      expect(created.every(page => page.elements.every(el => !el.locked && el.slideId === page.id))).toBe(true);
+    }
+  });
+
+  test("two separately replaced photographs survive layout changes without duplicate overlays", () => {
+    const source = slide();
+    source.layoutId = "editorial-image-duo";
+    source.elements = buildLayout(source.layoutId, contentFromSlide(source), source.id).map(el => {
+      if (el.type !== "image") return el;
+      const selected = el.name === "Lead project photo" ? "vault-lead" : "vault-detail";
+      return { ...el, properties: { ...el.properties, src: "", assetId: selected, treatment: "brand" as const } };
+    });
+    const original = source.elements.filter(el => el.type === "image");
+    expect(original).toHaveLength(2);
+    expect(applyLayout(source, "editorial-image-duo")).toBe(source);
+    const switched = applyLayout(source, "case-study-editorial");
+    const restored = applyLayout(switched, "editorial-image-duo");
+    const images = restored.elements.filter(el => el.type === "image");
+    const ids = images.filter(el => !!el.properties.assetId).map(el => el.properties.assetId);
+    expect(ids).toEqual(["vault-lead", "vault-detail"]);
+    expect(images.filter(el => el.properties.assetId === "vault-detail")).toHaveLength(1);
+    expect(images.every(el => el.properties.treatment === "brand")).toBe(true);
+  });
+
+
   test("new premium layouts mirror correctly for Arabic while remaining independently editable", () => {
     const source = slide();
     source.title = "التقرير التنفيذي للمجموعة";

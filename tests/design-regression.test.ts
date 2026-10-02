@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import JSZip from "jszip";
 import { createPresentationPptx } from "../src/lib/export/pptx";
+import { validatePresentationForExport, contentBeyondSlide, substantialTextOverlap } from "../src/lib/export/validate";
 import type { Presentation } from "../src/lib/types";
 import { applyVaultMedia, externalVisualSearchQuery } from "../src/lib/assets/auto-media";
 import { applyLayout, buildLayout, contentFromSlide } from "../src/lib/editor/layouts";
@@ -44,6 +45,38 @@ const asset: AssetRecord = {
 };
 
 describe("design integrity", () => {
+  test("export preflight catches clipped primary text and ignores intentional full-bleed photography", () => {
+    const source = slide();
+    source.layoutId = "cover-minimal";
+    const normal = buildLayout(source.layoutId, contentFromSlide(source), source.id);
+    const title = normal.find(el => el.role === "title");
+    expect(title?.type).toBe("text");
+    if (!title) return;
+    const clipped = { ...title, x: 1550, width: 300, name: "Clipped title" };
+    expect(contentBeyondSlide(clipped)).toBe(true);
+    const intentional = { ...clipped, type: "image", role: "media" };
+    expect(contentBeyondSlide(intentional as typeof title)).toBe(false);
+    const deck = { slides: [{ ...source, elements: [...normal, clipped] }] } as unknown as Presentation;
+    expect(validatePresentationForExport(deck).some(issue => issue.message.includes("Clipped title") && issue.message.includes("boundary"))).toBe(true);
+    expect(validatePresentationForExport({ slides: [{ ...source, elements: normal }] } as unknown as Presentation)
+      .some(issue => issue.message.includes("boundary"))).toBe(false);
+  });
+
+  test("preflight detects substantial independent text overlap but ignores decorations", () => {
+    const source = slide();
+    const elements = buildLayout("cover-minimal", contentFromSlide(source), source.id);
+    const title = elements.find(el => el.role === "title");
+    expect(title?.type).toBe("text");
+    if (!title || title.type !== "text") return;
+    const duplicate = {
+      ...title, id: "collision", name: "Duplicate heading", role: "subtitle" as const,
+    };
+    expect(substantialTextOverlap(title, duplicate)).toBe(true);
+    expect(substantialTextOverlap(title, { ...duplicate, role: "decor" })).toBe(false);
+    expect(substantialTextOverlap(title, { ...duplicate, x: 1400 })).toBe(false);
+  });
+
+
   test("editable PPTX package contains the financial waterfall and Arabic text", async () => {
     const financial = slide();
     financial.layoutId = "financial-variance-bridge";

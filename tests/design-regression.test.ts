@@ -47,6 +47,26 @@ const asset: AssetRecord = {
 };
 
 describe("design integrity", () => {
+  test("new premium layouts mirror correctly for Arabic while remaining independently editable", () => {
+    const source = slide();
+    source.title = "التقرير التنفيذي للمجموعة";
+    source.keyMessage = "النتائج والفرص التشغيلية والاستراتيجية";
+    for (const id of ["cover-product-launch", "cover-editorial-gallery", "case-study-editorial", "board-dashboard-tiles"]) {
+      const content = contentFromSlide(source);
+      const leftToRight = buildLayout(id, content, source.id, false);
+      const rightToLeft = buildLayout(id, content, source.id, true);
+      expect(rightToLeft).toHaveLength(leftToRight.length);
+      leftToRight.forEach((element, index) => {
+        const other = rightToLeft[index]!;
+        expect(other.type).toBe(element.type);
+        expect(other.x).toBe(1600 - element.x - element.width);
+        expect(other.width).toBe(element.width);
+        expect(other.locked).toBe(false);
+      });
+    }
+  });
+
+
   test("new premium families have valid fully editable preview compositions", () => {
     const ids = ["annual-report-premium", "product-launch-premium", "creative-portfolio-premium", "healthcare-executive", "operations-command"];
     for (const id of ids) {

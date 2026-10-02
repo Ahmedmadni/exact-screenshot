@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 test("an editable template opens in the real desktop editor, saves text, and survives reload", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "chromium-desktop", "desktop workflow");
   await page.goto("/templates");
+  await expect(page.getByTestId("templates-hydrated")).toBeAttached();
   // Keyword search returns the editable Brand Story template without relying on card order.
   await page.getByPlaceholder(/Search:/).fill("Brand Story");
   await expect(page.locator("article")).toHaveCount(1);
@@ -20,6 +21,7 @@ test("an editable template opens in the real desktop editor, saves text, and sur
   await expect(page.getByRole("button", { name: /Save as template/i })).toBeVisible();
   await page.getByRole("button", { name: /Save as template/i }).click();
   await page.goto("/templates");
+  await expect(page.getByTestId("templates-hydrated")).toBeAttached();
   await expect(page.getByText("My Templates")).toBeVisible();
   await expect(page.getByRole("button", { name: "Edit copy" }).first()).toBeVisible();
 });
@@ -27,6 +29,7 @@ test("an editable template opens in the real desktop editor, saves text, and sur
 test("mobile editor can change template text, change tabs, and export PowerPoint", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "chromium-mobile", "mobile workflow");
   await page.goto("/templates");
+  await expect(page.getByTestId("templates-hydrated")).toBeAttached();
   await page.getByPlaceholder(/Search:/).fill("Training · Masterclass");
   await expect(page.locator("article")).toHaveCount(1);
   const card = page.locator("article").filter({

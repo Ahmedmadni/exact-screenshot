@@ -1,5 +1,6 @@
 import type { ChartElement, DiagramElement, TableElement } from "@/lib/editor/model";
 import { resolveColor, resolveFont, type SlideTheme } from "@/lib/editor/themes";
+import { buildWaterfall, waterfallColor } from "@/lib/editor/waterfall";
 
 const PALETTE_KEYS = ["accent", "primary", "secondary", "accentSoft"] as const;
 
@@ -24,6 +25,54 @@ export function ChartBody({ el, theme }: { el: ChartElement; theme: SlideTheme }
   const font = resolveFont("theme:body", theme);
   const axis = theme.colors.line;
   const text = theme.colors.secondary;
+
+  if (p.chartType === "waterfall") {
+    const model = buildWaterfall(p.categories, p.series[0]?.values ?? []);
+    const plotLeft = 80;
+    const plotRight = width - 26;
+    const plotTop = p.label ? 78 : 45;
+    const plotBottom = height - 70;
+    const plotHeight = Math.max(20, plotBottom - plotTop);
+    const axisY = (value: number) =>
+      plotBottom - ((value - model.min) / Math.max(1, model.max - model.min)) * plotHeight;
+    const band = (plotRight - plotLeft) / Math.max(1, model.steps.length);
+    const columnWidth = Math.max(7, band * 0.54);
+    const valueLabel = (value: number) => Number(value.toFixed(2)).toLocaleString(undefined, { maximumFractionDigits: 2 });
+    if (!model.valid) {
+      return (
+        <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`}>
+          <text x={width / 2} y={height / 2} textAnchor="middle" fill={text} fontSize={20} fontFamily={font}>
+            Enter an opening balance and finite signed movements
+          </text>
+        </svg>
+      );
+    }
+    return (
+      <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="xMidYMid meet">
+        {p.label && <text x={plotLeft} y={30} fill={theme.colors.primary} fontFamily={font} fontSize={22} fontWeight={650}>{p.label}</text>}
+        {p.showGrid && [0, 0.25, 0.5, 0.75, 1].map(n => {
+          const y = plotTop + (plotBottom - plotTop) * n;
+          return <line key={n} x1={plotLeft} x2={plotRight} y1={y} y2={y} stroke={axis} strokeWidth={1} />;
+        })}
+        <line x1={plotLeft} x2={plotRight} y1={axisY(0)} y2={axisY(0)} stroke={theme.colors.secondary} strokeWidth={1.5} />
+        {model.steps.map((step, i) => {
+          const x = plotLeft + band * (i + 0.5);
+          const top = axisY(Math.max(step.start, step.end));
+          const bottom = axisY(Math.min(step.start, step.end));
+          const color = theme.colors[waterfallColor(step.kind)];
+          const center = top + (bottom - top) / 2;
+          const previous = model.steps[i - 1];
+          const priorLevel = previous && previous.kind !== "closing" ? previous.end : 0;
+          return <g key={`${i}-${step.label}`}>
+            {i > 0 && step.kind !== "closing" && <line x1={x - band * 0.5} x2={x - columnWidth / 2} y1={axisY(priorLevel)} y2={axisY(priorLevel)} stroke={axis} strokeDasharray="5 4" strokeWidth={1.5} />}
+            <rect x={x - columnWidth / 2} y={top} width={columnWidth} height={Math.max(2, bottom - top)} fill={color} rx={4} />
+            {p.showValues && <text x={x} y={Math.max(plotTop + 14, top - 8)} textAnchor="middle" fontSize={14} fontFamily={font} fill={theme.colors.primary}>{valueLabel(step.value)}</text>}
+            <text x={x} y={height - 27} textAnchor="middle" fontSize={Math.min(17, Math.max(11, band / 9))} fontFamily={font} fill={text}>{step.label.length > 14 ? step.label.slice(0, 12) + "…" : step.label}</text>
+          </g>;
+        })}
+      </svg>
+    );
+  }
 
   if (p.chartType === "pie" || p.chartType === "doughnut") {
     const vals = series[0]?.values.slice(0, cats.length).map((v) => Math.max(0, v)) ?? [];

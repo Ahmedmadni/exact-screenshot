@@ -3,9 +3,9 @@ import { expect, test } from "@playwright/test";
 test("an editable template opens in the real desktop editor, saves text, and survives reload", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "chromium-desktop", "desktop workflow");
   await page.goto("/templates");
-  await page.getByPlaceholder(/Search:/).fill("brand storytelling");
   // Keyword search returns the editable Brand Story template without relying on card order.
   await page.getByPlaceholder(/Search:/).fill("Brand Story");
+  await expect(page.locator("article")).toHaveCount(1);
   const card = page.locator("article").filter({
     has: page.getByRole("heading", { name: "Brand Story · Editorial" }),
   }).first();
@@ -28,6 +28,7 @@ test("mobile editor can change template text, change tabs, and export PowerPoint
   test.skip(testInfo.project.name !== "chromium-mobile", "mobile workflow");
   await page.goto("/templates");
   await page.getByPlaceholder(/Search:/).fill("Training · Masterclass");
+  await expect(page.locator("article")).toHaveCount(1);
   const card = page.locator("article").filter({
     has: page.getByRole("heading", { name: "Training · Masterclass" }),
   }).first();

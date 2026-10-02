@@ -5,6 +5,7 @@ import { SLIDE_H, SLIDE_W, type SlideElement } from "@/lib/editor/model";
 import { getTheme, resolveColor, resolveFont, type SlideTheme } from "@/lib/editor/themes";
 import { getIcon } from "@/lib/editor/icons";
 import { resolveImageSource } from "@/lib/assets/resolve";
+import { imageTreatmentOverlay } from "@/lib/editor/image-treatment";
 import { ChartBody, DiagramBody, TableBody } from "./data-elements";
 
 /** Visual body of an element, positioned by the caller. Pure: same output for canvas, preview and thumbnails. */
@@ -61,7 +62,13 @@ export function ElementBody({ el, theme }: { el: SlideElement; theme: SlideTheme
             <ImageIcon style={{ width: 56, height: 56, opacity: 0.6 }} />
           </div>
         );
-      return <img src={src} alt={el.name} draggable={false} style={{ width: "100%", height: "100%", objectFit: p.fit, borderRadius: p.radius, display: "block" }} />;
+      const treatment = imageTreatmentOverlay(p.treatment);
+      return (
+        <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", borderRadius: p.radius }}>
+          <img src={src} alt={el.name} draggable={false} style={{ width: "100%", height: "100%", objectFit: p.fit, display: "block" }} />
+          {treatment && <div aria-hidden="true" style={{ position: "absolute", inset: 0, pointerEvents: "none", backgroundColor: resolveColor(treatment.color, theme), opacity: treatment.opacity }} />}
+        </div>
+      );
     }
     case "chart":
       return <ChartBody el={el} theme={theme} />;

@@ -39,7 +39,7 @@ function LayersSection({ api, slide }: { api: EditorApi; slide: NonNullable<Edit
         .join(" ").toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()));
   return (
     <Section title={`Layers · ${slide.elements.length}`}>
-      <p className="text-[11px] text-muted-foreground">Select any object, including images covered by shapes. Rename, hide or lock individual layers without flattening your template.</p>
+      <p className="text-[11px] text-muted-foreground">Select images behind shapes, rename, hide or lock layers. Shift-click or Ctrl-click to select multiple objects.</p>
       <div className="flex gap-1.5">
         <Input className="h-8 min-w-0 flex-1 text-xs" aria-label="Search slide layers" placeholder="Search layers…" value={search} onChange={event => setSearch(event.target.value)} />
         <select className="h-8 w-24 rounded-md border border-input bg-background px-1 text-xs" aria-label="Filter layer types" value={type} onChange={event => setType(event.target.value)}>
@@ -64,7 +64,13 @@ function LayersSection({ api, slide }: { api: EditorApi; slide: NonNullable<Edit
               className="min-w-0 flex-1 truncate text-start"
               title={element.name}
               aria-label={`Select ${element.name}`}
-              onClick={() => api.setSelected([element.id])}
+              onClick={event => {
+                if (event.shiftKey || event.ctrlKey || event.metaKey) {
+                  api.setSelected(api.selected.includes(element.id)
+                    ? api.selected.filter(id => id !== element.id)
+                    : [...api.selected, element.id]);
+                } else api.setSelected([element.id]);
+              }
             >
               <span className="me-1 text-[10px] uppercase text-muted-foreground">{element.type}</span>
               {element.name}

@@ -184,6 +184,7 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
   const [zoom, setZoom] = useState<Zoom>(1);
   const zoomNum = zoom === "fill" ? 1 : zoom;
   const [previewing, setPreviewing] = useState(false);
+  const [mobileTab, setMobileTab] = useState<"slides" | "content" | "canvas">("content");
   const [aiBusy, setAiBusy] = useState<SlideRewriteAction | null>(null);
   const [notesBusy, setNotesBusy] = useState(false);
   const [exporting, setExporting] = useState<"pptx" | "pdf" | null>(null);
@@ -459,14 +460,65 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
 
   return (
     <div className="flex h-screen flex-col bg-background">
-      {/* Mobile / small screens: preview-only. */}
-      <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4 lg:hidden">
-        <div className="flex items-center justify-between">
-          <Link to="/presentations/$presentationId" params={{ presentationId: p.id }} className="inline-flex items-center gap-1 text-sm text-muted-foreground"><ArrowLeft className="size-4" /> Back</Link>
-          <Button size="sm" onClick={() => setPreviewing(true)}><Play className="size-4" /> Present</Button>
+      {/* Compact editor: the same persisted elements and inspector as desktop. */}
+      <div className="flex min-h-0 flex-1 flex-col lg:hidden">
+        <div className="flex shrink-0 items-center gap-2 border-b border-border bg-card px-3 py-2">
+          <Button asChild variant="ghost" size="icon" aria-label="Back to presentation">
+            <Link to="/presentations/$presentationId" params={{ presentationId: p.id }}>
+              <ArrowLeft className="size-4 rtl:rotate-180" />
+            </Link>
+          </Button>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold">{p.title}</p>
+            <SaveIndicator state={api.save} />
+          </div>
+          <Button variant="ghost" size="icon" aria-label="Undo" disabled={!api.canUndo} onClick={api.undo}><Undo2 className="size-4" /></Button>
+          <Button variant="ghost" size="icon" aria-label="Redo" disabled={!api.canRedo} onClick={api.redo}><Redo2 className="size-4" /></Button>
+          <Button variant="outline" size="sm" onClick={() => {
+            const deck: Presentation = { ...p, slides: api.snapshot(), themeId: api.themeId };
+            savedTemplateRepository.saveFromPresentation(deck, `${p.title} · Custom`);
+            toast.success("Saved to My Templates");
+          }}>Save template</Button>
         </div>
-        <p className="rounded-md border border-border bg-card p-3 text-sm text-muted-foreground">The visual editor works best on a larger screen. You can review and present your slides here.</p>
-        {api.slides.map((s) => <div key={s.id} className="overflow-hidden rounded-md border border-border"><SlideThumb slide={s} themeId={api.themeId} themeOverrides={p.themeOverrides} /></div>)}
+        <div className="grid shrink-0 grid-cols-3 gap-1 border-b border-border bg-card p-2" role="tablist" aria-label="Mobile presentation editor">
+          {([
+            ["slides", "Slides"],
+            ["content", "Edit content"],
+            ["canvas", "Canvas"],
+          ] as const).map(([id, label]) => (
+            <Button key={id} type="button" role="tab" aria-selected={mobileTab === id}
+              size="sm" variant={mobileTab === id ? "secondary" : "ghost"}
+              onClick={() => setMobileTab(id)}>{label}</Button>
+          ))}
+        </div>
+        <div className="min-h-0 flex-1">
+          {mobileTab === "slides" && (
+            <div className="flex h-full min-h-0 [&>aside]:!w-full">
+              <SlideRail api={api} themeId={api.themeId} themeOverrides={p.themeOverrides}
+                presentationId={p.id} collaborators={participants} />
+            </div>
+          )}
+          {mobileTab === "content" && (
+            <div className="flex h-full min-h-0 [&>aside]:!w-full [&>aside]:!border-s-0">
+              <PropertiesPanel api={api} theme={theme} onTheme={api.setTheme} />
+            </div>
+          )}
+          {mobileTab === "canvas" && (
+            <div className="flex h-full min-h-0">
+              <EditorCanvas api={api} theme={theme} zoom={1}
+                collaborators={participants} onTextEditingChange={setLiveTextEdit} />
+            </div>
+          )}
+        </div>
+        <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border bg-card px-3 py-2">
+          <span className="truncate text-[11px] text-muted-foreground">{api.active?.title ?? "Choose a slide"}</span>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setPreviewing(true)}><Play className="size-3.5" /> Preview</Button>
+            <Button size="sm" disabled={!!exporting} onClick={() => void exportDeck("pptx")}>
+              <Download className="size-3.5" /> PPTX
+            </Button>
+          </div>
+        </div>
       </div>
 
       <header className="hidden h-14 shrink-0 items-center gap-2 border-b border-border bg-card px-3 lg:flex">

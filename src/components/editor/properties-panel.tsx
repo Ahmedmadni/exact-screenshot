@@ -412,6 +412,7 @@ function ChartSection({ p, theme, setProps }: { p: ChartProps; theme: SlideTheme
             <SelectItem value="area">Area</SelectItem>
             <SelectItem value="pie">Pie</SelectItem>
             <SelectItem value="doughnut">Doughnut</SelectItem>
+            <SelectItem value="waterfall">Waterfall · running balance</SelectItem>
           </SelectContent>
         </Select>
         <Button size="sm" variant="outline" className="h-8 px-2 text-xs" onClick={() => setProps({ chartType: recommendChartType(p) })}>Recommend</Button>
@@ -423,7 +424,7 @@ function ChartSection({ p, theme, setProps }: { p: ChartProps; theme: SlideTheme
           onCommit={(value) => setProps(textToChart(value, p))}
           rows={7}
         />
-        <p className="text-[11px] text-muted-foreground">Paste from Excel or use tab/comma-separated data.</p>
+        <p className="text-[11px] text-muted-foreground">{p.chartType === "waterfall" ? "First row = opening balance; each subsequent row = signed movement (+ or −). Closing is computed automatically." : "Paste from Excel or use tab/comma-separated data."}</p>
       </div>
       <ToggleRow label="Show legend" checked={p.showLegend} onChange={(showLegend) => setProps({ showLegend })} />
       <ToggleRow label="Show values" checked={p.showValues} onChange={(showValues) => setProps({ showValues })} />

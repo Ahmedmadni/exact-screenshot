@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { mkdir, writeFile } from "node:fs/promises";
 
 test("100-slide deck keeps only nearby rail previews mounted while scrolling", async ({ page }, info) => {
   test.skip(info.project.name !== "chromium-desktop", "desktop large-deck performance");
@@ -89,5 +90,7 @@ test("100-slide deck keeps only nearby rail previews mounted while scrolling", a
     body: Buffer.from(JSON.stringify(metrics, null, 2)),
     contentType: "application/json",
   });
+  await mkdir("test-results", { recursive: true });
+  await writeFile("test-results/large-deck-benchmark.json", JSON.stringify(metrics, null, 2) + "\\n");
   console.log("LARGE_DECK_PERFORMANCE " + JSON.stringify(metrics));
 });

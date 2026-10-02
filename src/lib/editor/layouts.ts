@@ -650,7 +650,14 @@ export function applyLayout(slide: Slide, layoutId: string): Slide {
     (e) => e.role && (e.type === "chart" || e.type === "table" || e.type === "diagram"),
   );
   const matchedData = new Set<string>();
+  const previousImage = slide.elements.find((item) => item.type === "image" && item.role === "media");
   const generated = buildLayout(layoutId, content, slide.id, slideIsRtl(slide)).map((element) => {
+    if (element.type === "image" && element.role === "media" && previousImage?.type === "image") {
+      return {
+        ...element,
+        properties: { ...element.properties, treatment: previousImage.properties.treatment, crop: previousImage.properties.crop },
+      } as SlideElement;
+    }
     if (element.type !== "chart" && element.type !== "table" && element.type !== "diagram") return element;
     const existing = originalData.find((item) => item.type === element.type && !matchedData.has(item.id));
     if (!existing || existing.type !== element.type) return element;

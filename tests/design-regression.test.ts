@@ -7,6 +7,7 @@ import type { Presentation } from "../src/lib/types";
 import { applyVaultMedia, externalVisualSearchQuery } from "../src/lib/assets/auto-media";
 import { applyLayout, buildLayout, contentFromSlide } from "../src/lib/editor/layouts";
 import { imageTreatmentOverlay } from "../src/lib/editor/image-treatment";
+import { imageCropControls, imageCropCss, imageCropFromControls, imageCropPptx, normalizeImageCrop } from "../src/lib/editor/image-crop";
 import { getLayout, LAYOUTS } from "../src/lib/editor/layouts";
 import { getTemplateFamily, templatePreviewSlides, TEMPLATE_FAMILIES } from "../src/lib/templates";
 import { editableTemplateDeckInput, editableTemplateSlides } from "../src/lib/template-starter";
@@ -48,6 +49,65 @@ const asset: AssetRecord = {
 };
 
 describe("design integrity", () => {
+  test("image zoom and pan normalization is finite clamped and reversible", () => {
+    const crop = imageCropFromControls(2, 75, 25);
+    expect(crop).toEqual({ x: 0.375, y: 0.125, width: 0.5, height: 0.5 });
+    expect(imageCropControls(crop)).toEqual({ zoom: 2, horizontal: 75, vertical: 25 });
+    expect(imageCropControls()).toEqual({ zoom: 1, horizontal: 50, vertical: 50 });
+    expect(normalizeImageCrop({ x: 5, y: -1, width: 0, height: Infinity })).toEqual({
+      x: 0.75, y: 0, width: 0.25, height: 1,
+    });
+    expect(imageCropFromControls(Number.NaN, Infinity, -100)).toEqual({
+      x: 0, y: 0, width: 1, height: 1,
+    });
+    expect(imageCropCss(crop)).toMatchObject({
+      width: "200%", height: "200%", left: "-75%", top: "-25%",
+    });
+    expect(imageCropPptx(crop, 5, 4)).toEqual({
+      type: "crop", w: 10, h: 8, x: 3.75, y: 1,
+    });
+  });
+
+  test("photo crop survives editorial layout changes and keeps original image bytes", () => {
+    const source = slide();
+    source.layoutId = "cover-product-launch";
+    const crop = imageCropFromControls(2.5, 65, 35);
+    const elements = buildLayout(source.layoutId, contentFromSlide(source), source.id);
+    source.elements = elements.map(el => el.type === "image"
+      ? { ...el, properties: { ...el.properties, src: "data:image/png;base64,AAAA", crop, treatment: "brand" as const } }
+      : el);
+    const next = applyLayout(source, "case-study-editorial");
+    const photo = next.elements.find(el => el.type === "image");
+    expect(photo?.type).toBe("image");
+    if (photo?.type === "image") {
+      expect(photo.properties.crop).toEqual(crop);
+      expect(photo.properties.treatment).toBe("brand");
+      expect(photo.properties.src).toBe("data:image/png;base64,AAAA");
+    }
+    const restored = applyLayout(next, source.layoutId);
+    const restoredPhoto = restored.elements.find(el => el.type === "image");
+    if (restoredPhoto?.type === "image") expect(restoredPhoto.properties.crop).toEqual(crop);
+  });
+
+  test("PPTX keeps panned image as a native picture and stores editable crop XML", async () => {
+    const source = slide();
+    source.layoutId = "cover-product-launch";
+    const png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO9bWwsAAAAASUVORK5CYII=";
+    source.elements = buildLayout(source.layoutId, contentFromSlide(source), source.id)
+      .map(el => el.type === "image" ? { ...el, properties: {
+        ...el.properties, src: png, crop: imageCropFromControls(2, 70, 30),
+      } } : el);
+    const pptx = await createPresentationPptx({
+      title: "Image cropping test", themeId: "executive-light", slides: [source],
+    } as unknown as Presentation);
+    const zip = await JSZip.loadAsync(await pptx.write({ outputType: "nodebuffer" }));
+    const xml = await zip.file("ppt/slides/slide1.xml")?.async("string");
+    expect(xml).toContain("<p:pic>");
+    expect(xml).toContain("<a:srcRect");
+    expect(zip.file(/ppt\\/media\\/image/).length).toBeGreaterThan(0);
+  });
+
+
   test("template quick edits are immutable and persist independent text changes", () => {
     const family = getTemplateFamily("brand-storytelling")!;
     const first = editableTemplateSlides(family, "copy-one");

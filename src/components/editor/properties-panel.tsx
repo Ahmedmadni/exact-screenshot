@@ -92,7 +92,7 @@ function LayersSection({ api, slide }: { api: EditorApi; slide: NonNullable<Edit
 /** Directly edit a template's meaningful content without selecting every canvas layer first. */
 function TemplateQuickEdit({ api, slide }: { api: EditorApi; slide: NonNullable<EditorApi["active"]> }) {
   const texts = slide.elements.filter((element): element is Extract<SlideElement, { type: "text" }> =>
-    element.type === "text" && element.role !== "decor" && !!element.properties.text.trim(),
+    element.type === "text" && element.role !== "decor",
   );
   const images = slide.elements.filter((element): element is Extract<SlideElement, { type: "image" }> =>
     element.type === "image",
@@ -126,7 +126,20 @@ function TemplateQuickEdit({ api, slide }: { api: EditorApi; slide: NonNullable<
               <div className="truncate text-xs font-medium">{element.name}</div>
               <div className="text-[10px] text-muted-foreground">{element.properties.src || element.properties.assetId ? "Image attached" : "Replace placeholder image"}</div>
             </div>
-            <Button variant="outline" size="sm" className="shrink-0 text-xs" onClick={() => api.setSelected([element.id])}>Replace image</Button>
+            <div className="flex shrink-0 gap-1">
+              <label className="inline-flex h-8 cursor-pointer items-center rounded-md border border-input bg-background px-2 text-xs hover:bg-muted">
+                Upload
+                <input type="file" accept="image/*" className="sr-only" onChange={async event => {
+                  const file = event.currentTarget.files?.[0];
+                  event.currentTarget.value = "";
+                  if (!file) return;
+                  const src = await readImage(file);
+                  if (src) api.updateElements([element.id], item =>
+                    item.type === "image" ? { ...item, properties: { ...item.properties, src, assetId: undefined } } : item);
+                }} />
+              </label>
+              <Button variant="outline" size="sm" className="text-xs" onClick={() => api.setSelected([element.id])}>More</Button>
+            </div>
           </div>
         ))}
       </div>

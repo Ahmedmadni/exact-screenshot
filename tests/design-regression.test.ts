@@ -38,6 +38,52 @@ const asset: AssetRecord = {
 };
 
 describe("design integrity", () => {
+  test("financial layouts keep all content editable and avoid invented financial values", () => {
+    const layouts = ["financial-actual-budget", "financial-variance-bridge", "financial-cash-flow"];
+    for (const id of layouts) {
+      expect(getLayout(id)?.intents).toContain("Financial");
+      const elements = buildLayout(id, contentFromSlide(slide()), slide().id);
+      expect(elements.some(e => e.type === "text" && e.role === "title")).toBe(true);
+      expect(elements.some(e => e.type === "text" && e.role === "subtitle")).toBe(true);
+      expect(elements.every(e => e.type !== "image")).toBe(true);
+    }
+    const budget = buildLayout("financial-actual-budget", contentFromSlide(slide()), slide().id);
+    const editable = budget.find(e => e.type === "chart");
+    expect(editable?.type).toBe("chart");
+    if (editable?.type === "chart") {
+      expect(editable.properties.series.map(s => s.name)).toEqual(["Actual", "Budget"]);
+      expect(editable.properties.series.every(s => s.values.every(v => v === 0))).toBe(true);
+    }
+  });
+
+  test("edited actual-versus-budget chart survives Magic Design", () => {
+    const source = slide();
+    source.elements = buildLayout("financial-actual-budget", contentFromSlide(source), source.id)
+      .map(e => e.type === "chart"
+        ? { ...e, properties: { ...e.properties, series: [
+            { name: "Actual", values: [101, 118, 127, 145] },
+            { name: "Budget", values: [110, 120, 135, 140] },
+          ] } }
+        : e);
+    const after = applyLayout(applyLayout(source, "financial-cash-flow"), "financial-actual-budget");
+    const charts = after.elements.filter(e => e.type === "chart");
+    expect(charts).toHaveLength(1);
+    if (charts[0]?.type === "chart") expect(charts[0].properties.series[0]?.values).toEqual([101, 118, 127, 145]);
+  });
+
+  test("finance template previews use their new distinct financial layouts", () => {
+    for (const id of ["financial-review", "cfo-performance", "feasibility-study", "capital-markets"]) {
+      const family = getTemplateFamily(id);
+      expect(family).toBeDefined();
+      if (!family) continue;
+      expect(family.previewLayouts.some(name => name.startsWith("financial-"))).toBe(true);
+      const previews = templatePreviewSlides(family);
+      expect(previews).toHaveLength(3);
+      expect(previews[1]?.layoutId).toBe(family.previewLayouts[1]);
+    }
+  });
+
+
   test("specialized covers preserve editable title and message roles", () => {
     const covers = [
       "cover-board-report", "cover-financial-ledger", "cover-investment-memorandum",

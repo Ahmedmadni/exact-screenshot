@@ -104,7 +104,7 @@ describe("design integrity", () => {
     const xml = await zip.file("ppt/slides/slide1.xml")?.async("string");
     expect(xml).toContain("<p:pic>");
     expect(xml).toContain("<a:srcRect");
-    expect(zip.file(/ppt\\/media\\/image/).length).toBeGreaterThan(0);
+    expect(Object.keys(zip.files).some(name => name.startsWith("ppt/media/image"))).toBe(true);
   });
 
 

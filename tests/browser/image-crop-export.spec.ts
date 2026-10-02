@@ -33,7 +33,7 @@ test("replace image, crop the native picture, reload, and download an editable P
     mimeType: "image/png",
     buffer: Buffer.from(dataUrl.split(",")[1]!, "base64"),
   });
-  await expect(page.getByText("Image attached").first()).toBeVisible();
+  await expect(page.getByText("Image attached").last()).toBeVisible();
   const picture = page.locator('img[alt="Gallery hero"]').first();
   await expect(picture).toHaveAttribute("src", /^data:image\/png;base64,/);
 

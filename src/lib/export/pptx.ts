@@ -8,6 +8,7 @@ import { getIcon } from "@/lib/editor/icons";
 import { safeExportFilename } from "./validate";
 import { resolveImageSource } from "@/lib/assets/resolve";
 import { imageTreatmentOverlay } from "@/lib/editor/image-treatment";
+import { renderedFinancialElements } from "@/lib/editor/variance";
 import { buildWaterfall, waterfallColor } from "@/lib/editor/waterfall";
 
 const PPT_W = 13.333333;
@@ -481,7 +482,7 @@ export async function exportPresentationToPptx(presentation: Presentation) {
     const background = resolved(slide.background ?? "theme:background", theme) ?? "FFFFFF";
     out.background = { color: background };
 
-    [...slide.elements]
+    [...renderedFinancialElements(slide)]
       .filter((el) => el.visible)
       .sort((a, b) => a.zIndex - b.zIndex)
       .forEach((el) => addElement(pptx, out, el, theme));

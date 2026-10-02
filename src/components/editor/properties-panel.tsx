@@ -26,7 +26,7 @@ import type { EditorApi } from "./use-editor";
 import { IconPicker } from "./icon-picker";
 import { readImage } from "./image-upload";
 import { withTemplateImage, withTemplateText, clearTemplateImage } from "@/lib/editor/template-edit";
-import { imageCropControls, imageCropFromControls } from "@/lib/editor/image-crop";
+import { imageCropControls, imageCropFocalPreset, imageCropFromControls } from "@/lib/editor/image-crop";
 import { AssetPicker } from "./asset-picker";
 
 /** Persistent layer explorer lets users select obscured template art and hidden image slots. */
@@ -484,6 +484,28 @@ export function PropertiesPanel({ api, theme, onTheme }: { api: EditorApi; theme
                   </div>
                 );
               })}
+              <div className="space-y-1.5">
+                <Label className="text-[11px] text-muted-foreground">Quick focal position</Label>
+                <div className="grid max-w-40 grid-cols-3 gap-1" role="group" aria-label="Photo focal positioning">
+                  {(["top", "center", "bottom"] as const).flatMap((vertical) =>
+                    (["left", "center", "right"] as const).map((horizontal) => {
+                      const position = imageCropControls(el.properties.crop);
+                      const expectedX = horizontal === "left" ? 0 : horizontal === "center" ? 50 : 100;
+                      const expectedY = vertical === "top" ? 0 : vertical === "center" ? 50 : 100;
+                      const selected = Math.abs(position.horizontal - expectedX) < 0.1 &&
+                        Math.abs(position.vertical - expectedY) < 0.1;
+                      return (
+                        <Button key={vertical + horizontal} type="button" size="icon"
+                          variant={selected ? "secondary" : "outline"} className="h-8 w-full"
+                          aria-label={`Focus ${vertical} ${horizontal}`}
+                          onClick={() => setProps({ crop: imageCropFocalPreset(el.properties.crop, horizontal, vertical) })}>
+                          <span aria-hidden="true" className={selected ? "size-2 rounded-full bg-primary" : "size-1.5 rounded-full bg-muted-foreground/70"} />
+                        </Button>
+                      );
+                    }),
+                  )}
+                </div>
+              </div>
               <p className="text-[10px] leading-relaxed text-muted-foreground">Move the subject within this frame without modifying the original photo. Also preserved in PowerPoint.</p>
             </div>
           )}

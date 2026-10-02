@@ -8,7 +8,8 @@ import { applyVaultMedia, externalVisualSearchQuery } from "../src/lib/assets/au
 import { applyLayout, buildLayout, contentFromSlide } from "../src/lib/editor/layouts";
 import { imageTreatmentOverlay } from "../src/lib/editor/image-treatment";
 import { getLayout, LAYOUTS } from "../src/lib/editor/layouts";
-import { getTemplateFamily, templatePreviewSlides } from "../src/lib/templates";
+import { getTemplateFamily, templatePreviewSlides, TEMPLATE_FAMILIES } from "../src/lib/templates";
+import { editableTemplateDeckInput, editableTemplateSlides } from "../src/lib/template-starter";
 import { rebuildGeneratedContent } from "../src/lib/editor/composer";
 import { buildWaterfall } from "../src/lib/editor/waterfall";
 import { analyzeBudgetVariance, analyzeChartBudget, renderedFinancialElements, varianceSummary } from "../src/lib/editor/variance";
@@ -46,6 +47,63 @@ const asset: AssetRecord = {
 };
 
 describe("design integrity", () => {
+  test("new premium families have valid fully editable preview compositions", () => {
+    const ids = ["annual-report-premium", "product-launch-premium", "creative-portfolio-premium", "healthcare-executive", "operations-command"];
+    for (const id of ids) {
+      const family = getTemplateFamily(id);
+      expect(family).toBeDefined();
+      if (!family) continue;
+      expect(family.previewLayouts).toHaveLength(3);
+      for (const layout of [...family.previewLayouts, ...Object.values(family.layoutMap)]) {
+        expect(getLayout(layout)).toBeDefined();
+      }
+      const preview = templatePreviewSlides(family);
+      expect(preview).toHaveLength(3);
+      expect(preview.every(item => item.elements.some(el => el.type === "text" && el.role === "title"))).toBe(true);
+      expect(preview.every(item => item.elements.every(el => el.visible && !el.locked))).toBe(true);
+      expect(preview.flatMap(item => item.elements).some(el => el.type === "shape")).toBe(true);
+    }
+    expect(new Set(TEMPLATE_FAMILIES.map(family => family.id)).size).toBe(TEMPLATE_FAMILIES.length);
+  });
+
+  test("editable template starter duplicates every slide and element without shared ids", () => {
+    const family = getTemplateFamily("creative-portfolio-premium")!;
+    const original = templatePreviewSlides(family);
+    const first = editableTemplateSlides(family, "my-custom-deck-one");
+    const second = editableTemplateSlides(family, "my-custom-deck-two");
+    const originalIds = new Set(original.flatMap(item => item.elements.map(el => el.id)));
+    const firstIds = new Set(first.flatMap(item => item.elements.map(el => el.id)));
+    const secondIds = new Set(second.flatMap(item => item.elements.map(el => el.id)));
+    expect(first).toHaveLength(original.length);
+    expect(first.every(item => item.presentationId === "my-custom-deck-one")).toBe(true);
+    expect(first.every(item => item.elements.every(el => el.slideId === item.id && !el.locked))).toBe(true);
+    expect(first.some(item => original.some(preview => preview.id === item.id))).toBe(false);
+    expect([...firstIds].some(id => originalIds.has(id) || secondIds.has(id))).toBe(false);
+    expect(firstIds.size).toBe(first.flatMap(item => item.elements).length);
+    const image = first.flatMap(item => item.elements).find(el => el.type === "image");
+    expect(image?.type).toBe("image");
+    if (image?.type === "image") {
+      image.properties.src = "data:image/png;base64,AA==";
+      const other = second.flatMap(item => item.elements).find(el => el.type === "image");
+      if (other?.type === "image") expect(other.properties.src).not.toBe(image.properties.src);
+    }
+    const title = first[0]?.elements.find(el => el.type === "text" && el.role === "title");
+    expect(title?.type).toBe("text");
+    if (title?.type === "text") title.properties.text = "A completely customized client presentation";
+    expect(original[0]?.elements.some(el => el.type === "text" && el.properties.text === "A completely customized client presentation")).toBe(false);
+  });
+
+  test("starter metadata creates a draft that can become a reusable saved template", () => {
+    const family = getTemplateFamily("annual-report-premium")!;
+    const input = editableTemplateDeckInput(family);
+    expect(input.status).toBe("Draft");
+    expect(input.themeId).toBe(family.themeId);
+    expect(input.slides).toHaveLength(3);
+    expect(input.slides.every(item => item.elements.length > 0)).toBe(true);
+    expect(input.slides.some(item => item.elements.some(el => el.type === "chart"))).toBe(true);
+  });
+
+
   test("quality panel links export geometry warnings to the correct slide", () => {
     const source = slide();
     const title = buildLayout("cover-minimal", contentFromSlide(source), source.id)

@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  AlertTriangle, ArrowLeft, BarChart3, ChevronLeft, ChevronRight, Circle, Download, Eye, FolderOpen, ImagePlus, Loader2, LocateFixed, LockKeyhole, Minus, MoveRight, Network, Play, Redo2, Shapes, Smile, Sparkles, Square, Table2, Triangle, Type, Undo2, Users, WandSparkles, X, ZoomIn, ZoomOut, RectangleHorizontal,
+  AlertTriangle, ArrowLeft, BookmarkPlus, BarChart3, ChevronLeft, ChevronRight, Circle, Download, Eye, FolderOpen, ImagePlus, Loader2, LocateFixed, LockKeyhole, Minus, MoveRight, Network, Play, Redo2, Shapes, Smile, Sparkles, Square, Table2, Triangle, Type, Undo2, Users, WandSparkles, X, ZoomIn, ZoomOut, RectangleHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -23,7 +23,7 @@ import { SmartMediaPanel } from "@/components/editor/smart-media-panel";
 import { readImage } from "@/components/editor/image-upload";
 import { SlideStage, SlideThumb, useFitScale } from "@/components/editor/slide-renderer";
 import { useEditor, type EditorApi } from "@/components/editor/use-editor";
-import { assetRepository, reviewDecisionRepository, usePresentation } from "@/lib/data/store";
+import { assetRepository, reviewDecisionRepository, savedTemplateRepository, usePresentation } from "@/lib/data/store";
 import { SHAPE_LABELS, TEXT_PRESETS, chartEl, cloneElement, diagramEl, iconEl, imageEl, instantiate, shapeEl, tableEl, textEl } from "@/lib/editor/elements";
 import { SLIDE_H, SLIDE_W, type DraftElement, type ShapeKind, type SlideElement } from "@/lib/editor/model";
 import { getTheme } from "@/lib/editor/themes";
@@ -639,6 +639,13 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
             <Link to="/presentations/$presentationId/presenter" params={{ presentationId: p.id }}><Play className="size-4" /> Presenter</Link>
           </Button>
           <Button size="sm" className="ms-2" onClick={() => setPreviewing(true)}><Play className="size-4" /> Preview</Button>
+          <Button size="sm" variant="outline" onClick={() => {
+            const editableDeck: Presentation = { ...p, slides: api.snapshot(), themeId: api.themeId };
+            savedTemplateRepository.saveFromPresentation(editableDeck, `${p.title} · Custom`);
+            toast.success("Your customized template is saved in My Templates.");
+          }}>
+            <BookmarkPlus className="size-4" /> Save as template
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button size="sm" variant="outline" disabled={!!exporting}>

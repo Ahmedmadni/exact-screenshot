@@ -51,6 +51,15 @@ test("replace image, crop the native picture, reload, and download an editable P
   await page.reload();
   await expect(page.locator('img[alt="Gallery hero"]').first()).toHaveAttribute("src", /^data:image\/png;base64,/);
 
+  // Copying a picture-heavy deck into My Templates must not duplicate its image bytes
+  // across presentation and template records in browser storage.
+  await page.getByRole("button", { name: "Save as template" }).click();
+  await expect.poll(() => page.evaluate(() =>
+    window.localStorage.getItem("aps.db.v1")?.includes("__meridian_media_pool_v1__") ?? false,
+  )).toBe(true);
+  await page.reload();
+  await expect(page.locator('img[alt="Gallery hero"]').first()).toHaveAttribute("src", /^data:image\/png;base64,/);
+
   const trigger = page.getByRole("button", { name: "Export", exact: true });
   await trigger.click();
   const downloadPromise = page.waitForEvent("download", { timeout: 30000 });

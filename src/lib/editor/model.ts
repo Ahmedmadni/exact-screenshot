@@ -89,7 +89,7 @@ export interface IconProps {
   strokeWidth: number;
 }
 
-export type ChartKind = "bar" | "column" | "line" | "area" | "pie" | "doughnut";
+export type ChartKind = "bar" | "column" | "line" | "area" | "pie" | "doughnut" | "waterfall";
 
 export interface ChartSeries {
   name: string;

@@ -258,6 +258,7 @@ export function EditorCanvas({
         api.setSelected(additive ? Array.from(new Set([...prior, ...hit])) : hit);
       },
       () => setMarquee(null),
+      () => { setMarquee(null); api.setSelected(prior); },
     );
   };
 
@@ -332,16 +333,21 @@ export function EditorCanvas({
                 {single?.id === el.id && !el.locked && editingId !== el.id && (
                   <>
                     {HANDLES.map((h) => (
-                      <span
+                      <button
+                        type="button"
+                        aria-label={`Resize ${el.name} from ${h}`}
+                        title={`Resize from ${h}`}
                         key={h}
-                        className="pointer-events-auto absolute size-2.5 rounded-sm border border-primary bg-background"
-                        style={{ left: `calc(${HANDLE_POS[h][0] * 100}% - 5px)`, top: `calc(${HANDLE_POS[h][1] * 100}% - 5px)`, cursor: CURSOR[h] }}
+                        className={`pointer-events-auto absolute size-8 -translate-x-1/2 -translate-y-1/2 touch-none rounded-md border-2 border-primary bg-background/95 shadow-sm lg:size-2.5 lg:rounded-sm lg:border ${h.length === 1 ? "hidden lg:block" : ""}`}
+                        style={{ left: `${HANDLE_POS[h][0] * 100}%`, top: `${HANDLE_POS[h][1] * 100}%`, cursor: CURSOR[h] }}
                         onPointerDown={(e) => startResize(e, el, h)}
                       />
                     ))}
-                    <span className="absolute left-1/2 top-[-28px] h-5 w-px bg-primary" />
-                    <span
-                      className="pointer-events-auto absolute left-1/2 top-[-34px] size-3 -translate-x-1/2 cursor-grab rounded-full border border-primary bg-background"
+                    <span className="absolute left-1/2 top-[-45px] h-10 w-px bg-primary lg:top-[-28px] lg:h-5" />
+                    <button
+                      type="button"
+                      aria-label={`Rotate ${el.name}`}
+                      className="pointer-events-auto absolute left-1/2 top-[-58px] size-8 -translate-x-1/2 touch-none cursor-grab rounded-full border-2 border-primary bg-background shadow-sm lg:top-[-34px] lg:size-3 lg:border"
                       onPointerDown={(e) => startRotate(e, el)}
                       title="Rotate (Shift snaps 15°)"
                     />

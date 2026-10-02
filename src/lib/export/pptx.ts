@@ -463,7 +463,8 @@ function addElement(pptx: any, pptxSlide: any, el: SlideElement, theme: SlideThe
   else addDiagram(pptx, pptxSlide, el, theme);
 }
 
-export async function exportPresentationToPptx(presentation: Presentation) {
+/** Build the editable deck in memory so export can be smoke-tested without downloading a file. */
+export async function createPresentationPptx(presentation: Presentation) {
   const module = await import("pptxgenjs");
   const PptxGenJS = module.default;
   const pptx: any = new PptxGenJS();
@@ -491,5 +492,10 @@ export async function exportPresentationToPptx(presentation: Presentation) {
     if (notes) out.addNotes(notes);
   });
 
+  return pptx;
+}
+
+export async function exportPresentationToPptx(presentation: Presentation) {
+  const pptx = await createPresentationPptx(presentation);
   await pptx.writeFile({ fileName: safeExportFilename(presentation.title, "pptx") });
 }

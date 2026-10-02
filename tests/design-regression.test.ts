@@ -82,7 +82,7 @@ describe("design integrity", () => {
       [["Period", "Actual"], ["Jan", "3"], ["Feb", "1e999"]],
     ];
     for (const rows of bad) expect(importedRowsToChart(rows).ok).toBe(false);
-    expect(importedRowsToChart([["Period", "Actual"], ["Jan", 25]]).toMatchObject({ ok: true });
+    expect(importedRowsToChart([["Period", "Actual"], ["Jan", 25]])).toMatchObject({ ok: true });
     expect(importedRowsToChart([["Period", "Actual"]]).ok).toBe(false);
   });
 

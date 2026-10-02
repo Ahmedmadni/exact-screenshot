@@ -2,6 +2,7 @@ import type { Presentation, Slide } from "@/lib/types";
 import type { SlideElement } from "@/lib/editor/model";
 import { getTheme, resolveColor } from "@/lib/editor/themes";
 import { slideBackground } from "@/components/editor/slide-renderer";
+import { validatePresentationForExport } from "@/lib/export/validate";
 
 export type QualitySeverity = "error" | "warning" | "info";
 
@@ -64,6 +65,17 @@ function issue(
 export function reviewPresentation(presentation: Presentation): QualityIssue[] {
   const issues: QualityIssue[] = [];
   const theme = getTheme(presentation.themeId, presentation.themeOverrides);
+  // Shared preflight findings now appear in the existing Quality dialog too.
+  for (const finding of validatePresentationForExport(presentation)) {
+    if (!/boundary|overlaps/i.test(finding.message)) continue;
+    const target = presentation.slides[finding.slideNumber - 1];
+    issues.push(issue(
+      "warning",
+      finding.message.includes("boundary") ? "element-outside-slide" : "text-overlap",
+      finding.message,
+      target,
+    ));
+  }
 
   const seenTitles = new Map<string, Slide>();
   presentation.slides.forEach((slide) => {

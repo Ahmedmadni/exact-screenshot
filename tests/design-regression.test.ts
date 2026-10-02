@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { applyVaultMedia, externalVisualSearchQuery } from "../src/lib/assets/auto-media";
 import { applyLayout, buildLayout, contentFromSlide } from "../src/lib/editor/layouts";
 import { imageTreatmentOverlay } from "../src/lib/editor/image-treatment";
+import { getLayout, LAYOUTS } from "../src/lib/editor/layouts";
+import { getTemplateFamily, templatePreviewSlides } from "../src/lib/templates";
 import { rebuildGeneratedContent } from "../src/lib/editor/composer";
 import type { AssetRecord, Slide } from "../src/lib/types";
 
@@ -36,6 +38,55 @@ const asset: AssetRecord = {
 };
 
 describe("design integrity", () => {
+  test("specialized covers preserve editable title and message roles", () => {
+    const covers = [
+      "cover-board-report", "cover-financial-ledger", "cover-investment-memorandum",
+      "cover-company-panorama", "cover-arabic-institutional", "cover-consulting-brief",
+    ];
+    for (const id of covers) {
+      const definition = getLayout(id);
+      expect(definition?.intents).toContain("Cover");
+      const elements = buildLayout(id, contentFromSlide(slide()), "cover-test");
+      expect(elements.some((element) => element.type === "text" && element.role === "title")).toBe(true);
+      expect(elements.some((element) => element.type === "text" && element.role === "subtitle")).toBe(true);
+      expect(elements.every((element) => element.id && element.zIndex >= 0)).toBe(true);
+    }
+    expect(new Set(LAYOUTS.map((layout) => layout.id)).size).toBe(LAYOUTS.length);
+  });
+
+  test("cover preview matches the generated template cover", () => {
+    for (const [id, cover] of [
+      ["boardroom-strategy", "cover-board-report"],
+      ["financial-review", "cover-financial-ledger"],
+      ["strategy-consulting", "cover-consulting-brief"],
+      ["luxury-investment", "cover-investment-memorandum"],
+      ["arabic-executive", "cover-arabic-institutional"],
+      ["company-profile", "cover-company-panorama"],
+    ]) {
+      const template = getTemplateFamily(id);
+      expect(template).toBeDefined();
+      expect(template?.layoutMap.Cover).toBe(cover);
+      expect(template?.previewLayouts[0]).toBe(cover);
+      if (template) {
+        const [preview] = templatePreviewSlides(template);
+        expect(preview?.layoutId).toBe(cover);
+      }
+    }
+  });
+
+  test("Arabic cover mirrors its composition without flattening text", () => {
+    const source = slide();
+    const content = contentFromSlide(source);
+    const regular = buildLayout("cover-arabic-institutional", content, source.id, false);
+    const arabic = buildLayout("cover-arabic-institutional", content, source.id, true);
+    const leftTitle = regular.find((element) => element.role === "title");
+    const rightTitle = arabic.find((element) => element.role === "title");
+    expect(leftTitle?.type).toBe("text");
+    expect(rightTitle?.type).toBe("text");
+    expect(rightTitle?.x).toBe(1600 - (leftTitle?.x ?? 0) - (leftTitle?.width ?? 0));
+  });
+
+
   test("image treatments are non-destructive and have bounded opacity", () => {
     expect(imageTreatmentOverlay("natural")).toBeNull();
     for (const treatment of ["cinematic", "soft", "brand"] as const) {

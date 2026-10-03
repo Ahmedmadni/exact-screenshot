@@ -132,6 +132,67 @@ describe("design integrity", () => {
   });
 
 
+  test("mixed 48-slide PPTX preserves native charts, editable tables and photos", async () => {
+    const png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO9bWwsAAAAASUVORK5CYII=";
+    const layouts = ["chart-story", "finance-table", "image-text"] as const;
+    const slides = Array.from({ length: 48 }, (_, index) => {
+      const current = slide();
+      current.id = "mixed-export-slide-" + index;
+      current.slideNumber = index + 1;
+      current.sortOrder = index;
+      current.layoutId = layouts[index % layouts.length];
+      current.title = "Mixed slide " + (index + 1);
+      current.elements = buildLayout(current.layoutId, contentFromSlide(current), current.id).map((element) => {
+        if (element.type === "chart") return {
+          ...element, properties: { ...element.properties, chartType: "bar" as const,
+            categories: ["Q1", "Q2", "Q3"], series: [{ name: "Actual", values: [120, 140, 160] }],
+          },
+        };
+        if (element.type === "table") return {
+          ...element, properties: { ...element.properties,
+            rows: [["Metric", "Current"], ["Revenue", String(index + 100)], ["Operating cost", "45"]],
+            headerRow: true,
+          },
+        };
+        if (element.type === "image") return {
+          ...element, properties: { ...element.properties, src: png, fit: "cover" as const,
+            crop: { x: 0.1, y: 0.1, width: 0.75, height: 0.75 },
+          },
+        };
+        return element;
+      });
+      return current;
+    });
+    const deck = { title: "Mixed media stress test", description: "Native editing coverage",
+      themeId: "executive-light", language: "English", slides } as unknown as Presentation;
+    const start = performance.now();
+    const generated = await createPresentationPptx(deck);
+    const data = await generated.write({ outputType: "nodebuffer" });
+    const elapsed = Math.round(performance.now() - start);
+    const zip = await JSZip.loadAsync(data);
+    const slideXmls = Object.keys(zip.files).filter(name =>
+      /^ppt\/slides\/slide[0-9]+\.xml$/.test(name));
+    const chartXmls = Object.keys(zip.files).filter(name =>
+      /^ppt\/charts\/chart[0-9]+\.xml$/.test(name));
+    expect(slideXmls).toHaveLength(48);
+    expect(chartXmls.length).toBeGreaterThanOrEqual(16);
+    expect(Object.keys(zip.files).some(name => name.startsWith("ppt/media/"))).toBe(true);
+    const xmlByType = await Promise.all([1, 2, 3, 46, 47, 48].map(index =>
+      zip.file("ppt/slides/slide" + index + ".xml")!.async("string")));
+    expect(xmlByType[0]).toContain("<c:chart");
+    expect(xmlByType[1]).toContain("<a:tbl");
+    expect(xmlByType[1]).toContain("Revenue");
+    expect(xmlByType[2]).toContain("<p:pic>");
+    expect(xmlByType[2]).toContain("<a:srcRect");
+    expect(xmlByType[3]).toContain("<c:chart");
+    expect(xmlByType[4]).toContain("<a:tbl");
+    expect(xmlByType[5]).toContain("<p:pic>");
+    console.log("MIXED_PPTX_BENCHMARK " + JSON.stringify({
+      slides: slideXmls.length, charts: chartXmls.length,
+      milliseconds: elapsed, bytes: data.byteLength,
+    }));
+  });
+
   test("100-slide media-heavy presentation round-trips with zero image or text loss", () => {
     const pool = Array.from({ length: 6 }, (_, i) =>
       "data:image/png;base64," + String(i).repeat(11_000));

@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Presentation, Slide } from "@/lib/types";
 import type { SlideElement } from "@/lib/editor/model";
 import { presentationRepository, versionRepository } from "@/lib/data/store";
-import { applyLiveElementChanges, recordCollaborationActivity, saveLivePresentation, type LiveElementChange } from "@/lib/collaboration";
+import { applyLiveElementChanges, recordCollaborationActivity, saveLivePresentation } from "@/lib/collaboration";
+import { elementOnlyChanges } from "@/lib/editor/element-diff";
 import { supabase } from "@/lib/cloud/supabase";
 import { materializeSlide } from "@/lib/editor/layouts";
 import { DEFAULT_THEME_ID } from "@/lib/editor/themes";
@@ -18,43 +19,6 @@ interface Doc {
 interface PendingSave {
   next: Doc;
   base: Doc;
-}
-
-function elementOnlyChanges(base: Doc, next: Doc): { slideId: string; changes: LiveElementChange[] } | null {
-  if (base.themeId !== next.themeId || base.slides.length !== next.slides.length) return null;
-
-  let changedSlideId = "";
-  const changes: LiveElementChange[] = [];
-
-  for (let i = 0; i < base.slides.length; i++) {
-    const beforeSlide = base.slides[i]!;
-    const afterSlide = next.slides[i]!;
-    if (beforeSlide.id !== afterSlide.id) return null;
-
-    const { elements: beforeElements, updatedAt: _beforeUpdated, ...beforeMeta } = beforeSlide;
-    const { elements: afterElements, updatedAt: _afterUpdated, ...afterMeta } = afterSlide;
-    if (JSON.stringify(beforeMeta) !== JSON.stringify(afterMeta)) return null;
-
-    const beforeMap = new Map(beforeElements.map((element) => [element.id, element]));
-    const afterMap = new Map(afterElements.map((element) => [element.id, element]));
-    const ids = new Set([...beforeMap.keys(), ...afterMap.keys()]);
-    const slideChanges: LiveElementChange[] = [];
-
-    for (const id of ids) {
-      const before = beforeMap.get(id);
-      const after = afterMap.get(id);
-      if (JSON.stringify(before ?? null) === JSON.stringify(after ?? null)) continue;
-      slideChanges.push({ id, before: before ?? null, after: after ?? null });
-    }
-
-    if (slideChanges.length) {
-      if (changedSlideId && changedSlideId !== beforeSlide.id) return null;
-      changedSlideId = beforeSlide.id;
-      changes.push(...slideChanges);
-    }
-  }
-
-  return changedSlideId && changes.length ? { slideId: changedSlideId, changes } : null;
 }
 
 /**

@@ -1,11 +1,16 @@
 import { toast } from "sonner";
 
 const MAX_DIM = 1600;
+const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
 
 /** Read an image file into a compressed data URL (browser-local storage has tight limits). */
 export async function readImage(file: File): Promise<string | null> {
   if (!file.type.startsWith("image/")) {
     toast.error("Please choose an image file.");
+    return null;
+  }
+  if (file.size > MAX_IMAGE_BYTES) {
+    toast.error("Choose an image smaller than 25 MB.");
     return null;
   }
   const url = URL.createObjectURL(file);

@@ -119,7 +119,7 @@ describe("design integrity", () => {
     const data = await exportDeck.write({ outputType: "nodebuffer" });
     const elapsedMs = Math.round(performance.now() - start);
     const zip = await JSZip.loadAsync(data);
-    const xmlNames = Object.keys(zip.files).filter(name => /^ppt\\/slides\\/slide\\d+\\.xml$/.test(name));
+    const xmlNames = Object.keys(zip.files).filter(name => name.startsWith("ppt/slides/slide") && name.endsWith(".xml"));
     expect(xmlNames).toHaveLength(100);
     const first = await zip.file("ppt/slides/slide1.xml")?.async("string");
     const last = await zip.file("ppt/slides/slide100.xml")?.async("string");

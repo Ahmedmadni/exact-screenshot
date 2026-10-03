@@ -193,6 +193,50 @@ describe("design integrity", () => {
     }));
   });
 
+  test("72-slide image and recurring icon export preserves editable pictures and SVG media", async () => {
+    const png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO9bWwsAAAAASUVORK5CYII=";
+    const slides = Array.from({ length: 72 }, (_, index) => {
+      const current = slide();
+      current.id = "photo-stress-" + index;
+      current.slideNumber = index + 1;
+      current.sortOrder = index;
+      current.layoutId = "image-text";
+      current.elements = buildLayout("image-text", contentFromSlide(current), current.id)
+        .map(element => element.type === "image"
+          ? { ...element, properties: { ...element.properties, src: png, fit: "cover" as const,
+              crop: { x: 0.15, y: 0.1, width: 0.75, height: 0.75 },
+            } }
+          : element);
+      const icon: Slide["elements"][number] = {
+        id: current.id + "-icon", slideId: current.id, type: "icon",
+        name: "Recurring star", x: 1420, y: 80, width: 64, height: 64, zIndex: 99,
+        rotation: 0, opacity: 1, locked: false, visible: true,
+        properties: { name: "star", color: "#F5B51B", strokeWidth: 2 },
+      };
+      current.elements.push(icon);
+      return current;
+    });
+    const deck = { title: "72 image-heavy slides", description: "Recurring images and icon SVGs",
+      themeId: "executive-light", language: "English", slides } as unknown as Presentation;
+    const start = performance.now();
+    const generated = await createPresentationPptx(deck);
+    const buffer = await generated.write({ outputType: "nodebuffer" });
+    const zip = await JSZip.loadAsync(buffer);
+    const xmlFiles = Object.keys(zip.files).filter(name =>
+      name.startsWith("ppt/slides/slide") && name.endsWith(".xml"));
+    expect(xmlFiles).toHaveLength(72);
+    const first = await zip.file("ppt/slides/slide1.xml")?.async("string");
+    const last = await zip.file("ppt/slides/slide72.xml")?.async("string");
+    expect(first).toContain("<p:pic>");
+    expect(first).toContain("<a:srcRect");
+    expect(last).toContain("<p:pic>");
+    expect(Object.keys(zip.files).some(name => name.startsWith("ppt/media/") && name.endsWith(".svg"))).toBe(true);
+    expect(Object.keys(zip.files).some(name => name.startsWith("ppt/media/") && name.endsWith(".png"))).toBe(true);
+    console.log("IMAGE_HEAVY_PPTX_BENCHMARK " + JSON.stringify({
+      slides: xmlFiles.length, elapsedMs: Math.round(performance.now() - start), bytes: buffer.byteLength,
+    }));
+  });
+
   test("100-slide media-heavy presentation round-trips with zero image or text loss", () => {
     const pool = Array.from({ length: 6 }, (_, i) =>
       "data:image/png;base64," + String(i).repeat(11_000));

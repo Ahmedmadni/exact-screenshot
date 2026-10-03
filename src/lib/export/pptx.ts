@@ -481,7 +481,12 @@ export async function createPresentationPptx(presentation: Presentation) {
 
   const theme = getTheme(presentation.themeId, presentation.themeOverrides);
 
-  presentation.slides.forEach((slide) => {
+  // Let pointer, progress and accessibility updates run between export batches.
+  // Heavy decks otherwise block the browser main thread for the entire build.
+  for (const [index, slide] of presentation.slides.entries()) {
+    if (index > 0 && index % 8 === 0) {
+      await new Promise<void>(resolve => setTimeout(resolve, 0));
+    }
     const out = pptx.addSlide();
     const background = resolved(slide.background ?? "theme:background", theme) ?? "FFFFFF";
     out.background = { color: background };
@@ -493,7 +498,7 @@ export async function createPresentationPptx(presentation: Presentation) {
 
     const notes = speakerNotesText(slide);
     if (notes) out.addNotes(notes);
-  });
+  }
 
   return pptx;
 }

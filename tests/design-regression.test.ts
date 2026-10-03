@@ -12,6 +12,7 @@ import { canStartEditorGesture, isActiveEditorPointer } from "../src/lib/editor/
 import { moveItemByStep } from "../src/lib/editor/slide-order";
 import { encodeBrowserDatabase, decodeBrowserDatabase } from "../src/lib/data/storage-codec";
 import { cloneSlidesForPresentation } from "../src/lib/data/presentation-clone";
+import { elementOnlyChanges } from "../src/lib/editor/element-diff";
 import { getLayout, LAYOUTS } from "../src/lib/editor/layouts";
 import { getTemplateFamily, templatePreviewSlides, TEMPLATE_FAMILIES } from "../src/lib/templates";
 import { editableTemplateDeckInput, editableTemplateSlides } from "../src/lib/template-starter";
@@ -53,6 +54,84 @@ const asset: AssetRecord = {
 };
 
 describe("design integrity", () => {
+  test("100-slide collaborative edit diff isolates a changed text and handles structural edits safely", () => {
+    const baseSlide = slide();
+    baseSlide.elements = buildLayout("title-content", contentFromSlide(baseSlide), baseSlide.id);
+    const slides = Array.from({ length: 100 }, (_, index) => {
+      const copy = structuredClone(baseSlide);
+      const id = "collab-slide-" + index;
+      copy.id = id;
+      copy.elements = copy.elements.map((element, position) => ({
+        ...element, id: id + "-element-" + position, slideId: id,
+      }));
+      return copy;
+    });
+    const base = { slides, themeId: "executive-light" };
+    const selected = slides[62]!;
+    const target = selected.elements.find(element => element.type === "text");
+    expect(target?.type).toBe("text");
+    if (!target || target.type !== "text") return;
+    const changed = { ...target, properties: { ...target.properties, text: "Updated collaboration text" } };
+    const updated = {
+      ...base,
+      slides: slides.map((item, i) => i === 62
+        ? { ...item, elements: item.elements.map(element => element.id === target.id ? changed : element), updatedAt: "2026-10-03" }
+        : item),
+    };
+    const delta = elementOnlyChanges(base, updated);
+    expect(delta?.slideId).toBe(selected.id);
+    expect(delta?.changes).toEqual([{ id: target.id, before: target, after: changed }]);
+    expect(elementOnlyChanges(base, base)).toBeNull();
+    const cosmeticClone = { ...base, slides: [...slides] };
+    expect(elementOnlyChanges(base, cosmeticClone)).toBeNull();
+    const secondSlide = { ...slides[80]!, elements: slides[80]!.elements.slice(1) };
+    const twoSlideChanges = {
+      ...updated,
+      slides: updated.slides.map((item, i) => i === 80 ? secondSlide : item),
+    };
+    expect(elementOnlyChanges(base, twoSlideChanges)).toBeNull();
+    expect(elementOnlyChanges(base, { ...updated, themeId: "new-theme" })).toBeNull();
+    expect(elementOnlyChanges(base, { ...base, slides: slides.slice(0, -1) })).toBeNull();
+    expect(elementOnlyChanges(base, {
+      ...base, slides: slides.map((item, i) => i === 62 ? { ...item, title: "Renamed" } : item),
+    })).toBeNull();
+    expect(base.slides[62]!.elements.find(element => element.id === target.id)).toBe(target);
+  });
+
+  test("100-slide editable PPTX export retains all slides and native text content", async () => {
+    const template = slide();
+    template.elements = buildLayout("title-content", contentFromSlide(template), template.id);
+    const sourceSlides = Array.from({ length: 100 }, (_, index) => {
+      const unique = structuredClone(template);
+      unique.id = "pptx-stress-" + index;
+      unique.title = "Presentation section " + (index + 1);
+      unique.elements = unique.elements.map((element, position) => {
+        if (element.type !== "text") return { ...element, id: unique.id + "-" + position, slideId: unique.id };
+        return { ...element, id: unique.id + "-" + position, slideId: unique.id,
+          properties: { ...element.properties, text: "Slide content " + (index + 1) } };
+      });
+      return unique;
+    });
+    const source = { title: "100 slide export check", description: "Large editable deck", themeId: "executive-light",
+      slides: sourceSlides } as unknown as Presentation;
+    const start = performance.now();
+    const exportDeck = await createPresentationPptx(source);
+    const data = await exportDeck.write({ outputType: "nodebuffer" });
+    const elapsedMs = Math.round(performance.now() - start);
+    const zip = await JSZip.loadAsync(data);
+    const xmlNames = Object.keys(zip.files).filter(name => /^ppt\\/slides\\/slide\\d+\\.xml$/.test(name));
+    expect(xmlNames).toHaveLength(100);
+    const first = await zip.file("ppt/slides/slide1.xml")?.async("string");
+    const last = await zip.file("ppt/slides/slide100.xml")?.async("string");
+    expect(first).toContain("Slide content 1");
+    expect(last).toContain("Slide content 100");
+    expect(zip.file("ppt/presentation.xml")).toBeDefined();
+    console.log("PPTX_100_SLIDE_BENCHMARK " + JSON.stringify({
+      slides: xmlNames.length, exportMs: elapsedMs, bytes: data.byteLength,
+    }));
+  });
+
+
   test("100-slide media-heavy presentation round-trips with zero image or text loss", () => {
     const pool = Array.from({ length: 6 }, (_, i) =>
       "data:image/png;base64," + String(i).repeat(11_000));

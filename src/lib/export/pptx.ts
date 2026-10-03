@@ -175,10 +175,16 @@ function addImage(pptx: any, pptxSlide: any, el: Extract<SlideElement, { type: "
   }
 }
 
-function addIcon(pptxSlide: any, el: Extract<SlideElement, { type: "icon" }>, theme: SlideTheme) {
+function addIcon(pptxSlide: any, el: Extract<SlideElement, { type: "icon" }>, theme: SlideTheme, cache: Map<string, string>) {
   const color = resolved(el.properties.color, theme) ?? "000000";
+  const key = JSON.stringify([el.properties.name, color, el.properties.strokeWidth]);
+  let svg = cache.get(key);
+  if (!svg) {
+    svg = iconData(el.properties.name, `#${color}`, el.properties.strokeWidth);
+    cache.set(key, svg);
+  }
   pptxSlide.addImage({
-    data: iconData(el.properties.name, `#${color}`, el.properties.strokeWidth),
+    data: svg,
     ...pos(el),
     rotate: Math.round(el.rotation),
     transparency: transparency(el.opacity),
@@ -455,12 +461,12 @@ function speakerNotesText(slide: Presentation["slides"][number]) {
   return sections.join("\n\n");
 }
 
-function addElement(pptx: any, pptxSlide: any, el: SlideElement, theme: SlideTheme) {
+function addElement(pptx: any, pptxSlide: any, el: SlideElement, theme: SlideTheme, iconCache: Map<string, string>) {
   if (!el.visible) return;
   if (el.type === "text") addText(pptxSlide, el, theme);
   else if (el.type === "shape") addShape(pptx, pptxSlide, el, theme);
   else if (el.type === "image") addImage(pptx, pptxSlide, el, theme);
-  else if (el.type === "icon") addIcon(pptxSlide, el, theme);
+  else if (el.type === "icon") addIcon(pptxSlide, el, theme, iconCache);
   else if (el.type === "chart") addChart(pptx, pptxSlide, el, theme);
   else if (el.type === "table") addTable(pptxSlide, el, theme);
   else addDiagram(pptx, pptxSlide, el, theme);
@@ -480,6 +486,8 @@ export async function createPresentationPptx(presentation: Presentation) {
   pptx.lang = presentation.language === "Arabic" ? "ar-SA" : "en-US";
 
   const theme = getTheme(presentation.themeId, presentation.themeOverrides);
+  // Cache identical SVG icons only for this export; no data persists between decks.
+  const iconCache = new Map<string, string>();
 
   // Let pointer, progress and accessibility updates run between export batches.
   // Heavy decks otherwise block the browser main thread for the entire build.
@@ -494,7 +502,7 @@ export async function createPresentationPptx(presentation: Presentation) {
     [...renderedFinancialElements(slide)]
       .filter((el) => el.visible)
       .sort((a, b) => a.zIndex - b.zIndex)
-      .forEach((el) => addElement(pptx, out, el, theme));
+      .forEach((el) => addElement(pptx, out, el, theme, iconCache));
 
     const notes = speakerNotesText(slide);
     if (notes) out.addNotes(notes);

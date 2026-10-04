@@ -59,6 +59,7 @@ describe("design integrity", () => {
   test("portable workspace backup round-trips every collection and repeated media", () => {
     const png = "data:image/png;base64," + "A".repeat(12000);
     const deck = slide();
+    deck.presentationId = "deck";
     deck.elements = buildLayout("image-text", contentFromSlide(deck), deck.id).map(el =>
       el.type === "image" ? { ...el, properties: { ...el.properties, src: png } } : el);
     const workspace: Database = {
@@ -85,6 +86,30 @@ describe("design integrity", () => {
     expect(parseWorkspaceBackup(JSON.stringify(valid))).toEqual(blank);
   });
 
+
+  test("restoring a backup rejects cross-presentation slides and cross-slide elements", () => {
+    const own = slide();
+    own.presentationId = "deck-1";
+    own.elements = buildLayout("title-content", contentFromSlide(own), own.id);
+    const workspace: Database = {
+      presentations: [{ id: "deck-1", title: "Example", slides: [own] } as unknown as Presentation],
+      themes: [], brandKits: [], savedTemplates: [], versions: [],
+      reviewComments: [], reviewDecisions: [], assets: [],
+    };
+    const snapshot = (data: Database) => JSON.stringify({
+      format: "meridian-workspace-backup", version: 1,
+      exportedAt: "2026-10-04T00:00:00Z", database: JSON.stringify(data),
+    });
+    expect(parseWorkspaceBackup(createWorkspaceBackup(workspace))).toEqual(workspace);
+    const misplaced = structuredClone(workspace);
+    misplaced.presentations[0]!.slides[0]!.presentationId = "different-deck";
+    expect(() => parseWorkspaceBackup(snapshot(misplaced))).toThrow(/another presentation/);
+
+    const foreignElement = structuredClone(workspace);
+    foreignElement.presentations[0]!.slides[0]!.elements[0]!.slideId = "unrelated-slide";
+    expect(() => parseWorkspaceBackup(snapshot(foreignElement))).toThrow(/another slide/);
+    expect(parseWorkspaceBackup(snapshot(workspace))).toEqual(workspace);
+  });
 
   test("100-slide collaborative edit diff isolates a changed text and handles structural edits safely", () => {
     const baseSlide = slide();

@@ -228,7 +228,9 @@ function CloudAccount() {
     setBusy("sync");
     try {
       const result = await syncDatabaseWithCloud(databaseSnapshot());
-      replaceDatabase(result.database);
+      if (!replaceDatabase(result.database)) {
+        throw new Error("Cloud sync downloaded changes, but browser storage could not save them. Existing local data was preserved.");
+      }
       toast.success(`Cloud sync complete · ${result.pulled} pulled · ${result.pushed} pushed`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Cloud sync failed.");

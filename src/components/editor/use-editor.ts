@@ -50,11 +50,15 @@ export function useEditor(p: Presentation, initialSlideId?: string) {
 
   const write = useCallback(
     async (d: Doc, base?: Doc) => {
-      presentationRepository.update(p.id, {
+      const stored = presentationRepository.update(p.id, {
         slides: d.slides.map((s, i) => ({ ...s, slideNumber: i + 1, sortOrder: i })),
         recommendedSlideCount: d.slides.length,
         themeId: d.themeId,
       });
+      if (!stored) {
+        setSave("error");
+        return;
+      }
 
       const collaboration = collaborationRef.current;
       if (!collaboration?.enabled || !["owner", "editor"].includes(collaboration.role)) {

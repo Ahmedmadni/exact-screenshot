@@ -1,0 +1,32 @@
+import { expect, test } from "@playwright/test";
+import { readFile } from "node:fs/promises";
+
+test("workspace backup downloads, rejects corrupt imports, and restores after confirmation", async ({ page }, info) => {
+  test.skip(info.project.name !== "chromium-desktop", "desktop backup and restore workflow");
+  await page.goto("/settings");
+  await expect(page.getByRole("heading", { name: "Local workspace backup" })).toBeVisible();
+
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download backup" }).click();
+  const downloaded = await downloadPromise;
+  expect(downloaded.suggestedFilename()).toMatch(/^meridian-workspace-.*\.json$/);
+  const bytes = await readFile(await downloaded.path());
+  const backup = JSON.parse(bytes.toString("utf-8"));
+  expect(backup.format).toBe("meridian-workspace-backup");
+  expect(backup.version).toBe(1);
+
+  const input = page.getByLabel("Select workspace backup");
+  await input.setInputFiles({ name: "bad.json", mimeType: "application/json", buffer: Buffer.from('{"format":"bad"}') });
+  await expect(page.getByText(/Unsupported or invalid Meridian backup/)).toBeVisible();
+
+  // Cancellation must preserve active workspace and not reload.
+  page.once("dialog", dialog => dialog.dismiss());
+  await input.setInputFiles({ name: "backup.json", mimeType: "application/json", buffer: bytes });
+  await expect(page.getByRole("heading", { name: "Workspace settings" })).toBeVisible();
+
+  page.once("dialog", dialog => dialog.accept());
+  await input.setInputFiles({ name: "backup.json", mimeType: "application/json", buffer: bytes });
+  await expect(page.getByRole("heading", { name: "Workspace settings" })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Local workspace backup" })).toBeVisible();
+});

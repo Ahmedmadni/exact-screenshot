@@ -16,7 +16,7 @@ export function SaveIndicator({ state }: { state: SaveState }) {
       ) : (
         <Check className="size-3.5 text-success" />
       )}
-      {state === "saving" ? t("save.saving") : state === "conflict" ? "Team conflict" : state === "error" ? "Cloud save failed" : t("save.saved")}
+      {state === "saving" ? t("save.saving") : state === "conflict" ? "Team conflict" : state === "error" ? "Save failed — check storage or connection" : t("save.saved")}
     </span>
   );
 }

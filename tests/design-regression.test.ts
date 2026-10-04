@@ -11,6 +11,8 @@ import { imageCropControls, imageCropCss, imageCropFocalPreset, imageCropFromCon
 import { canStartEditorGesture, isActiveEditorPointer } from "../src/lib/editor/pointer-gesture";
 import { moveItemByStep } from "../src/lib/editor/slide-order";
 import { encodeBrowserDatabase, decodeBrowserDatabase } from "../src/lib/data/storage-codec";
+import { createWorkspaceBackup, parseWorkspaceBackup } from "../src/lib/data/workspace-backup";
+import type { Database } from "../src/lib/data/store";
 import { cloneSlidesForPresentation } from "../src/lib/data/presentation-clone";
 import { elementOnlyChanges } from "../src/lib/editor/element-diff";
 import { getLayout, LAYOUTS } from "../src/lib/editor/layouts";
@@ -54,6 +56,36 @@ const asset: AssetRecord = {
 };
 
 describe("design integrity", () => {
+  test("portable workspace backup round-trips every collection and repeated media", () => {
+    const png = "data:image/png;base64," + "A".repeat(12000);
+    const deck = slide();
+    deck.elements = buildLayout("image-text", contentFromSlide(deck), deck.id).map(el =>
+      el.type === "image" ? { ...el, properties: { ...el.properties, src: png } } : el);
+    const workspace: Database = {
+      presentations: [{ id: "deck", title: "Portable", slides: [deck] } as unknown as Presentation],
+      themes: [], brandKits: [], savedTemplates: [], versions: [],
+      reviewComments: [], reviewDecisions: [], assets: [],
+    };
+    const raw = createWorkspaceBackup(workspace, "2026-10-04T00:00:00.000Z");
+    expect(parseWorkspaceBackup(raw)).toEqual(workspace);
+  });
+
+  test("invalid, partial, duplicate and unsupported workspace backups are rejected", () => {
+    const blank: Database = {
+      presentations: [], themes: [], brandKits: [], savedTemplates: [],
+      versions: [], reviewComments: [], reviewDecisions: [], assets: [],
+    };
+    const valid = JSON.parse(createWorkspaceBackup(blank));
+    expect(() => parseWorkspaceBackup("not-json")).toThrow();
+    expect(() => parseWorkspaceBackup(JSON.stringify({ ...valid, version: 999 }))).toThrow();
+    expect(() => parseWorkspaceBackup(JSON.stringify({ ...valid, database: "{}" }))).toThrow();
+    expect(() => parseWorkspaceBackup(JSON.stringify({ ...valid, database: JSON.stringify({
+      ...blank, presentations: [{ id: "x", slides: [] }, { id: "x", slides: [] }],
+    }) }))).toThrow(/Duplicate/);
+    expect(parseWorkspaceBackup(JSON.stringify(valid))).toEqual(blank);
+  });
+
+
   test("100-slide collaborative edit diff isolates a changed text and handles structural edits safely", () => {
     const baseSlide = slide();
     baseSlide.elements = buildLayout("title-content", contentFromSlide(baseSlide), baseSlide.id);

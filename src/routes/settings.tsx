@@ -76,6 +76,8 @@ function SettingsPage() {
 function WorkspaceBackups() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
+  const [ready, setReady] = useState(false);
+  useEffect(() => setReady(true), []);
 
   const download = () => {
     try {
@@ -126,8 +128,8 @@ function WorkspaceBackups() {
         Keep the backup private because it can include your slide content and images.
       </p>
       <div className="flex flex-wrap gap-2">
-        <Button onClick={download}><Download className="size-4" /> Download backup</Button>
-        <Button variant="outline" disabled={importing} onClick={() => fileRef.current?.click()}>
+        <Button disabled={!ready} onClick={download}><Download className="size-4" /> Download backup</Button>
+        <Button variant="outline" disabled={!ready || importing} onClick={() => fileRef.current?.click()}>
           {importing ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
           Restore backup
         </Button>

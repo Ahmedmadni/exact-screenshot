@@ -34,8 +34,19 @@ export function validateBackupDatabase(value: unknown): Database {
     const slides = deck.slides as Record<string, unknown>[];
     if (new Set(slides.map(s => s.id)).size !== slides.length) throw new Error("Duplicate slide identifiers");
     for (const slide of slides) {
+      // A legacy record may omit parent references; if present they must
+      // identify its actual parent. Otherwise editor selections can target
+      // elements from a different slide after restore.
+      if (slide.presentationId !== undefined && slide.presentationId !== deck.id) {
+        throw new Error("Slide points to another presentation");
+      }
       const elements = slide.elements as Record<string, unknown>[];
       if (new Set(elements.map(e => e.id)).size !== elements.length) throw new Error("Duplicate element identifiers");
+      for (const element of elements) {
+        if (element.slideId !== undefined && element.slideId !== slide.id) {
+          throw new Error("Element points to another slide");
+        }
+      }
     }
   }
   return value as unknown as Database;

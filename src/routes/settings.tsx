@@ -90,7 +90,8 @@ function WorkspaceBackups() {
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      // Keep the blob URL alive long enough for browsers to begin the download.
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
       toast.success("Workspace backup downloaded. Store it in a safe place.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Backup export failed.");

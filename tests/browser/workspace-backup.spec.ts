@@ -6,6 +6,17 @@ test("workspace backup downloads, rejects corrupt imports, and restores after co
   await page.goto("/settings");
   await expect(page.getByRole("heading", { name: "Local workspace backup" })).toBeVisible();
 
+  const backupProbe = await page.evaluate(async () => {
+    const { databaseSnapshot } = await import("/src/lib/data/store.ts");
+    const { createWorkspaceBackup } = await import("/src/lib/data/workspace-backup.ts");
+    try {
+      return { chars: createWorkspaceBackup(databaseSnapshot()).length, error: "" };
+    } catch (error) {
+      return { chars: 0, error: String(error) };
+    }
+  });
+  expect(backupProbe.error, JSON.stringify(backupProbe)).toBe("");
+  expect(backupProbe.chars).toBeGreaterThan(100);
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download backup" }).click();
   const downloaded = await downloadPromise;

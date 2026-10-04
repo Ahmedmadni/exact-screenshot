@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Cloud, Loader2, LogIn, LogOut, RefreshCw, UserPlus } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Cloud, Download, Loader2, LogIn, LogOut, RefreshCw, Upload, UserPlus } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { cloudConfigured, supabase } from "@/lib/cloud/supabase";
 import { syncDatabaseWithCloud } from "@/lib/cloud/sync";
 import { databaseSnapshot, replaceDatabase } from "@/lib/data/store";
+import { createWorkspaceBackup, MAX_BACKUP_BYTES, parseWorkspaceBackup } from "@/lib/data/workspace-backup";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -65,8 +66,76 @@ function SettingsPage() {
         </div>
       </section>
 
+      <WorkspaceBackups />
       <CloudAccount />
     </AppShell>
+  );
+}
+
+
+function WorkspaceBackups() {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [importing, setImporting] = useState(false);
+
+  const download = () => {
+    try {
+      const content = createWorkspaceBackup(databaseSnapshot());
+      const blob = new Blob([content], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = "meridian-workspace-" + new Date().toISOString().slice(0, 10) + ".json";
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast.success("Workspace backup downloaded. Store it in a safe place.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Backup export failed.");
+    }
+  };
+
+  const importFile = async (file?: File) => {
+    if (!file) return;
+    setImporting(true);
+    try {
+      if (file.size > MAX_BACKUP_BYTES) throw new Error("Backup exceeds the 100 MB limit.");
+      const restored = parseWorkspaceBackup(await file.text());
+      const deckCount = restored.presentations.length;
+      if (!window.confirm(
+        "Replace all local workspace data with this backup (" + deckCount +
+        " presentations)? This will overwrite local work. Download a backup first.",
+      )) return;
+      if (!replaceDatabase(restored)) throw new Error("Insufficient browser storage. Existing data was preserved.");
+      toast.success("Backup restored. Reloading workspace.");
+      window.location.reload();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Backup import failed.");
+    } finally {
+      setImporting(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  return (
+    <section className="panel mt-5 max-w-2xl space-y-3 p-6">
+      <h2 className="text-base text-foreground">Local workspace backup</h2>
+      <p className="text-sm text-muted-foreground">
+        Download your presentations, assets, templates, and review history to a local JSON file.
+        Restoring replaces the entire local workspace; it does not change the cloud account.
+        Keep the backup private because it can include your slide content and images.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Button onClick={download}><Download className="size-4" /> Download backup</Button>
+        <Button variant="outline" disabled={importing} onClick={() => fileRef.current?.click()}>
+          {importing ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+          Restore backup
+        </Button>
+      </div>
+      <input ref={fileRef} className="sr-only" type="file" accept=".json,application/json"
+        aria-label="Select workspace backup"
+        onChange={(event) => { void importFile(event.target.files?.[0]); }} />
+    </section>
   );
 }
 

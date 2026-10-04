@@ -376,10 +376,18 @@ export function databaseSnapshot(): Database {
   return structuredClone(db);
 }
 
-export function replaceDatabase(next: Database) {
+/** Revert in-memory replacement if the browser cannot durably store it. */
+export function replaceDatabase(next: Database): boolean {
+  hydrate();
+  const previous = db;
   db = structuredClone(next);
-  persist();
+  if (!persist()) {
+    db = previous;
+    emit();
+    return false;
+  }
   emit();
+  return true;
 }
 
 export function useDatabase(): Database {

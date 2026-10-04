@@ -43,8 +43,8 @@ const STORAGE_BUDGET = 5 * 1024 * 1024;
 let warnedNearFull = false;
 let warnedFull = false;
 
-function persist() {
-  if (typeof window === "undefined") return;
+function persist(): boolean {
+  if (typeof window === "undefined") return true;
   const payload = encodeBrowserDatabase(db);
   try {
     window.localStorage.setItem(STORAGE_KEY, payload);
@@ -54,11 +54,13 @@ function persist() {
       warnedNearFull = true;
       toast.warning("Browser storage is nearly full. Large images may not be saved.");
     }
+    return true;
   } catch {
     if (!warnedFull) {
       warnedFull = true;
-      toast.error("Your latest changes could not be saved — browser storage is full. Remove large images or unused presentations.", { duration: 8000 });
+      toast.error("Your latest changes could not be saved — browser storage is unavailable or full. Free space and try saving again.", { duration: 8000 });
     }
+    return false;
   }
 }
 
@@ -110,10 +112,11 @@ const getSnapshot = () => db;
 const serverSnapshot = initial();
 const getServerSnapshot = () => serverSnapshot;
 
-function mutate(next: (current: Database) => Database) {
+function mutate(next: (current: Database) => Database): boolean {
   db = next(db);
-  persist();
+  const saved = persist();
   emit();
+  return saved;
 }
 
 export const uid = () =>
@@ -128,7 +131,7 @@ export interface PresentationRepository {
   list(): Presentation[];
   get(id: string): Presentation | undefined;
   create(input: Omit<Presentation, "id" | "userId" | "createdAt" | "updatedAt">): Presentation;
-  update(id: string, patch: Partial<Presentation>): void;
+  update(id: string, patch: Partial<Presentation>): boolean;
   remove(id: string): void;
   duplicate(id: string): Presentation | undefined;
   replaceSlides(id: string, slides: Slide[]): void;
@@ -151,7 +154,7 @@ export const presentationRepository: PresentationRepository = {
     return presentation;
   },
   update(id, patch) {
-    mutate((d) => ({
+    return mutate((d) => ({
       ...d,
       presentations: d.presentations.map((p) =>
         p.id === id ? { ...p, ...patch, updatedAt: new Date().toISOString() } : p,

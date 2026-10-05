@@ -34,6 +34,17 @@ test("workspace backup download restores prior edits and rejects malformed impor
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toMatch(/^meridian-workspace-\d{4}-\d{2}-\d{2}\.json$/);
   const backupBuffer = await readFile(await download.path());
+  const backupEnvelope = JSON.parse(backupBuffer.toString("utf-8")) as { database: string };
+  const backupContainsCheckpoint = await page.evaluate(async ({ raw, id }) => {
+    const { decodeBrowserDatabase } = await import("/src/lib/data/storage-codec.ts");
+    const db = decodeBrowserDatabase(raw) as {
+      presentations?: Array<{ id: string; slides?: Array<{ elements?: Array<{ properties?: { text?: string } }> }> }>;
+    };
+    const deck = (db.presentations ?? []).find(item => item.id === id);
+    return (deck?.slides ?? []).flatMap(slide => slide.elements ?? [])
+      .some(element => element.properties?.text === "Backup checkpoint text");
+  }, { raw: backupEnvelope.database, id: deckId! });
+  expect(backupContainsCheckpoint).toBe(true);
 
   await page.goto(editorUrl);
   const changed = page.getByRole("textbox", { name: "Edit template text" }).first();
@@ -62,24 +73,19 @@ test("workspace backup download restores prior edits and rejects malformed impor
   await restoredNavigation;
   await page.waitForLoadState("domcontentloaded");
 
-  const restoredState = await page.evaluate(async ({ id }) => {
+  const restoredTextPresent = async (expected: string) => page.evaluate(async ({ id, expectedText }) => {
     const raw = localStorage.getItem("aps.db.v1");
-    if (!raw) return { checkpoint: false, mutation: false };
+    if (!raw) return false;
     const { decodeBrowserDatabase } = await import("/src/lib/data/storage-codec.ts");
     const db = decodeBrowserDatabase(raw) as {
       presentations?: Array<{ id: string; slides?: Array<{ elements?: Array<{ properties?: { text?: string } }> }> }>;
     };
     const deck = (db.presentations ?? []).find(item => item.id === id);
-    const texts = (deck?.slides ?? []).flatMap(slide => slide.elements ?? [])
-      .map(element => element.properties?.text)
-      .filter((value): value is string => typeof value === "string");
-    return {
-      checkpoint: texts.includes("Backup checkpoint text"),
-      mutation: texts.includes("Mutation after backup"),
-    };
-  }, { id: deckId! });
-  expect(restoredState.checkpoint).toBe(true);
-  expect(restoredState.mutation).toBe(false);
+    return (deck?.slides ?? []).flatMap(slide => slide.elements ?? [])
+      .some(element => element.properties?.text === expectedText);
+  }, { id: deckId!, expectedText: expected });
+  await expect.poll(() => restoredTextPresent("Backup checkpoint text")).toBe(true);
+  await expect.poll(() => restoredTextPresent("Mutation after backup")).toBe(false);
 
   await page.goto("/settings");
   const beforeMalformed = await page.evaluate(() => localStorage.getItem("aps.db.v1"));

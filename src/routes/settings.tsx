@@ -110,8 +110,7 @@ function WorkspaceBackups() {
         " presentations)? This will overwrite local work. Download a backup first.",
       )) return;
       if (!replaceDatabase(restored)) throw new Error("Insufficient browser storage. Existing data was preserved.");
-      toast.success("Backup restored. Reloading workspace.");
-      window.location.reload();
+      toast.success("Backup restored. Workspace data is ready.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Backup import failed.");
     } finally {

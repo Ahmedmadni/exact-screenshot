@@ -12,6 +12,7 @@ test("workspace backup downloads, restores prior data, and rejects corrupt files
     has: page.getByRole("heading", { name: "Brand Story · Editorial" }),
   }).first();
   await card.getByRole("button", { name: /Edit sample/i }).click();
+  const editorUrl = page.url();
   const editor = page.getByRole("textbox", { name: "Edit template text" }).first();
   await expect(editor).toBeVisible();
   await editor.fill("Backup checkpoint value");
@@ -50,31 +51,10 @@ test("workspace backup downloads, restores prior data, and rejects corrupt files
   });
   await expect(page.getByText("Backup restored. Workspace data is ready.")).toBeVisible();
 
-  // Reload the editor from restored local data and verify the earlier checkpoint returned.
-  await page.goto("/templates");
-  await expect(page.getByTestId("templates-hydrated")).toBeAttached();
-  await page.getByRole("button", { name: "Edit copy" }).first().click().catch(() => undefined);
-  // The presentation created from Edit sample is persisted even if it is not a saved template.
-  if (!/\/presentations\//.test(page.url())) {
-    await page.goto("/");
-    const restoredDeck = page.getByText("Brand Story · Editorial").first();
-    if (await restoredDeck.count()) await restoredDeck.click();
-  }
-  if (/\/presentations\//.test(page.url())) {
-    await expect(page.getByRole("textbox", { name: "Edit template text" }).first())
-      .toHaveValue("Backup checkpoint value");
-  } else {
-    // Directly inspect the durable database as a fallback to route-label changes.
-    const restored = await page.evaluate(async () => {
-      const { decodeBrowserDatabase } = await import("/src/lib/data/storage-codec.ts");
-      const raw = localStorage.getItem("aps.db.v1");
-      if (!raw) return false;
-      const db = decodeBrowserDatabase(raw) as { presentations?: Array<{ slides?: Array<{ elements?: Array<{ type?: string; properties?: { text?: string } }> }> }> };
-      return db.presentations?.some(deck => deck.slides?.some(slide =>
-        slide.elements?.some(element => element.type === "text" && element.properties?.text === "Backup checkpoint value"))) ?? false;
-    });
-    expect(restored).toBe(true);
-  }
+  // Reload the same editor from restored local data and verify the earlier checkpoint returned.
+  await page.goto(editorUrl);
+  await expect(page.getByRole("textbox", { name: "Edit template text" }).first())
+    .toHaveValue("Backup checkpoint value");
 
   // A malformed backup must be rejected before any replacement occurs.
   await page.goto("/settings");

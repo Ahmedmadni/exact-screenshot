@@ -62,16 +62,12 @@ test("workspace backup download restores prior edits and rejects malformed impor
 
   await page.goto("/settings");
   page.once("dialog", dialog => dialog.accept());
-  const restoredNavigation = page.waitForEvent("framenavigated", {
-    predicate: frame => frame === page.mainFrame(),
-  });
   await page.getByLabel("Select workspace backup").setInputFiles({
     name: "checkpoint.json",
     mimeType: "application/json",
     buffer: backupBuffer,
   });
-  await restoredNavigation;
-  await page.waitForLoadState("domcontentloaded");
+  await expect(page.getByText("Backup restored. Workspace data is ready.")).toBeVisible();
 
   await expect.poll(async () => page.evaluate(
     expectedRaw => localStorage.getItem("aps.db.v1") === expectedRaw,

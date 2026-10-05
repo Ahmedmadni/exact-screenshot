@@ -67,6 +67,8 @@ test("workspace backup download restores prior edits and rejects malformed impor
     mimeType: "application/json",
     buffer: backupBuffer,
   });
+  await expect(page.getByTestId("backup-restore-status"))
+    .toHaveText("Backup restored. Workspace data is ready.");
   const restoredTextPresent = async (expected: string) => page.evaluate(async ({ id, expectedText }) => {
     const raw = localStorage.getItem("aps.db.v1");
     if (!raw) return false;
@@ -88,6 +90,7 @@ test("workspace backup download restores prior edits and rejects malformed impor
     mimeType: "application/json",
     buffer: Buffer.from("{ not valid json"),
   });
-  await expect(page.getByText("This is not a valid JSON backup.")).toBeVisible();
+  await expect(page.getByTestId("backup-restore-status"))
+    .toHaveText("This is not a valid JSON backup.");
   expect(await page.evaluate(() => localStorage.getItem("aps.db.v1"))).toBe(beforeMalformed);
 });

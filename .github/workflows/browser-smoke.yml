@@ -13,8 +13,6 @@ on:
       - "src/lib/data/workspace-backup.ts"
       - "src/routes/settings.tsx"
       - "src/lib/data/storage-codec.ts"
-      - "src/lib/data/workspace-backup.ts"
-      - "src/routes/settings.tsx"
       - "src/lib/export/pptx.ts"
       - "src/lib/template-starter.ts"
       - "src/routes/templates.tsx"

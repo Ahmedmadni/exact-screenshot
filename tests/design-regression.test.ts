@@ -11,7 +11,7 @@ import { imageCropControls, imageCropCss, imageCropFocalPreset, imageCropFromCon
 import { canStartEditorGesture, isActiveEditorPointer } from "../src/lib/editor/pointer-gesture";
 import { moveItemByStep } from "../src/lib/editor/slide-order";
 import { encodeBrowserDatabase, decodeBrowserDatabase } from "../src/lib/data/storage-codec";
-import { createWorkspaceBackup, parseWorkspaceBackup } from "../src/lib/data/workspace-backup";
+import { assertWorkspaceBackupSize, createWorkspaceBackup, parseWorkspaceBackup } from "../src/lib/data/workspace-backup";
 import type { Database } from "../src/lib/data/store";
 import { cloneSlidesForPresentation } from "../src/lib/data/presentation-clone";
 import { elementOnlyChanges } from "../src/lib/editor/element-diff";
@@ -56,6 +56,11 @@ const asset: AssetRecord = {
 };
 
 describe("design integrity", () => {
+  test("backup byte limit is enforced consistently for export and import", () => {
+    expect(assertWorkspaceBackupSize("1234", 4)).toBe(4);
+    expect(() => assertWorkspaceBackupSize("12345", 4)).toThrow(/limit/);
+  });
+
   test("portable workspace backup round-trips every collection and repeated media", () => {
     const png = "data:image/png;base64," + "A".repeat(12000);
     const deck = slide();

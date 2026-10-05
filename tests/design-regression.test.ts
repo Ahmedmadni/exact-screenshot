@@ -76,6 +76,25 @@ describe("design integrity", () => {
     expect(parseWorkspaceBackup(raw)).toEqual(workspace);
   });
 
+  test("workspace backup checksum detects silent corruption while legacy v1 backups remain readable", () => {
+    const blank: Database = {
+      presentations: [], themes: [], brandKits: [], savedTemplates: [],
+      versions: [], reviewComments: [], reviewDecisions: [], assets: [],
+    };
+    const fresh = JSON.parse(createWorkspaceBackup(blank, "2026-10-06T00:00:00.000Z")) as {
+      format: string; version: number; exportedAt: string; checksum?: string; database: string;
+    };
+    expect(fresh.checksum).toMatch(/^fnv1a32:[0-9a-f]{8}$/);
+    expect(parseWorkspaceBackup(JSON.stringify(fresh))).toEqual(blank);
+
+    const damaged = { ...fresh, database: fresh.database.replace('"assets":[]', '"assets":[{"id":"tampered"}]') };
+    expect(() => parseWorkspaceBackup(JSON.stringify(damaged))).toThrow(/integrity check failed/i);
+
+    const legacy = { ...fresh };
+    delete legacy.checksum;
+    expect(parseWorkspaceBackup(JSON.stringify(legacy))).toEqual(blank);
+  });
+
   test("invalid, partial, duplicate and unsupported workspace backups are rejected", () => {
     const blank: Database = {
       presentations: [], themes: [], brandKits: [], savedTemplates: [],

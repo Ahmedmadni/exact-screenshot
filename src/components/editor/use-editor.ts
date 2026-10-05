@@ -144,6 +144,13 @@ export function useEditor(p: Presentation, initialSlideId?: string) {
 
   const flush = useCallback(() => {
     clearTimeout(timer.current);
+    // A live cloud save owns the current revision until its response arrives.
+    // Keep the newest local edit pending instead of launching a second request
+    // with the same base revision and creating a self-conflict.
+    if (liveSaving.current) {
+      timer.current = setTimeout(flush, 120);
+      return;
+    }
     if (pending.current) {
       const saveJob = pending.current;
       pending.current = null;

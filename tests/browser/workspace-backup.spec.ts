@@ -51,11 +51,15 @@ test("workspace backup download restores prior edits and rejects malformed impor
 
   await page.goto("/settings");
   page.once("dialog", dialog => dialog.accept());
+  const restoredNavigation = page.waitForEvent("framenavigated", {
+    predicate: frame => frame === page.mainFrame(),
+  });
   await page.getByLabel("Select workspace backup").setInputFiles({
     name: "checkpoint.json",
     mimeType: "application/json",
     buffer: backupBuffer,
   });
+  await restoredNavigation;
   await page.waitForLoadState("domcontentloaded");
 
   const restoredState = await page.evaluate(async ({ id }) => {

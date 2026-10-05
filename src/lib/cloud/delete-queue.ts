@@ -18,22 +18,31 @@ function read(): CloudDeleteRecord[] {
   }
 }
 
-function write(records: CloudDeleteRecord[]) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(KEY, JSON.stringify(records));
+function write(records: CloudDeleteRecord[]): boolean {
+  if (typeof window === "undefined") return true;
+  try {
+    window.localStorage.setItem(KEY, JSON.stringify(records));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
-export function queueCloudDelete(kind: CloudDeleteKind, id: string) {
+export function queueCloudDelete(kind: CloudDeleteKind, id: string): boolean {
   const next = read().filter((r) => !(r.kind === kind && r.id === id));
   next.push({ kind, id, queuedAt: new Date().toISOString() });
-  write(next);
+  return write(next);
+}
+
+export function removeQueuedCloudDelete(kind: CloudDeleteKind, id: string): boolean {
+  return write(read().filter((record) => !(record.kind === kind && record.id === id)));
 }
 
 export function queuedCloudDeletes(): CloudDeleteRecord[] {
   return read();
 }
 
-export function clearCloudDeletes(records: CloudDeleteRecord[]) {
+export function clearCloudDeletes(records: CloudDeleteRecord[]): boolean {
   const keys = new Set(records.map((r) => `${r.kind}:${r.id}`));
-  write(read().filter((r) => !keys.has(`${r.kind}:${r.id}`)));
+  return write(read().filter((r) => !keys.has(`${r.kind}:${r.id}`)));
 }

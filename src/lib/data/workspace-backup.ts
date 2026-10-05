@@ -25,29 +25,41 @@ export function validateBackupDatabase(value: unknown): Database {
     const ids = items.map(item => item.id);
     if (new Set(ids).size !== ids.length) throw new Error("Duplicate identifiers in " + collection);
   }
-  for (const deck of value.presentations as Record<string, unknown>[]) {
-    if (!Array.isArray(deck.slides) || deck.slides.some(slide =>
+  const validateSlides = (owner: Record<string, unknown>, expectedPresentationId?: string) => {
+    if (!Array.isArray(owner.slides) || owner.slides.some(slide =>
       !isRecord(slide) || typeof slide.id !== "string" ||
       !Array.isArray(slide.elements) || slide.elements.some(element => !isRecord(element) || typeof element.id !== "string"))) {
       throw new Error("Invalid presentation slides");
     }
-    const slides = deck.slides as Record<string, unknown>[];
-    if (new Set(slides.map(s => s.id)).size !== slides.length) throw new Error("Duplicate slide identifiers");
+    const slides = owner.slides as Record<string, unknown>[];
+    if (new Set(slides.map(slide => slide.id)).size !== slides.length) throw new Error("Duplicate slide identifiers");
+    const elementIds = new Set<string>();
     for (const slide of slides) {
-      // A legacy record may omit parent references; if present they must
-      // identify its actual parent. Otherwise editor selections can target
-      // elements from a different slide after restore.
-      if (slide.presentationId !== undefined && slide.presentationId !== deck.id) {
+      if (expectedPresentationId !== undefined && slide.presentationId !== undefined && slide.presentationId !== expectedPresentationId) {
         throw new Error("Slide points to another presentation");
       }
       const elements = slide.elements as Record<string, unknown>[];
-      if (new Set(elements.map(e => e.id)).size !== elements.length) throw new Error("Duplicate element identifiers");
       for (const element of elements) {
+        const id = element.id as string;
+        if (elementIds.has(id)) throw new Error("Duplicate element identifiers");
+        elementIds.add(id);
         if (element.slideId !== undefined && element.slideId !== slide.id) {
           throw new Error("Element points to another slide");
         }
       }
     }
+  };
+
+  for (const deck of value.presentations as Record<string, unknown>[]) {
+    validateSlides(deck, deck.id as string);
+  }
+  for (const template of value.savedTemplates as Record<string, unknown>[]) {
+    if (!isRecord(template.snapshot)) throw new Error("Invalid saved template snapshot");
+    validateSlides(template.snapshot);
+  }
+  for (const version of value.versions as Record<string, unknown>[]) {
+    if (!isRecord(version.snapshot)) throw new Error("Invalid presentation version snapshot");
+    validateSlides(version.snapshot);
   }
   return value as unknown as Database;
 }

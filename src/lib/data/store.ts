@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { toast } from "sonner";
-import { queueCloudDelete } from "@/lib/cloud/delete-queue";
+import { queueCloudDelete, removeQueuedCloudDelete } from "@/lib/cloud/delete-queue";
 import type { AssetRecord, BrandKit, Presentation, PresentationVersion, ReviewComment, ReviewDecision, SavedTemplate, Slide, ThemeRecord } from "@/lib/types";
 import { SEED_ASSETS, SEED_BRAND_KITS, SEED_PRESENTATIONS, SEED_THEMES } from "./seed";
 import { encodeBrowserDatabase, decodeBrowserDatabase } from "./storage-codec";
@@ -163,8 +163,12 @@ export const presentationRepository: PresentationRepository = {
     }));
   },
   remove(id) {
+    if (!queueCloudDelete("presentation", id)) {
+      toast.error("Could not queue cloud deletion. Free browser storage and try again.");
+      return false;
+    }
     const saved = mutate((d) => ({ ...d, presentations: d.presentations.filter((p) => p.id !== id) }));
-    if (saved) queueCloudDelete("presentation", id);
+    if (!saved) removeQueuedCloudDelete("presentation", id);
     return saved;
   },
   duplicate(id) {
@@ -290,8 +294,12 @@ export const assetRepository = {
       toast.warning(`This asset is still used in ${usage} presentation reference${usage === 1 ? "" : "s"}. Replace or detach it before deleting.`);
       return false;
     }
+    if (!queueCloudDelete("asset", id)) {
+      toast.error("Could not queue cloud deletion. Free browser storage and try again.");
+      return false;
+    }
     const saved = mutate((d) => ({ ...d, assets: d.assets.filter((a) => a.id !== id) }));
-    if (saved) queueCloudDelete("asset", id);
+    if (!saved) removeQueuedCloudDelete("asset", id);
     return saved;
   },
 };
@@ -315,8 +323,12 @@ export const savedTemplateRepository = {
     return template;
   },
   remove(id: string) {
+    if (!queueCloudDelete("savedTemplate", id)) {
+      toast.error("Could not queue cloud deletion. Free browser storage and try again.");
+      return false;
+    }
     const saved = mutate((d) => ({ ...d, savedTemplates: d.savedTemplates.filter((t) => t.id !== id) }));
-    if (saved) queueCloudDelete("savedTemplate", id);
+    if (!saved) removeQueuedCloudDelete("savedTemplate", id);
     return saved;
   },
   createPresentation(id: string) {
@@ -369,8 +381,12 @@ export const brandKitRepository = {
     }));
   },
   remove(id: string) {
+    if (!queueCloudDelete("brandKit", id)) {
+      toast.error("Could not queue cloud deletion. Free browser storage and try again.");
+      return false;
+    }
     const saved = mutate((d) => ({ ...d, brandKits: d.brandKits.filter((k) => k.id !== id) }));
-    if (saved) queueCloudDelete("brandKit", id);
+    if (!saved) removeQueuedCloudDelete("brandKit", id);
     return saved;
   },
 };

@@ -66,7 +66,13 @@ test("workspace backup download restores prior edits and rejects malformed impor
     mimeType: "application/json",
     buffer: backupBuffer,
   });
-  await expect(page.getByTestId("backup-restore-confirmation")).toBeVisible();
+  await expect.poll(async () => {
+    if (await page.getByTestId("backup-restore-confirmation").count()) return "confirm";
+    if (await page.getByTestId("backup-restore-status").count()) {
+      return "status:" + await page.getByTestId("backup-restore-status").textContent();
+    }
+    return "pending";
+  }).toBe("confirm");
   await page.getByRole("button", { name: "Confirm restore" }).click();
   await expect(page.getByTestId("backup-restore-status"))
     .toHaveText("Backup restored. Workspace data is ready.");

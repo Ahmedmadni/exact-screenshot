@@ -111,6 +111,51 @@ describe("design integrity", () => {
     expect(parseWorkspaceBackup(snapshot(workspace))).toEqual(workspace);
   });
 
+  test("backup rejects duplicate element ids across slides and invalid template/version snapshots", () => {
+    const base = slide();
+    base.presentationId = "deck";
+    base.elements = buildLayout("title-content", contentFromSlide(base), base.id);
+    const second = structuredClone(base);
+    second.id = "second-slide";
+    second.presentationId = "deck";
+    second.elements = second.elements.map(element => ({ ...element, slideId: second.id }));
+    // Force one cross-slide identity collision.
+    second.elements[0] = { ...second.elements[0]!, id: base.elements[0]!.id };
+
+    const workspace: Database = {
+      presentations: [{ id: "deck", title: "Identity collision", slides: [base, second] } as unknown as Presentation],
+      themes: [], brandKits: [], savedTemplates: [], versions: [],
+      reviewComments: [], reviewDecisions: [], assets: [],
+    };
+    const envelope = (data: Database) => JSON.stringify({
+      format: "meridian-workspace-backup", version: 1,
+      exportedAt: "2026-10-05T00:00:00.000Z", database: JSON.stringify(data),
+    });
+    expect(() => parseWorkspaceBackup(envelope(workspace))).toThrow(/Duplicate element identifiers/);
+
+    const validDeck = structuredClone(workspace.presentations[0]!);
+    validDeck.slides[1]!.elements[0] = { ...validDeck.slides[1]!.elements[0]!, id: "unique-element" };
+    const templateWorkspace: Database = {
+      ...workspace,
+      presentations: [validDeck],
+      savedTemplates: [{
+        id: "template", name: "Broken template", description: "", sourcePresentationId: "deck",
+        snapshot: { ...validDeck, slides: [validDeck.slides[0]!, second] },
+        createdAt: "2026-10-05T00:00:00.000Z", updatedAt: "2026-10-05T00:00:00.000Z",
+      } as unknown as Database["savedTemplates"][number]],
+    };
+    expect(() => parseWorkspaceBackup(envelope(templateWorkspace))).toThrow(/Duplicate element identifiers|another slide/);
+
+    const versionWorkspace = structuredClone(templateWorkspace);
+    versionWorkspace.savedTemplates = [];
+    versionWorkspace.versions = [{
+      id: "version", presentationId: "deck", label: "Broken version",
+      snapshot: { ...validDeck, slides: [{ ...validDeck.slides[0]!, elements: [{ ...validDeck.slides[0]!.elements[0]!, slideId: "wrong-slide" }] }] },
+      createdAt: "2026-10-05T00:00:00.000Z", updatedAt: "2026-10-05T00:00:00.000Z",
+    } as unknown as Database["versions"][number]];
+    expect(() => parseWorkspaceBackup(envelope(versionWorkspace))).toThrow(/another slide/);
+  });
+
   test("100-slide collaborative edit diff isolates a changed text and handles structural edits safely", () => {
     const baseSlide = slide();
     baseSlide.elements = buildLayout("title-content", contentFromSlide(baseSlide), baseSlide.id);

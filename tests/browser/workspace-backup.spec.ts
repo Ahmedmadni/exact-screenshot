@@ -61,12 +61,13 @@ test("workspace backup download restores prior edits and rejects malformed impor
   }, { id: deckId!, expected: "Mutation after backup" })).toBe(true);
 
   await page.goto("/settings");
-  page.once("dialog", dialog => dialog.accept());
   await page.getByLabel("Select workspace backup").setInputFiles({
     name: "checkpoint.json",
     mimeType: "application/json",
     buffer: backupBuffer,
   });
+  await expect(page.getByTestId("backup-restore-confirmation")).toBeVisible();
+  await page.getByRole("button", { name: "Confirm restore" }).click();
   await expect(page.getByTestId("backup-restore-status"))
     .toHaveText("Backup restored. Workspace data is ready.");
   const restoredTextPresent = async (expected: string) => page.evaluate(async ({ id, expectedText }) => {

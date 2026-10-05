@@ -12,10 +12,20 @@ test("workspace backup download restores prior edits and rejects malformed impor
   }).getByRole("button", { name: /Edit sample/i }).click();
   await expect(page).toHaveURL(/\/presentations\/[^/]+\/editor/);
   const editorUrl = page.url();
+  const deckId = editorUrl.match(/presentations\/([^/]+)\/editor/)?.[1];
+  expect(deckId).toBeTruthy();
   const editor = page.getByRole("textbox", { name: "Edit template text" }).first();
   await editor.fill("Backup checkpoint text");
   await editor.press("Tab");
-  await expect(page.getByRole("banner").getByText("Saved", { exact: true })).toBeVisible();
+  await expect.poll(async () => page.evaluate(async ({ id, expected }) => {
+    const raw = localStorage.getItem("aps.db.v1");
+    if (!raw) return false;
+    const { decodeBrowserDatabase } = await import("/src/lib/data/storage-codec.ts");
+    const db = decodeBrowserDatabase(raw) as { presentations?: Array<{ id: string; slides?: Array<{ elements?: Array<{ properties?: { text?: string } }> }> }> };
+    const deck = (db.presentations ?? []).find(item => item.id === id);
+    return (deck?.slides ?? []).flatMap(slide => slide.elements ?? [])
+      .some(element => element.properties?.text === expected);
+  }, { id: deckId!, expected: "Backup checkpoint text" })).toBe(true);
 
   await page.goto("/settings");
   await expect(page.getByRole("heading", { name: "Local workspace backup" })).toBeVisible();
@@ -29,7 +39,15 @@ test("workspace backup download restores prior edits and rejects malformed impor
   const changed = page.getByRole("textbox", { name: "Edit template text" }).first();
   await changed.fill("Mutation after backup");
   await changed.press("Tab");
-  await expect(page.getByRole("banner").getByText("Saved", { exact: true })).toBeVisible();
+  await expect.poll(async () => page.evaluate(async ({ id, expected }) => {
+    const raw = localStorage.getItem("aps.db.v1");
+    if (!raw) return false;
+    const { decodeBrowserDatabase } = await import("/src/lib/data/storage-codec.ts");
+    const db = decodeBrowserDatabase(raw) as { presentations?: Array<{ id: string; slides?: Array<{ elements?: Array<{ properties?: { text?: string } }> }> }> };
+    const deck = (db.presentations ?? []).find(item => item.id === id);
+    return (deck?.slides ?? []).flatMap(slide => slide.elements ?? [])
+      .some(element => element.properties?.text === expected);
+  }, { id: deckId!, expected: "Mutation after backup" })).toBe(true);
 
   await page.goto("/settings");
   page.once("dialog", dialog => dialog.accept());
@@ -40,22 +58,22 @@ test("workspace backup download restores prior edits and rejects malformed impor
   });
   await page.waitForLoadState("domcontentloaded");
 
-  const restoredState = await page.evaluate(async () => {
+  const restoredState = await page.evaluate(async ({ id }) => {
     const raw = localStorage.getItem("aps.db.v1");
     if (!raw) return { checkpoint: false, mutation: false };
     const { decodeBrowserDatabase } = await import("/src/lib/data/storage-codec.ts");
     const db = decodeBrowserDatabase(raw) as {
-      presentations?: Array<{ slides?: Array<{ elements?: Array<{ properties?: { text?: string } }> }> }>;
+      presentations?: Array<{ id: string; slides?: Array<{ elements?: Array<{ properties?: { text?: string } }> }> }>;
     };
-    const texts = (db.presentations ?? []).flatMap(presentation => presentation.slides ?? [])
-      .flatMap(slide => slide.elements ?? [])
+    const deck = (db.presentations ?? []).find(item => item.id === id);
+    const texts = (deck?.slides ?? []).flatMap(slide => slide.elements ?? [])
       .map(element => element.properties?.text)
       .filter((value): value is string => typeof value === "string");
     return {
       checkpoint: texts.includes("Backup checkpoint text"),
       mutation: texts.includes("Mutation after backup"),
     };
-  });
+  }, { id: deckId! });
   expect(restoredState.checkpoint).toBe(true);
   expect(restoredState.mutation).toBe(false);
 

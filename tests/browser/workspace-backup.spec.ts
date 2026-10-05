@@ -73,6 +73,11 @@ test("workspace backup download restores prior edits and rejects malformed impor
   await restoredNavigation;
   await page.waitForLoadState("domcontentloaded");
 
+  await expect.poll(async () => page.evaluate(
+    expectedRaw => localStorage.getItem("aps.db.v1") === expectedRaw,
+    backupEnvelope.database,
+  )).toBe(true);
+
   const restoredTextPresent = async (expected: string) => page.evaluate(async ({ id, expectedText }) => {
     const raw = localStorage.getItem("aps.db.v1");
     if (!raw) return false;

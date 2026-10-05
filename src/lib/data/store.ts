@@ -43,9 +43,9 @@ const STORAGE_BUDGET = 5 * 1024 * 1024;
 let warnedNearFull = false;
 let warnedFull = false;
 
-function persist(): boolean {
+function persist(candidate: Database = db): boolean {
   if (typeof window === "undefined") return true;
-  const payload = encodeBrowserDatabase(db);
+  const payload = encodeBrowserDatabase(candidate);
   try {
     window.localStorage.setItem(STORAGE_KEY, payload);
     warnedFull = false;
@@ -113,10 +113,11 @@ const serverSnapshot = initial();
 const getServerSnapshot = () => serverSnapshot;
 
 function mutate(next: (current: Database) => Database): boolean {
-  db = next(db);
-  const saved = persist();
+  const candidate = next(db);
+  if (!persist(candidate)) return false;
+  db = candidate;
   emit();
-  return saved;
+  return true;
 }
 
 export const uid = () =>
@@ -132,7 +133,7 @@ export interface PresentationRepository {
   get(id: string): Presentation | undefined;
   create(input: Omit<Presentation, "id" | "userId" | "createdAt" | "updatedAt">): Presentation;
   update(id: string, patch: Partial<Presentation>): boolean;
-  remove(id: string): void;
+  remove(id: string): boolean;
   duplicate(id: string): Presentation | undefined;
   replaceSlides(id: string, slides: Slide[]): void;
   upsertCollaborative(presentation: Presentation): void;
@@ -162,8 +163,9 @@ export const presentationRepository: PresentationRepository = {
     }));
   },
   remove(id) {
-    queueCloudDelete("presentation", id);
-    mutate((d) => ({ ...d, presentations: d.presentations.filter((p) => p.id !== id) }));
+    const saved = mutate((d) => ({ ...d, presentations: d.presentations.filter((p) => p.id !== id) }));
+    if (saved) queueCloudDelete("presentation", id);
+    return saved;
   },
   duplicate(id) {
     const source = db.presentations.find((p) => p.id === id);
@@ -288,9 +290,9 @@ export const assetRepository = {
       toast.warning(`This asset is still used in ${usage} presentation reference${usage === 1 ? "" : "s"}. Replace or detach it before deleting.`);
       return false;
     }
-    queueCloudDelete("asset", id);
-    mutate((d) => ({ ...d, assets: d.assets.filter((a) => a.id !== id) }));
-    return true;
+    const saved = mutate((d) => ({ ...d, assets: d.assets.filter((a) => a.id !== id) }));
+    if (saved) queueCloudDelete("asset", id);
+    return saved;
   },
 };
 
@@ -313,8 +315,9 @@ export const savedTemplateRepository = {
     return template;
   },
   remove(id: string) {
-    queueCloudDelete("savedTemplate", id);
-    mutate((d) => ({ ...d, savedTemplates: d.savedTemplates.filter((t) => t.id !== id) }));
+    const saved = mutate((d) => ({ ...d, savedTemplates: d.savedTemplates.filter((t) => t.id !== id) }));
+    if (saved) queueCloudDelete("savedTemplate", id);
+    return saved;
   },
   createPresentation(id: string) {
     const template = db.savedTemplates.find((t) => t.id === id);
@@ -366,8 +369,9 @@ export const brandKitRepository = {
     }));
   },
   remove(id: string) {
-    queueCloudDelete("brandKit", id);
-    mutate((d) => ({ ...d, brandKits: d.brandKits.filter((k) => k.id !== id) }));
+    const saved = mutate((d) => ({ ...d, brandKits: d.brandKits.filter((k) => k.id !== id) }));
+    if (saved) queueCloudDelete("brandKit", id);
+    return saved;
   },
 };
 
@@ -379,13 +383,9 @@ export function databaseSnapshot(): Database {
 /** Revert in-memory replacement if the browser cannot durably store it. */
 export function replaceDatabase(next: Database): boolean {
   hydrate();
-  const previous = db;
-  db = structuredClone(next);
-  if (!persist()) {
-    db = previous;
-    emit();
-    return false;
-  }
+  const candidate = structuredClone(next);
+  if (!persist(candidate)) return false;
+  db = candidate;
   emit();
   return true;
 }

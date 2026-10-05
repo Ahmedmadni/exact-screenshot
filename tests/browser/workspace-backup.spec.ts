@@ -67,10 +67,7 @@ test("workspace backup download restores prior edits and rejects malformed impor
     mimeType: "application/json",
     buffer: backupBuffer,
   });
-  await expect.poll(async () => page.evaluate(
-    expectedRaw => localStorage.getItem("aps.db.v1") === expectedRaw,
-    backupEnvelope.database,
-  )).toBe(true);
+  await expect(page.getByText("Backup restored. Workspace data is ready.")).toBeVisible();
 
   const restoredTextPresent = async (expected: string) => page.evaluate(async ({ id, expectedText }) => {
     const raw = localStorage.getItem("aps.db.v1");

@@ -9,6 +9,8 @@ test("storage quota failure is visibly reported and recovers on next save", asyn
     has: page.getByRole("heading", { name: "Brand Story · Editorial" }),
   }).getByRole("button", { name: /Edit sample/i }).click();
   await expect(page).toHaveURL(/\/presentations\/[^/]+\/editor/);
+  const deckId = page.url().match(/presentations\/([^/]+)\/editor/)?.[1];
+  expect(deckId).toBeTruthy();
   const editor = page.getByRole("textbox", { name: "Edit template text" }).first();
   await expect(editor).toBeVisible();
   await expect(page.getByRole("banner").getByText("Saved", { exact: true })).toBeVisible();
@@ -26,6 +28,13 @@ test("storage quota failure is visibly reported and recovers on next save", asyn
   await editor.press("Tab");
   await expect(page.getByRole("banner").getByText("Save failed — check storage or connection")).toBeVisible();
   await expect(page.getByRole("banner").getByText("Saved", { exact: true })).toHaveCount(0);
+  const leakedIntoMemory = await page.evaluate(async ({ id, text }) => {
+    const { databaseSnapshot } = await import("/src/lib/data/store.ts");
+    const deck = databaseSnapshot().presentations.find(item => item.id === id);
+    return deck?.slides.flatMap(slide => slide.elements)
+      .some(element => element.type === "text" && element.properties.text === text) ?? false;
+  }, { id: deckId!, text: "Unsaved when quota exhausted" });
+  expect(leakedIntoMemory).toBe(false);
 
   await page.evaluate(() => {
     const storage = Storage.prototype as Storage & { _originalSetItemForTest?: Storage["setItem"] };

@@ -134,7 +134,7 @@ describe("design integrity", () => {
     expect(() => parseWorkspaceBackup(envelope(workspace))).toThrow(/Duplicate element identifiers/);
 
     const validDeck = structuredClone(workspace.presentations[0]!);
-    validDeck.slides[1]!.elements[0] = { ...validDeck.slides[1]!.elements[0]!, id: "unique-element" };
+    validDeck.slides[1]!.elements = validDeck.slides[1]!.elements.map((element, index) => ({ ...element, id: "unique-element-" + index }));
     const templateWorkspace: Database = {
       ...workspace,
       presentations: [validDeck],

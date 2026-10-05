@@ -100,14 +100,18 @@ function QuickTemplateText({
 }) {
   const [draft, setDraft] = useState(value);
   const draftRef = useRef(value);
+  const editBaseRef = useRef<Slide[] | null>(null);
   const apiRef = useRef(api);
   apiRef.current = api;
   const commit = () => {
     const currentApi = apiRef.current;
-    const before = currentApi.snapshot();
-    const updated = updateTemplateElementInSlides(before, slideId, elementId, element =>
-      withTemplateText(element, draftRef.current));
-    if (updated !== before) currentApi.commit(updated);
+    const base = editBaseRef.current;
+    editBaseRef.current = null;
+    if (!base) return;
+    const latest = currentApi.snapshot();
+    // Text has already been silently autosaved while typing. Commit the same
+    // final state against the pre-edit snapshot to create one clean undo step.
+    currentApi.commit(latest, base);
   };
   const commitRef = useRef(commit);
   commitRef.current = commit;
@@ -127,6 +131,12 @@ function QuickTemplateText({
         const next = event.target.value;
         draftRef.current = next;
         setDraft(next);
+        const currentApi = apiRef.current;
+        if (!editBaseRef.current) editBaseRef.current = currentApi.snapshot();
+        const before = currentApi.snapshot();
+        const updated = updateTemplateElementInSlides(before, slideId, elementId, element =>
+          withTemplateText(element, next));
+        if (updated !== before) currentApi.silentUpdate(updated);
       }}
       onBlur={commit}
     />

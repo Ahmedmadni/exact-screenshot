@@ -72,7 +72,30 @@ test("workspace backup download restores prior edits and rejects malformed impor
       return "status:" + await page.getByTestId("backup-restore-status").textContent();
     }
     return "pending";
-  }).toBe("confirm");
+  }, { timeout: 30_000 }).toBe("confirm");
+
+  // A quota failure during confirmation must be atomic: neither persistent
+  // storage nor the in-memory workspace may be replaced.
+  const beforeFailedRestore = await page.evaluate(() => localStorage.getItem("aps.db.v1"));
+  await page.evaluate(() => {
+    const storage = Storage.prototype as Storage & { _restoreOriginalSetItem?: Storage["setItem"] };
+    storage._restoreOriginalSetItem = storage.setItem;
+    storage.setItem = function (key: string, value: string) {
+      if (key === "aps.db.v1") throw new DOMException("Quota reached", "QuotaExceededError");
+      return storage._restoreOriginalSetItem!.call(this, key, value);
+    };
+  });
+  await page.getByRole("button", { name: "Confirm restore" }).click();
+  await expect(page.getByTestId("backup-restore-status"))
+    .toHaveText("Insufficient browser storage. Existing data was preserved.");
+  expect(await page.evaluate(() => localStorage.getItem("aps.db.v1"))).toBe(beforeFailedRestore);
+  await expect(page.getByTestId("backup-restore-confirmation")).toBeVisible();
+
+  await page.evaluate(() => {
+    const storage = Storage.prototype as Storage & { _restoreOriginalSetItem?: Storage["setItem"] };
+    if (storage._restoreOriginalSetItem) storage.setItem = storage._restoreOriginalSetItem;
+    delete storage._restoreOriginalSetItem;
+  });
   await page.getByRole("button", { name: "Confirm restore" }).click();
   await expect(page.getByTestId("backup-restore-status"))
     .toHaveText("Backup restored. Workspace data is ready.");

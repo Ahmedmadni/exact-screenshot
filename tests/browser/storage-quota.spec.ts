@@ -83,3 +83,38 @@ test("failed durable delete keeps local deck and does not enqueue cloud deletion
 
   expect(result).toEqual({ removed: false, stillPresent: true, queued: false });
 });
+
+
+test("delete is blocked if its cloud tombstone cannot be stored", async ({ page }, info) => {
+  test.skip(info.project.name !== "chromium-desktop", "desktop cloud-delete durability test");
+  await page.goto("/templates");
+  await expect(page.getByTestId("templates-hydrated")).toBeAttached();
+
+  const result = await page.evaluate(async () => {
+    const { databaseSnapshot, presentationRepository } = await import("/src/lib/data/store.ts");
+    const { queuedCloudDeletes } = await import("/src/lib/cloud/delete-queue.ts");
+    const target = databaseSnapshot().presentations[0];
+    if (!target) throw new Error("No presentation available for tombstone test");
+
+    const storage = Storage.prototype as Storage & { _originalSetItemForQueueTest?: Storage["setItem"] };
+    storage._originalSetItemForQueueTest = storage.setItem;
+    storage.setItem = function (key: string, value: string) {
+      if (key === "aps.cloud.deletes.v1") throw new DOMException("Storage quota reached", "QuotaExceededError");
+      return storage._originalSetItemForQueueTest!.call(this, key, value);
+    };
+
+    try {
+      const removed = presentationRepository.remove(target.id);
+      return {
+        removed,
+        stillPresent: databaseSnapshot().presentations.some(item => item.id === target.id),
+        queued: queuedCloudDeletes().some(item => item.kind === "presentation" && item.id === target.id),
+      };
+    } finally {
+      if (storage._originalSetItemForQueueTest) storage.setItem = storage._originalSetItemForQueueTest;
+      delete storage._originalSetItemForQueueTest;
+    }
+  });
+
+  expect(result).toEqual({ removed: false, stillPresent: true, queued: false });
+});

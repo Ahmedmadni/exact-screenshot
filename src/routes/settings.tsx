@@ -77,6 +77,7 @@ function WorkspaceBackups() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
   const [ready, setReady] = useState(false);
+  const [restoreMessage, setRestoreMessage] = useState<{ kind: "success" | "error"; text: string } | null>(null);
   useEffect(() => setReady(true), []);
 
   const download = () => {
@@ -100,6 +101,7 @@ function WorkspaceBackups() {
 
   const importFile = async (file?: File) => {
     if (!file) return;
+    setRestoreMessage(null);
     setImporting(true);
     try {
       if (file.size > MAX_BACKUP_BYTES) throw new Error("Backup exceeds the 100 MB limit.");
@@ -110,9 +112,13 @@ function WorkspaceBackups() {
         " presentations)? This will overwrite local work. Download a backup first.",
       )) return;
       if (!replaceDatabase(restored)) throw new Error("Insufficient browser storage. Existing data was preserved.");
-      toast.success("Backup restored. Workspace data is ready.");
+      const success = "Backup restored. Workspace data is ready.";
+      setRestoreMessage({ kind: "success", text: success });
+      toast.success(success);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Backup import failed.");
+      const message = error instanceof Error ? error.message : "Backup import failed.";
+      setRestoreMessage({ kind: "error", text: message });
+      toast.error(message);
     } finally {
       setImporting(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -134,6 +140,7 @@ function WorkspaceBackups() {
           Restore backup
         </Button>
       </div>
+      {restoreMessage && <p role="status" data-testid="backup-restore-status" className={`text-sm ${restoreMessage.kind === "error" ? "text-destructive" : "text-emerald-700 dark:text-emerald-300"}`}>{restoreMessage.text}</p>}
       <input ref={fileRef} className="sr-only" type="file" accept=".json,application/json"
         aria-label="Select workspace backup"
         onChange={(event) => { void importFile(event.target.files?.[0]); }} />

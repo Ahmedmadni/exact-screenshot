@@ -18,6 +18,21 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+function checksumDatabase(value: string): string {
+  // Fast non-cryptographic integrity check for accidental backup corruption.
+  // This is not an authentication or secrecy mechanism.
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < value.length; index++) {
+    const code = value.charCodeAt(index);
+    hash ^= code & 0xff;
+    hash = Math.imul(hash, 0x01000193);
+    hash ^= code >>> 8;
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return "fnv1a32:" + (hash >>> 0).toString(16).padStart(8, "0");
+}
+
+
 /**
  * Validate before replacing the active workspace. Requiring all collections
  * stops partial or malformed imports from wiping intact data.
@@ -72,11 +87,13 @@ export function validateBackupDatabase(value: unknown): Database {
 }
 
 export function createWorkspaceBackup(database: Database, exportedAt = new Date().toISOString()): string {
+  const encoded = encodeBrowserDatabase(validateBackupDatabase(database));
   const raw = JSON.stringify({
     format: BACKUP_FORMAT,
     version: BACKUP_VERSION,
     exportedAt,
-    database: encodeBrowserDatabase(validateBackupDatabase(database)),
+    checksum: checksumDatabase(encoded),
+    database: encoded,
   });
   assertWorkspaceBackupSize(raw);
   return raw;
@@ -94,6 +111,11 @@ export function parseWorkspaceBackup(raw: string): Database {
       typeof envelope.database !== "string" || typeof envelope.exportedAt !== "string" ||
       !Number.isFinite(Date.parse(envelope.exportedAt))) {
     throw new Error("Unsupported or invalid Meridian backup.");
+  }
+  if (envelope.checksum !== undefined) {
+    if (typeof envelope.checksum !== "string" || envelope.checksum !== checksumDatabase(envelope.database)) {
+      throw new Error("Backup integrity check failed. The file may be damaged or incomplete.");
+    }
   }
   try {
     return validateBackupDatabase(decodeBrowserDatabase(envelope.database));

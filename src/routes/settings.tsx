@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cloudConfigured, supabase } from "@/lib/cloud/supabase";
 import { syncDatabaseWithCloud } from "@/lib/cloud/sync";
-import { databaseSnapshot, replaceDatabase } from "@/lib/data/store";
+import { databaseSnapshot, replaceDatabase, type Database } from "@/lib/data/store";
 import { createWorkspaceBackup, MAX_BACKUP_BYTES, parseWorkspaceBackup } from "@/lib/data/workspace-backup";
 
 export const Route = createFileRoute("/settings")({
@@ -78,6 +78,7 @@ function WorkspaceBackups() {
   const [importing, setImporting] = useState(false);
   const [ready, setReady] = useState(false);
   const [restoreMessage, setRestoreMessage] = useState<{ kind: "success" | "error"; text: string } | null>(null);
+  const [pendingRestore, setPendingRestore] = useState<{ database: Database; deckCount: number; fileName: string } | null>(null);
   useEffect(() => setReady(true), []);
 
   const download = () => {
@@ -106,15 +107,11 @@ function WorkspaceBackups() {
     try {
       if (file.size > MAX_BACKUP_BYTES) throw new Error("Backup exceeds the 100 MB limit.");
       const restored = parseWorkspaceBackup(await file.text());
-      const deckCount = restored.presentations.length;
-      if (!window.confirm(
-        "Replace all local workspace data with this backup (" + deckCount +
-        " presentations)? This will overwrite local work. Download a backup first.",
-      )) return;
-      if (!replaceDatabase(restored)) throw new Error("Insufficient browser storage. Existing data was preserved.");
-      const success = "Backup restored. Workspace data is ready.";
-      setRestoreMessage({ kind: "success", text: success });
-      toast.success(success);
+      setPendingRestore({
+        database: restored,
+        deckCount: restored.presentations.length,
+        fileName: file.name,
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Backup import failed.";
       setRestoreMessage({ kind: "error", text: message });
@@ -123,6 +120,20 @@ function WorkspaceBackups() {
       setImporting(false);
       if (fileRef.current) fileRef.current.value = "";
     }
+  };
+
+  const confirmRestore = () => {
+    if (!pendingRestore) return;
+    if (!replaceDatabase(pendingRestore.database)) {
+      const message = "Insufficient browser storage. Existing data was preserved.";
+      setRestoreMessage({ kind: "error", text: message });
+      toast.error(message);
+      return;
+    }
+    setPendingRestore(null);
+    const success = "Backup restored. Workspace data is ready.";
+    setRestoreMessage({ kind: "success", text: success });
+    toast.success(success);
   };
 
   return (
@@ -140,6 +151,18 @@ function WorkspaceBackups() {
           Restore backup
         </Button>
       </div>
+      {pendingRestore && (
+        <div data-testid="backup-restore-confirmation" className="space-y-3 rounded-md border border-amber-500/40 bg-amber-500/5 p-4">
+          <p className="text-sm text-foreground">
+            Restore <strong>{pendingRestore.fileName}</strong> with {pendingRestore.deckCount} presentation{pendingRestore.deckCount === 1 ? "" : "s"}?
+            This replaces all local workspace data. Cloud data is unchanged.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" onClick={confirmRestore}>Confirm restore</Button>
+            <Button size="sm" variant="outline" onClick={() => setPendingRestore(null)}>Cancel</Button>
+          </div>
+        </div>
+      )}
       {restoreMessage && <p role="status" data-testid="backup-restore-status" className={`text-sm ${restoreMessage.kind === "error" ? "text-destructive" : "text-emerald-700 dark:text-emerald-300"}`}>{restoreMessage.text}</p>}
       <input ref={fileRef} className="sr-only" type="file" accept=".json,application/json"
         aria-label="Select workspace backup"

@@ -36,8 +36,11 @@ test("workspace backup downloads, rejects corrupt imports, and restores after co
   await expect(page.getByRole("heading", { name: "Workspace settings" })).toBeVisible();
 
   page.once("dialog", dialog => dialog.accept());
+  const restoredNavigation = page.waitForEvent("framenavigated", {
+    predicate: frame => frame === page.mainFrame(),
+  });
   await input.setInputFiles({ name: "backup.json", mimeType: "application/json", buffer: bytes });
+  await restoredNavigation;
   await expect(page.getByRole("heading", { name: "Workspace settings" })).toBeVisible();
-  await page.reload();
   await expect(page.getByRole("heading", { name: "Local workspace backup" })).toBeVisible();
 });

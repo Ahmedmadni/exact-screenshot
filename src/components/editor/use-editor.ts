@@ -48,13 +48,16 @@ export function useEditor(p: Presentation, initialSlideId?: string) {
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const pending = useRef<PendingSave | null>(null);
 
+  const storeLocal = useCallback((d: Doc) =>
+    presentationRepository.update(p.id, {
+      slides: d.slides.map((s, i) => ({ ...s, slideNumber: i + 1, sortOrder: i })),
+      recommendedSlideCount: d.slides.length,
+      themeId: d.themeId,
+    }), [p.id]);
+
   const write = useCallback(
     async (d: Doc, base?: Doc) => {
-      const stored = presentationRepository.update(p.id, {
-        slides: d.slides.map((s, i) => ({ ...s, slideNumber: i + 1, sortOrder: i })),
-        recommendedSlideCount: d.slides.length,
-        themeId: d.themeId,
-      });
+      const stored = storeLocal(d);
       if (!stored) {
         setSave("error");
         return;
@@ -139,7 +142,7 @@ export function useEditor(p: Presentation, initialSlideId?: string) {
         liveSaving.current = false;
       }
     },
-    [p.id],
+    [p.id, storeLocal],
   );
 
   const flush = useCallback(() => {
@@ -177,7 +180,15 @@ export function useEditor(p: Presentation, initialSlideId?: string) {
     window.addEventListener("beforeunload", onUnload);
     return () => {
       window.removeEventListener("beforeunload", onUnload);
-      flush();
+      clearTimeout(timer.current);
+      // Never leave a post-unmount retry timer behind. If a cloud request is
+      // still running, keep the newest queued edit durable in local storage;
+      // it can sync on the next editor session.
+      if (pending.current) {
+        const latest = pending.current.next;
+        pending.current = null;
+        storeLocal(latest);
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

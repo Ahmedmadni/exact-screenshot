@@ -5,6 +5,13 @@ import { decodeBrowserDatabase, encodeBrowserDatabase } from "./storage-codec";
 export const BACKUP_FORMAT = "meridian-workspace-backup";
 export const BACKUP_VERSION = 1;
 export const MAX_BACKUP_BYTES = 100 * 1024 * 1024;
+
+export function assertWorkspaceBackupSize(raw: string, maxBytes = MAX_BACKUP_BYTES): number {
+  const bytes = new TextEncoder().encode(raw).length;
+  if (bytes > maxBytes) throw new Error("Backup exceeds the " + Math.round(maxBytes / 1024 / 1024) + " MB limit.");
+  return bytes;
+}
+
 const COLLECTIONS = ["presentations", "themes", "brandKits", "savedTemplates", "versions", "reviewComments", "reviewDecisions", "assets"] as const;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -65,16 +72,18 @@ export function validateBackupDatabase(value: unknown): Database {
 }
 
 export function createWorkspaceBackup(database: Database, exportedAt = new Date().toISOString()): string {
-  return JSON.stringify({
+  const raw = JSON.stringify({
     format: BACKUP_FORMAT,
     version: BACKUP_VERSION,
     exportedAt,
     database: encodeBrowserDatabase(validateBackupDatabase(database)),
   });
+  assertWorkspaceBackupSize(raw);
+  return raw;
 }
 
 export function parseWorkspaceBackup(raw: string): Database {
-  if (new TextEncoder().encode(raw).length > MAX_BACKUP_BYTES) throw new Error("Backup exceeds the 100 MB limit.");
+  assertWorkspaceBackupSize(raw);
   let envelope: unknown;
   try {
     envelope = JSON.parse(raw);

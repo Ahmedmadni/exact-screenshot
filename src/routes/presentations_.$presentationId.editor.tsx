@@ -506,9 +506,14 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
             <div className="flex items-center gap-2">
               <SaveIndicator state={api.save} />
               {api.save === "error" && (
-                <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]" onClick={downloadRecoveryBackup}>
-                  <Download className="size-3.5" /> Recovery
-                </Button>
+                <>
+                  <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]" onClick={api.retrySave}>
+                    Retry
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]" onClick={downloadRecoveryBackup}>
+                    <Download className="size-3.5" /> Recovery
+                  </Button>
+                </>
               )}
             </div>
           </div>
@@ -568,9 +573,14 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
           <div className="flex items-center gap-2">
             <SaveIndicator state={api.save} />
             {api.save === "error" && (
-              <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]" onClick={downloadRecoveryBackup}>
-                <Download className="size-3.5" /> Download recovery
-              </Button>
+              <>
+                <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]" onClick={api.retrySave}>
+                  Retry save
+                </Button>
+                <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]" onClick={downloadRecoveryBackup}>
+                  <Download className="size-3.5" /> Download recovery
+                </Button>
+              </>
             )}
             {p.collaboration?.enabled && <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[10px] text-accent">Live · r{api.collaborationRevision}</span>}
             {activeSourceNames.length > 0 && (

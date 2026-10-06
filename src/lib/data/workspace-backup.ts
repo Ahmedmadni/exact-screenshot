@@ -86,6 +86,15 @@ export function validateBackupDatabase(value: unknown): Database {
   return value as unknown as Database;
 }
 
+export function withRecoveryPresentation(database: Database, presentation: Database["presentations"][number]): Database {
+  const copy = structuredClone(database);
+  const deck = structuredClone(presentation);
+  copy.presentations = copy.presentations.some(item => item.id === deck.id)
+    ? copy.presentations.map(item => item.id === deck.id ? deck : item)
+    : [deck, ...copy.presentations];
+  return copy;
+}
+
 export function createWorkspaceBackup(database: Database, exportedAt = new Date().toISOString()): string {
   const encoded = encodeBrowserDatabase(validateBackupDatabase(database));
   const raw = JSON.stringify({

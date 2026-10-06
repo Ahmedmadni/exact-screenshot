@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { readFile } from "node:fs/promises";
 
 test("storage quota failure is visibly reported and recovers on next save", async ({ page }, info) => {
   test.skip(info.project.name !== "chromium-desktop", "desktop persistence test");
@@ -35,6 +36,22 @@ test("storage quota failure is visibly reported and recovers on next save", asyn
       .some(element => element.type === "text" && element.properties.text === text) ?? false;
   }, { id: deckId!, text: "Unsaved when quota exhausted" });
   expect(leakedIntoMemory).toBe(false);
+
+  // Even though durable storage rejected the edit, the in-memory editor must
+  // be able to export a complete recovery backup containing that exact draft.
+  const recoveryPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download recovery" }).click();
+  const recoveryDownload = await recoveryPromise;
+  expect(recoveryDownload.suggestedFilename()).toMatch(/^meridian-recovery-\d{4}-\d{2}-\d{2}\.json$/);
+  const recoveryRaw = (await readFile(await recoveryDownload.path())).toString("utf8");
+  const recoveryContainsDraft = await page.evaluate(async ({ raw, id, expected }) => {
+    const { parseWorkspaceBackup } = await import("/src/lib/data/workspace-backup.ts");
+    const restored = parseWorkspaceBackup(raw);
+    const deck = restored.presentations.find(item => item.id === id);
+    return deck?.slides.flatMap(slide => slide.elements)
+      .some(element => element.type === "text" && element.properties.text === expected) ?? false;
+  }, { raw: recoveryRaw, id: deckId!, expected: "Unsaved when quota exhausted" });
+  expect(recoveryContainsDraft).toBe(true);
 
   await page.evaluate(() => {
     const storage = Storage.prototype as Storage & { _originalSetItemForTest?: Storage["setItem"] };

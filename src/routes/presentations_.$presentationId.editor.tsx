@@ -24,7 +24,7 @@ import { readImage } from "@/components/editor/image-upload";
 import { SlideStage, SlideThumb, useFitScale } from "@/components/editor/slide-renderer";
 import { useEditor, type EditorApi } from "@/components/editor/use-editor";
 import { assetRepository, databaseSnapshot, reviewDecisionRepository, savedTemplateRepository, usePresentation } from "@/lib/data/store";
-import { createWorkspaceBackup } from "@/lib/data/workspace-backup";
+import { createWorkspaceBackup, withRecoveryPresentation } from "@/lib/data/workspace-backup";
 import { SHAPE_LABELS, TEXT_PRESETS, chartEl, cloneElement, diagramEl, iconEl, imageEl, instantiate, shapeEl, tableEl, textEl } from "@/lib/editor/elements";
 import { SLIDE_H, SLIDE_W, type DraftElement, type ShapeKind, type SlideElement } from "@/lib/editor/model";
 import { getTheme } from "@/lib/editor/themes";
@@ -364,7 +364,6 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
 
   const downloadRecoveryBackup = useCallback(() => {
     try {
-      const snapshot = databaseSnapshot();
       const recoveryDeck: Presentation = {
         ...p,
         slides: api.snapshot().map((slide, index) => ({
@@ -376,10 +375,9 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
         themeId: api.themeId,
         updatedAt: new Date().toISOString(),
       };
-      snapshot.presentations = snapshot.presentations.some((item) => item.id === p.id)
-        ? snapshot.presentations.map((item) => item.id === p.id ? recoveryDeck : item)
-        : [recoveryDeck, ...snapshot.presentations];
-      const content = createWorkspaceBackup(snapshot);
+      const content = createWorkspaceBackup(
+        withRecoveryPresentation(databaseSnapshot(), recoveryDeck),
+      );
       const blob = new Blob([content], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");

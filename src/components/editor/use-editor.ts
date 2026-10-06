@@ -341,6 +341,10 @@ export function useEditor(p: Presentation, initialSlideId?: string) {
   );
   const undo = useCallback(() => restore(past, future), [restore]);
   const redo = useCallback(() => restore(future, past), [restore]);
+  const retrySave = useCallback(() => {
+    setSave("saving");
+    void write(current.current);
+  }, [write]);
 
   const slides = doc.slides;
   const active = useMemo(() => slides.find((s) => s.id === activeId) ?? slides[0], [slides, activeId]);
@@ -393,6 +397,7 @@ export function useEditor(p: Presentation, initialSlideId?: string) {
     commit,
     undo,
     redo,
+    retrySave,
     canUndo: history.past > 0,
     canRedo: history.future > 0,
     mapElements,

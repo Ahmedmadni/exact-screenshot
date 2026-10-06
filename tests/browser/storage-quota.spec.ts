@@ -58,12 +58,11 @@ test("storage quota failure is visibly reported and recovers on next save", asyn
     if (storage._originalSetItemForTest) storage.setItem = storage._originalSetItemForTest;
     delete storage._originalSetItemForTest;
   });
-  await editor.fill("Recovered after quota cleared");
-  await editor.press("Tab");
+  await page.getByRole("button", { name: "Retry save" }).click();
   await expect(page.getByRole("banner").getByText("Saved", { exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByRole("textbox", { name: "Edit template text" }).first())
-    .toHaveValue("Recovered after quota cleared");
+    .toHaveValue("Unsaved when quota exhausted");
 });
 
 

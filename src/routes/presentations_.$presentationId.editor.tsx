@@ -23,7 +23,8 @@ import { SmartMediaPanel } from "@/components/editor/smart-media-panel";
 import { readImage } from "@/components/editor/image-upload";
 import { SlideStage, SlideThumb, useFitScale } from "@/components/editor/slide-renderer";
 import { useEditor, type EditorApi } from "@/components/editor/use-editor";
-import { assetRepository, reviewDecisionRepository, savedTemplateRepository, usePresentation } from "@/lib/data/store";
+import { assetRepository, databaseSnapshot, reviewDecisionRepository, savedTemplateRepository, usePresentation } from "@/lib/data/store";
+import { createWorkspaceBackup } from "@/lib/data/workspace-backup";
 import { SHAPE_LABELS, TEXT_PRESETS, chartEl, cloneElement, diagramEl, iconEl, imageEl, instantiate, shapeEl, tableEl, textEl } from "@/lib/editor/elements";
 import { SLIDE_H, SLIDE_W, type DraftElement, type ShapeKind, type SlideElement } from "@/lib/editor/model";
 import { getTheme } from "@/lib/editor/themes";
@@ -361,6 +362,40 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
     toast.success(`Added ${appendix.length} sources appendix slide${appendix.length === 1 ? "" : "s"}.`);
   }, [api, p]);
 
+  const downloadRecoveryBackup = useCallback(() => {
+    try {
+      const snapshot = databaseSnapshot();
+      const recoveryDeck: Presentation = {
+        ...p,
+        slides: api.snapshot().map((slide, index) => ({
+          ...slide,
+          slideNumber: index + 1,
+          sortOrder: index,
+        })),
+        recommendedSlideCount: api.slides.length,
+        themeId: api.themeId,
+        updatedAt: new Date().toISOString(),
+      };
+      snapshot.presentations = snapshot.presentations.some((item) => item.id === p.id)
+        ? snapshot.presentations.map((item) => item.id === p.id ? recoveryDeck : item)
+        : [recoveryDeck, ...snapshot.presentations];
+      const content = createWorkspaceBackup(snapshot);
+      const blob = new Blob([content], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "meridian-recovery-" + new Date().toISOString().slice(0, 10) + ".json";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      toast.success("Recovery backup downloaded with your current in-memory edits.");
+    } catch (error) {
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : "Could not create recovery backup.");
+    }
+  }, [api, p]);
+
   const exportDeck = useCallback(async (format: "pptx" | "pdf") => {
     if (exporting) return;
     const deck: Presentation = { ...p, slides: api.snapshot(), themeId: api.themeId };
@@ -470,7 +505,14 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
           </Button>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold">{p.title}</p>
-            <SaveIndicator state={api.save} />
+            <div className="flex items-center gap-2">
+              <SaveIndicator state={api.save} />
+              {api.save === "error" && (
+                <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]" onClick={downloadRecoveryBackup}>
+                  <Download className="size-3.5" /> Recovery
+                </Button>
+              )}
+            </div>
           </div>
           <Button variant="ghost" size="icon" aria-label="Undo" disabled={!api.canUndo} onClick={api.undo}><Undo2 className="size-4" /></Button>
           <Button variant="ghost" size="icon" aria-label="Redo" disabled={!api.canRedo} onClick={api.redo}><Redo2 className="size-4" /></Button>
@@ -527,6 +569,11 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
           <p className="truncate text-sm font-medium text-foreground">{p.title}</p>
           <div className="flex items-center gap-2">
             <SaveIndicator state={api.save} />
+            {api.save === "error" && (
+              <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]" onClick={downloadRecoveryBackup}>
+                <Download className="size-3.5" /> Download recovery
+              </Button>
+            )}
             {p.collaboration?.enabled && <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[10px] text-accent">Live · r{api.collaborationRevision}</span>}
             {activeSourceNames.length > 0 && (
               <span className="max-w-40 truncate rounded-full bg-accent/10 px-2 py-0.5 text-[10px] text-accent" title={activeSourceNames.join(", ")}>

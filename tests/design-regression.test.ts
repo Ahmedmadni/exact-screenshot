@@ -11,7 +11,7 @@ import { imageCropControls, imageCropCss, imageCropFocalPreset, imageCropFromCon
 import { canStartEditorGesture, isActiveEditorPointer } from "../src/lib/editor/pointer-gesture";
 import { moveItemByStep } from "../src/lib/editor/slide-order";
 import { encodeBrowserDatabase, decodeBrowserDatabase } from "../src/lib/data/storage-codec";
-import { assertWorkspaceBackupSize, createWorkspaceBackup, parseWorkspaceBackup } from "../src/lib/data/workspace-backup";
+import { assertWorkspaceBackupSize, createWorkspaceBackup, parseWorkspaceBackup, withRecoveryPresentation } from "../src/lib/data/workspace-backup";
 import type { Database } from "../src/lib/data/store";
 import { cloneSlidesForPresentation } from "../src/lib/data/presentation-clone";
 import { elementOnlyChanges } from "../src/lib/editor/element-diff";
@@ -74,6 +74,40 @@ describe("design integrity", () => {
     };
     const raw = createWorkspaceBackup(workspace, "2026-10-04T00:00:00.000Z");
     expect(parseWorkspaceBackup(raw)).toEqual(workspace);
+  });
+
+  test("recovery workspace replaces only the active deck and never mutates the durable snapshot", () => {
+    const originalSlide = slide();
+    originalSlide.id = "durable-slide";
+    originalSlide.presentationId = "deck";
+    originalSlide.elements = buildLayout("title-content", contentFromSlide(originalSlide), originalSlide.id);
+    const durableDeck = { id: "deck", title: "Durable copy", slides: [originalSlide] } as unknown as Presentation;
+    const otherDeck = { id: "other", title: "Other deck", slides: [] } as unknown as Presentation;
+    const workspace: Database = {
+      presentations: [durableDeck, otherDeck],
+      themes: [], brandKits: [], savedTemplates: [], versions: [],
+      reviewComments: [], reviewDecisions: [], assets: [],
+    };
+
+    const recoverySlide = structuredClone(originalSlide);
+    recoverySlide.elements = recoverySlide.elements.map(element =>
+      element.type === "text"
+        ? { ...element, properties: { ...element.properties, text: "Unsaved recovery draft" } }
+        : element);
+    const recoveryDeck = { ...structuredClone(durableDeck), slides: [recoverySlide] };
+    const recovered = withRecoveryPresentation(workspace, recoveryDeck);
+
+    expect(recovered).not.toBe(workspace);
+    expect(recovered.presentations[0]).not.toBe(workspace.presentations[0]);
+    expect(recovered.presentations[1]).toEqual(otherDeck);
+    expect(workspace.presentations[0]!.slides[0]!.elements.some(element =>
+      element.type === "text" && element.properties.text === "Unsaved recovery draft")).toBe(false);
+    expect(recovered.presentations[0]!.slides[0]!.elements.some(element =>
+      element.type === "text" && element.properties.text === "Unsaved recovery draft")).toBe(true);
+
+    const parsed = parseWorkspaceBackup(createWorkspaceBackup(recovered));
+    expect(parsed.presentations[0]!.slides[0]!.elements.some(element =>
+      element.type === "text" && element.properties.text === "Unsaved recovery draft")).toBe(true);
   });
 
   test("workspace backup checksum detects silent corruption while legacy v1 backups remain readable", () => {

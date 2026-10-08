@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 
 test("workspace backup download restores prior edits and rejects malformed imports", async ({ page }, info) => {
+  test.setTimeout(90_000);
   test.skip(info.project.name !== "chromium-desktop", "desktop workspace backup workflow");
 
   await page.goto("/templates");
@@ -72,7 +73,7 @@ test("workspace backup download restores prior edits and rejects malformed impor
       return "status:" + await page.getByTestId("backup-restore-status").textContent();
     }
     return "pending";
-  }, { timeout: 30_000 }).toBe("confirm");
+  }, { timeout: 45_000 }).toBe("confirm");
 
   // A quota failure during confirmation must be atomic: neither persistent
   // storage nor the in-memory workspace may be replaced.

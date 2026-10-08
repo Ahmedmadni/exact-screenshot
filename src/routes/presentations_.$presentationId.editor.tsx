@@ -510,7 +510,7 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
                   <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]" onClick={api.retrySave}>
                     Retry
                   </Button>
-                  <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]" onClick={downloadRecoveryBackup}>
+                  <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]" data-testid="download-recovery" onClick={downloadRecoveryBackup}>
                     <Download className="size-3.5" /> Recovery
                   </Button>
                 </>
@@ -577,7 +577,7 @@ function Editor({ p, initialSlide }: { p: Presentation; initialSlide?: string | 
                 <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]" onClick={api.retrySave}>
                   Retry save
                 </Button>
-                <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]" onClick={downloadRecoveryBackup}>
+                <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]" data-testid="download-recovery" onClick={downloadRecoveryBackup}>
                   <Download className="size-3.5" /> Download recovery
                 </Button>
               </>

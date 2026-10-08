@@ -138,9 +138,14 @@ describe("design integrity", () => {
     expect(() => parseWorkspaceBackup("not-json")).toThrow();
     expect(() => parseWorkspaceBackup(JSON.stringify({ ...valid, version: 999 }))).toThrow();
     expect(() => parseWorkspaceBackup(JSON.stringify({ ...valid, database: "{}" }))).toThrow();
-    expect(() => parseWorkspaceBackup(JSON.stringify({ ...valid, database: JSON.stringify({
-      ...blank, presentations: [{ id: "x", slides: [] }, { id: "x", slides: [] }],
-    }) }))).toThrow(/Duplicate/);
+    const duplicateIds = {
+      ...valid,
+      checksum: undefined,
+      database: JSON.stringify({
+        ...blank, presentations: [{ id: "x", slides: [] }, { id: "x", slides: [] }],
+      }),
+    };
+    expect(() => parseWorkspaceBackup(JSON.stringify(duplicateIds))).toThrow(/Duplicate/);
     expect(parseWorkspaceBackup(JSON.stringify(valid))).toEqual(blank);
   });
 

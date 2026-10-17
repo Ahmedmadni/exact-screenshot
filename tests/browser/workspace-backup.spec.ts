@@ -62,6 +62,8 @@ test("workspace backup download restores prior edits and rejects malformed impor
   }, { id: deckId!, expected: "Mutation after backup" })).toBe(true);
 
   await page.goto("/settings");
+  // Wait for hydration so the file-input change handler is attached.
+  await expect(page.getByRole("button", { name: "Restore backup" })).toBeEnabled();
   await page.getByLabel("Select workspace backup").setInputFiles({
     name: "checkpoint.json",
     mimeType: "application/json",

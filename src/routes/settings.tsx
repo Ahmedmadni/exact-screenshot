@@ -103,6 +103,7 @@ function WorkspaceBackups() {
   const importFile = async (file?: File) => {
     if (!file) return;
     setRestoreMessage(null);
+    setPendingRestore(null);
     setImporting(true);
     try {
       if (file.size > MAX_BACKUP_BYTES) throw new Error("Backup exceeds the 100 MB limit.");
@@ -151,6 +152,7 @@ function WorkspaceBackups() {
           Restore backup
         </Button>
       </div>
+      {importing && <p role="status" data-testid="backup-import-progress" className="text-sm text-muted-foreground">Checking backup integrity and contents…</p>}
       {pendingRestore && (
         <div data-testid="backup-restore-confirmation" className="space-y-3 rounded-md border border-amber-500/40 bg-amber-500/5 p-4">
           <p className="text-sm text-foreground">

@@ -129,7 +129,7 @@ export function SlideRail({
         <span className="eyebrow">{slides.length} slides</span>
         <Button size="icon" variant="ghost" className="size-7" aria-label="Add slide" onClick={addSlide}><Plus className="size-4" /></Button>
       </div>
-      <div className="flex-1 space-y-1 overflow-y-auto px-3 pb-4" onDragOver={(e) => e.preventDefault()}>
+      <div className="flex-1 space-y-1 overflow-y-auto px-3 pb-4" aria-label="Slide thumbnails" onDragOver={(e) => e.preventDefault()}>
         {slides.map((s, i) => (
           <div key={s.id}>
             {overIndex === i && dragIndex !== null && <div className="mb-1 h-0.5 rounded bg-primary" />}
@@ -138,8 +138,27 @@ export function SlideRail({
               onDragStart={() => setDragIndex(i)}
               onDragOver={(e) => { e.preventDefault(); const r = e.currentTarget.getBoundingClientRect(); setOverIndex(e.clientY > r.top + r.height / 2 ? i + 1 : i); }}
               onDragEnd={() => { if (dragIndex !== null && overIndex !== null) reorder(dragIndex, overIndex); setDragIndex(null); setOverIndex(null); }}
+              role="button"
+              tabIndex={0}
+              aria-label={`Select slide ${i + 1}: ${s.title}`}
+              aria-current={s.id === api.activeId ? "true" : undefined}
               onClick={() => api.setActiveId(s.id)}
-              className={cn("group relative flex cursor-pointer gap-2 rounded-md p-1.5", s.id === api.activeId ? "bg-accent/15" : "hover:bg-muted", dragIndex === i && "opacity-40")}
+              onKeyDown={(event) => {
+                if (event.target !== event.currentTarget) return;
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  api.setActiveId(s.id);
+                } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                  event.preventDefault();
+                  const nextIndex = Math.min(slides.length - 1, Math.max(0, i + (event.key === "ArrowDown" ? 1 : -1)));
+                  const target = slides[nextIndex];
+                  if (target) api.setActiveId(target.id);
+                  const buttons = event.currentTarget.parentElement?.parentElement?.querySelectorAll<HTMLElement>('[data-slide-selection]');
+                  buttons?.[nextIndex]?.focus();
+                }
+              }}
+              data-slide-selection
+              className={cn("group relative flex cursor-pointer gap-2 rounded-md p-1.5 outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card motion-reduce:transition-none", s.id === api.activeId ? "bg-accent/15" : "hover:bg-muted", dragIndex === i && "opacity-40")}
             >
               <span className="w-4 pt-1 text-end text-[11px] text-muted-foreground">{i + 1}</span>
               <div className={cn("relative flex-1 overflow-hidden rounded border", s.id === api.activeId ? "border-primary ring-1 ring-primary" : "border-border")}>
@@ -174,11 +193,11 @@ export function SlideRail({
                   onClick={(event) => { event.stopPropagation(); api.commit(moveItemByStep(slides, i, 1)); }}>
                   <ArrowDown className="size-4 lg:size-3" />
                 </button>
-                <button className="flex size-8 items-center justify-center rounded border border-border bg-background/95 text-foreground shadow-sm lg:size-6" aria-label="Duplicate slide" onClick={(e) => { e.stopPropagation(); const copy = duplicateSlide(s); const next = [...slides]; next.splice(i + 1, 0, copy); api.commit(next); api.setActiveId(copy.id); }}>
+                <button type="button" className="flex size-8 items-center justify-center rounded border border-border bg-background/95 text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:size-6" aria-label="Duplicate slide" onClick={(e) => { e.stopPropagation(); const copy = duplicateSlide(s); const next = [...slides]; next.splice(i + 1, 0, copy); api.commit(next); api.setActiveId(copy.id); }}>
                   <Copy className="size-3" />
                 </button>
                 {slides.length > 1 && (
-                  <button className="flex size-8 items-center justify-center rounded border border-border bg-background/95 text-foreground shadow-sm hover:text-destructive lg:size-6" aria-label="Delete slide" onClick={(e) => { e.stopPropagation(); const before = slides; const wasActive = api.activeId; const next = slides.filter((x) => x.id !== s.id); api.commit(next); if (s.id === api.activeId) api.setActiveId(next[Math.max(0, i - 1)]!.id); toast("Slide deleted", { action: { label: "Undo", onClick: () => { api.commit(before); api.setActiveId(s.id === wasActive ? s.id : wasActive); } } }); }}>
+                  <button type="button" className="flex size-8 items-center justify-center rounded border border-border bg-background/95 text-foreground shadow-sm hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:size-6" aria-label="Delete slide" onClick={(e) => { e.stopPropagation(); const before = slides; const wasActive = api.activeId; const next = slides.filter((x) => x.id !== s.id); api.commit(next); if (s.id === api.activeId) api.setActiveId(next[Math.max(0, i - 1)]!.id); toast("Slide deleted", { action: { label: "Undo", onClick: () => { api.commit(before); api.setActiveId(s.id === wasActive ? s.id : wasActive); } } }); }}>
                     <Trash2 className="size-3" />
                   </button>
                 )}

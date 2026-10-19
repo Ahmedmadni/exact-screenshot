@@ -135,6 +135,7 @@ export function SlideRail({
             {overIndex === i && dragIndex !== null && <div className="mb-1 h-0.5 rounded bg-primary" />}
             <div
               draggable
+              onDragCancel={() => { setDragIndex(null); setOverIndex(null); }}
               onDragStart={() => setDragIndex(i)}
               onDragOver={(e) => { e.preventDefault(); const r = e.currentTarget.getBoundingClientRect(); setOverIndex(e.clientY > r.top + r.height / 2 ? i + 1 : i); }}
               onDragEnd={() => { if (dragIndex !== null && overIndex !== null) reorder(dragIndex, overIndex); setDragIndex(null); setOverIndex(null); }}
@@ -193,11 +194,11 @@ export function SlideRail({
                   onClick={(event) => { event.stopPropagation(); api.commit(moveItemByStep(slides, i, 1)); }}>
                   <ArrowDown className="size-4 lg:size-3" />
                 </button>
-                <button className="flex size-8 items-center justify-center rounded border border-border bg-background/95 text-foreground shadow-sm lg:size-6" aria-label="Duplicate slide" onClick={(e) => { e.stopPropagation(); const copy = duplicateSlide(s); const next = [...slides]; next.splice(i + 1, 0, copy); api.commit(next); api.setActiveId(copy.id); }}>
+                <button type="button" className="flex size-8 items-center justify-center rounded border border-border bg-background/95 text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:size-6" aria-label="Duplicate slide" onClick={(e) => { e.stopPropagation(); const copy = duplicateSlide(s); const next = [...slides]; next.splice(i + 1, 0, copy); api.commit(next); api.setActiveId(copy.id); }}>
                   <Copy className="size-3" />
                 </button>
                 {slides.length > 1 && (
-                  <button className="flex size-8 items-center justify-center rounded border border-border bg-background/95 text-foreground shadow-sm hover:text-destructive lg:size-6" aria-label="Delete slide" onClick={(e) => { e.stopPropagation(); const before = slides; const wasActive = api.activeId; const next = slides.filter((x) => x.id !== s.id); api.commit(next); if (s.id === api.activeId) api.setActiveId(next[Math.max(0, i - 1)]!.id); toast("Slide deleted", { action: { label: "Undo", onClick: () => { api.commit(before); api.setActiveId(s.id === wasActive ? s.id : wasActive); } } }); }}>
+                  <button type="button" className="flex size-8 items-center justify-center rounded border border-border bg-background/95 text-foreground shadow-sm hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:size-6" aria-label="Delete slide" onClick={(e) => { e.stopPropagation(); const before = slides; const wasActive = api.activeId; const next = slides.filter((x) => x.id !== s.id); api.commit(next); if (s.id === api.activeId) api.setActiveId(next[Math.max(0, i - 1)]!.id); toast("Slide deleted", { action: { label: "Undo", onClick: () => { api.commit(before); api.setActiveId(s.id === wasActive ? s.id : wasActive); } } }); }}>
                     <Trash2 className="size-3" />
                   </button>
                 )}

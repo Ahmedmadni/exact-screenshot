@@ -138,8 +138,25 @@ export function SlideRail({
               onDragStart={() => setDragIndex(i)}
               onDragOver={(e) => { e.preventDefault(); const r = e.currentTarget.getBoundingClientRect(); setOverIndex(e.clientY > r.top + r.height / 2 ? i + 1 : i); }}
               onDragEnd={() => { if (dragIndex !== null && overIndex !== null) reorder(dragIndex, overIndex); setDragIndex(null); setOverIndex(null); }}
+              role="group"
+              tabIndex={0}
+              aria-label={`Slide ${i + 1} of ${slides.length}: ${s.title}`}
+              aria-current={s.id === api.activeId ? "true" : undefined}
               onClick={() => api.setActiveId(s.id)}
-              className={cn("group relative flex cursor-pointer gap-2 rounded-md p-1.5", s.id === api.activeId ? "bg-accent/15" : "hover:bg-muted", dragIndex === i && "opacity-40")}
+              onKeyDown={(event) => {
+                if (event.target !== event.currentTarget) return;
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  api.setActiveId(s.id);
+                } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                  event.preventDefault();
+                  const next = Math.min(slides.length - 1, Math.max(0, i + (event.key === "ArrowDown" ? 1 : -1)));
+                  const nodes = event.currentTarget.parentElement?.parentElement?.querySelectorAll<HTMLElement>('[data-slide-rail-item]');
+                  nodes?.[next]?.focus();
+                }
+              }}
+              data-slide-rail-item=""
+              className={cn("group relative flex cursor-pointer gap-2 rounded-md p-1.5 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-safe:transition-colors", s.id === api.activeId ? "bg-accent/15" : "hover:bg-muted", dragIndex === i && "opacity-40")}
             >
               <span className="w-4 pt-1 text-end text-[11px] text-muted-foreground">{i + 1}</span>
               <div className={cn("relative flex-1 overflow-hidden rounded border", s.id === api.activeId ? "border-primary ring-1 ring-primary" : "border-border")}>

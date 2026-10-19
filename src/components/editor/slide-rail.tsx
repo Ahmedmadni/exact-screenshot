@@ -148,10 +148,12 @@ export function SlideRail({
                 if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
                   api.setActiveId(s.id);
-                } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                } else if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
                   event.preventDefault();
-                  const next = Math.min(slides.length - 1, Math.max(0, i + (event.key === "ArrowDown" ? 1 : -1)));
-                  const nodes = event.currentTarget.parentElement?.parentElement?.querySelectorAll<HTMLElement>('[data-slide-rail-item]');
+                  const next = event.key === "Home" ? 0
+                    : event.key === "End" ? slides.length - 1
+                    : Math.min(slides.length - 1, Math.max(0, i + (event.key === "ArrowDown" ? 1 : -1)));
+                  const nodes = event.currentTarget.closest("aside")?.querySelectorAll<HTMLElement>('[data-slide-rail-item]');
                   nodes?.[next]?.focus();
                 }
               }}

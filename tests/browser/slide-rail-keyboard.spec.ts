@@ -24,4 +24,8 @@ test("slide rail supports keyboard selection and arrow navigation", async ({ pag
   await expect(slides.first()).toBeFocused();
   await page.keyboard.press("Space");
   await expect(slides.first()).toHaveAttribute("aria-current", "true");
+  await page.keyboard.press("End");
+  await expect(slides.last()).toBeFocused();
+  await page.keyboard.press("Home");
+  await expect(slides.first()).toBeFocused();
 });

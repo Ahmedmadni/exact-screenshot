@@ -10,7 +10,7 @@ test("slide rail supports keyboard selection and arrow navigation", async ({ pag
   }).getByRole("button", { name: /Edit sample/i }).click();
   await expect(page).toHaveURL(/\/presentations\/[^/]+\/editor/);
 
-  const slides = page.locator('[data-slide-rail-item]');
+  const slides = page.locator('[data-slide-rail-item]:visible');
   await expect(slides.first()).toBeVisible();
   expect(await slides.count()).toBeGreaterThan(1);
 

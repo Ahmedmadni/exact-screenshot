@@ -129,7 +129,7 @@ export function SlideRail({
         <span className="eyebrow">{slides.length} slides</span>
         <Button size="icon" variant="ghost" className="size-7" aria-label="Add slide" onClick={addSlide}><Plus className="size-4" /></Button>
       </div>
-      <div className="flex-1 space-y-1 overflow-y-auto px-3 pb-4" onDragOver={(e) => e.preventDefault()}>
+      <div className="flex-1 space-y-1 overflow-y-auto px-3 pb-4" aria-label="Slide thumbnails" onDragOver={(e) => e.preventDefault()}>
         {slides.map((s, i) => (
           <div key={s.id}>
             {overIndex === i && dragIndex !== null && <div className="mb-1 h-0.5 rounded bg-primary" />}
@@ -138,8 +138,27 @@ export function SlideRail({
               onDragStart={() => setDragIndex(i)}
               onDragOver={(e) => { e.preventDefault(); const r = e.currentTarget.getBoundingClientRect(); setOverIndex(e.clientY > r.top + r.height / 2 ? i + 1 : i); }}
               onDragEnd={() => { if (dragIndex !== null && overIndex !== null) reorder(dragIndex, overIndex); setDragIndex(null); setOverIndex(null); }}
+              role="button"
+              tabIndex={0}
+              aria-label={`Select slide ${i + 1}: ${s.title}`}
+              aria-current={s.id === api.activeId ? "true" : undefined}
               onClick={() => api.setActiveId(s.id)}
-              className={cn("group relative flex cursor-pointer gap-2 rounded-md p-1.5", s.id === api.activeId ? "bg-accent/15" : "hover:bg-muted", dragIndex === i && "opacity-40")}
+              onKeyDown={(event) => {
+                if (event.target !== event.currentTarget) return;
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  api.setActiveId(s.id);
+                } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                  event.preventDefault();
+                  const nextIndex = Math.min(slides.length - 1, Math.max(0, i + (event.key === "ArrowDown" ? 1 : -1)));
+                  const target = slides[nextIndex];
+                  if (target) api.setActiveId(target.id);
+                  const buttons = event.currentTarget.parentElement?.parentElement?.querySelectorAll<HTMLElement>('[data-slide-selection]');
+                  buttons?.[nextIndex]?.focus();
+                }
+              }}
+              data-slide-selection
+              className={cn("group relative flex cursor-pointer gap-2 rounded-md p-1.5 outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card motion-reduce:transition-none", s.id === api.activeId ? "bg-accent/15" : "hover:bg-muted", dragIndex === i && "opacity-40")}
             >
               <span className="w-4 pt-1 text-end text-[11px] text-muted-foreground">{i + 1}</span>
               <div className={cn("relative flex-1 overflow-hidden rounded border", s.id === api.activeId ? "border-primary ring-1 ring-primary" : "border-border")}>

@@ -135,7 +135,6 @@ export function SlideRail({
             {overIndex === i && dragIndex !== null && <div className="mb-1 h-0.5 rounded bg-primary" />}
             <div
               draggable
-              onDragCancel={() => { setDragIndex(null); setOverIndex(null); }}
               onDragStart={() => setDragIndex(i)}
               onDragOver={(e) => { e.preventDefault(); const r = e.currentTarget.getBoundingClientRect(); setOverIndex(e.clientY > r.top + r.height / 2 ? i + 1 : i); }}
               onDragEnd={() => { if (dragIndex !== null && overIndex !== null) reorder(dragIndex, overIndex); setDragIndex(null); setOverIndex(null); }}

@@ -173,3 +173,17 @@
     transform: scaleX(-1);
   }
 }
+
+/* Respect operating-system motion preferences in the studio UI.
+ * Keep focus and hover affordances while eliminating decorative movement.
+ * This rule does not change slide transition data or exported presentations. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

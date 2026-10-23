@@ -39,7 +39,7 @@ export function useReadOnlyLivePresentation(
       .subscribe();
 
     return () => {
-      void supabase.removeChannel(channel);
+      void supabase?.removeChannel(channel);
     };
   }, [presentationId, collaboration?.enabled, collaboration?.role, collaboration?.revision]);
 }

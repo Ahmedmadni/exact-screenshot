@@ -126,7 +126,7 @@ function Presenter({ p }: { p: Presentation }) {
         refresh,
       )
       .subscribe();
-    return () => { void supabase.removeChannel(channel); };
+    return () => { void supabase?.removeChannel(channel); };
   }, [liveSession?.id]);
 
   useEffect(() => {

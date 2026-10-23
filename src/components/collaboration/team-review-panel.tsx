@@ -47,7 +47,7 @@ export function TeamReviewPanel({
     channelRef.current = channel;
     return () => {
       channelRef.current = null;
-      void supabase.removeChannel(channel);
+      void supabase?.removeChannel(channel);
     };
   }, [presentationId, canComment]);
 

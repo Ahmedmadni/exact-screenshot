@@ -231,7 +231,7 @@ function CloudAccount() {
   const signIn = async () => {
     if (!email.trim() || !password) return;
     setBusy("signin");
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    const { error } = await supabase!.auth.signInWithPassword({ email: email.trim(), password });
     setBusy(null);
     if (error) toast.error(error.message);
     else toast.success("Signed in.");
@@ -243,7 +243,7 @@ function CloudAccount() {
       return;
     }
     setBusy("signup");
-    const { data, error } = await supabase.auth.signUp({ email: email.trim(), password });
+    const { data, error } = await supabase!.auth.signUp({ email: email.trim(), password });
     setBusy(null);
     if (error) toast.error(error.message);
     else if (!data.session) toast.success("Account created. Check your email to confirm the address.");
@@ -252,7 +252,7 @@ function CloudAccount() {
 
   const signOut = async () => {
     setBusy("signout");
-    const { error } = await supabase.auth.signOut();
+    const { error } = await supabase!.auth.signOut();
     setBusy(null);
     if (error) toast.error(error.message);
     else toast.success("Signed out. Local data remains in this browser.");

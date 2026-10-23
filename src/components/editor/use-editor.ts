@@ -246,7 +246,7 @@ export function useEditor(p: Presentation, initialSlideId?: string) {
       .subscribe();
 
     return () => {
-      void supabase.removeChannel(channel);
+      void supabase?.removeChannel(channel);
     };
   }, [p.id]);
 

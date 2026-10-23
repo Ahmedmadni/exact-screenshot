@@ -22,6 +22,7 @@ import { Route as ReviewTokenRouteImport } from './routes/review.$token'
 import { Route as PresentationsPresentationIdAudienceRouteImport } from './routes/presentations_.$presentationId.audience'
 import { Route as PresentationsPresentationIdEditorRouteImport } from './routes/presentations_.$presentationId.editor'
 import { Route as PresentationsPresentationIdPresenterRouteImport } from './routes/presentations_.$presentationId.presenter'
+import { Route as PresentationsPresentationIdSessionRouteImport } from './routes/presentations_.$presentationId.session'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -92,6 +93,12 @@ const PresentationsPresentationIdPresenterRoute =
     path: '/presentations/$presentationId/presenter',
     getParentRoute: () => rootRouteImport,
   } as any)
+const PresentationsPresentationIdSessionRoute =
+  PresentationsPresentationIdSessionRouteImport.update({
+    id: '/presentations_/$presentationId/session',
+    path: '/presentations/$presentationId/session',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -107,6 +114,7 @@ export interface FileRoutesByFullPath {
   '/presentations/$presentationId/audience': typeof PresentationsPresentationIdAudienceRoute
   '/presentations/$presentationId/editor': typeof PresentationsPresentationIdEditorRoute
   '/presentations/$presentationId/presenter': typeof PresentationsPresentationIdPresenterRoute
+  '/presentations/$presentationId/session': typeof PresentationsPresentationIdSessionRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -122,6 +130,7 @@ export interface FileRoutesByTo {
   '/presentations/$presentationId/audience': typeof PresentationsPresentationIdAudienceRoute
   '/presentations/$presentationId/editor': typeof PresentationsPresentationIdEditorRoute
   '/presentations/$presentationId/presenter': typeof PresentationsPresentationIdPresenterRoute
+  '/presentations/$presentationId/session': typeof PresentationsPresentationIdSessionRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -138,6 +147,7 @@ export interface FileRoutesById {
   '/presentations_/$presentationId/audience': typeof PresentationsPresentationIdAudienceRoute
   '/presentations_/$presentationId/editor': typeof PresentationsPresentationIdEditorRoute
   '/presentations_/$presentationId/presenter': typeof PresentationsPresentationIdPresenterRoute
+  '/presentations_/$presentationId/session': typeof PresentationsPresentationIdSessionRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -155,6 +165,7 @@ export interface FileRouteTypes {
     | '/presentations/$presentationId/audience'
     | '/presentations/$presentationId/editor'
     | '/presentations/$presentationId/presenter'
+    | '/presentations/$presentationId/session'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -170,6 +181,7 @@ export interface FileRouteTypes {
     | '/presentations/$presentationId/audience'
     | '/presentations/$presentationId/editor'
     | '/presentations/$presentationId/presenter'
+    | '/presentations/$presentationId/session'
   id:
     | '__root__'
     | '/'
@@ -185,6 +197,7 @@ export interface FileRouteTypes {
     | '/presentations_/$presentationId/audience'
     | '/presentations_/$presentationId/editor'
     | '/presentations_/$presentationId/presenter'
+    | '/presentations_/$presentationId/session'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -201,6 +214,7 @@ export interface RootRouteChildren {
   PresentationsPresentationIdAudienceRoute: typeof PresentationsPresentationIdAudienceRoute
   PresentationsPresentationIdEditorRoute: typeof PresentationsPresentationIdEditorRoute
   PresentationsPresentationIdPresenterRoute: typeof PresentationsPresentationIdPresenterRoute
+  PresentationsPresentationIdSessionRoute: typeof PresentationsPresentationIdSessionRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -296,6 +310,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PresentationsPresentationIdPresenterRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/presentations_/$presentationId/session': {
+      id: '/presentations_/$presentationId/session'
+      path: '/presentations/$presentationId/session'
+      fullPath: '/presentations/$presentationId/session'
+      preLoaderRoute: typeof PresentationsPresentationIdSessionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -316,6 +337,8 @@ const rootRouteChildren: RootRouteChildren = {
     PresentationsPresentationIdEditorRoute,
   PresentationsPresentationIdPresenterRoute:
     PresentationsPresentationIdPresenterRoute,
+  PresentationsPresentationIdSessionRoute:
+    PresentationsPresentationIdSessionRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

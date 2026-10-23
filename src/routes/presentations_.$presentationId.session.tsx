@@ -150,8 +150,8 @@ function SessionRoom({ p }: { p: Presentation }) {
       .subscribe();
 
     return () => {
-      void supabase.removeChannel(sessionChannel);
-      void supabase.removeChannel(itemChannel);
+      void supabase?.removeChannel(sessionChannel);
+      void supabase?.removeChannel(itemChannel);
     };
   }, [session?.id, refreshItems]);
 

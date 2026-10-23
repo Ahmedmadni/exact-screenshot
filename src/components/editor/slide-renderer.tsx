@@ -138,7 +138,7 @@ export function slideBackground(slide: Slide, theme: SlideTheme) {
 /** Static full-slide render at logical 1600x900. */
 export function SlideStage({ slide, theme, hideIds }: { slide: Slide; theme: SlideTheme; hideIds?: Set<string> }) {
   return (
-    <div style={{ position: "absolute", inset: 0, width: SLIDE_W, height: SLIDE_H, background: slideBackground(slide, theme), overflow: "hidden" }}>
+    <div data-i18n-skip="" style={{ position: "absolute", inset: 0, width: SLIDE_W, height: SLIDE_H, background: slideBackground(slide, theme), overflow: "hidden" }}>
       {[...renderedFinancialElements(slide)]
         .sort((a, b) => a.zIndex - b.zIndex)
         .filter((e) => e.visible && !hideIds?.has(e.id))

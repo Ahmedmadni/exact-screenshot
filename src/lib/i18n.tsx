@@ -1,3 +1,4 @@
+import { startDomTranslation } from "./i18n-dom";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
 export type UILanguage = "en" | "ar";
@@ -157,6 +158,20 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     setLangState(next);
     window.localStorage.setItem(STORAGE_KEY, next);
   }, []);
+
+  useEffect(() => {
+    if (lang !== "ar") return;
+    let stop: (() => void) | null = null;
+    let cancelled = false;
+    void import("./i18n-ar-dictionary").then(({ AR_UI_DICTIONARY }) => {
+      if (cancelled) return;
+      stop = startDomTranslation(AR_UI_DICTIONARY);
+    });
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
+  }, [lang]);
 
   const t = useCallback((key: string) => DICTS[lang][key] ?? DICTS.en[key] ?? key, [lang]);
 

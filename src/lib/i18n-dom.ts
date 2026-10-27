@@ -77,8 +77,16 @@ function isSkipped(node: Node | null): boolean {
   return false;
 }
 
+let activeDictionary: Compiled | null = null;
+
+/** Translate one English phrase with the active dictionary (for native dialogs and other non-DOM text). */
+export function localize(value: string): string {
+  return (activeDictionary && translatePhrase(activeDictionary, value)) || value;
+}
+
 export function startDomTranslation(dict: PhraseDictionary): () => void {
   const compiled = compileDictionary(dict);
+  activeDictionary = compiled;
   const textOriginals = new Map<Text, { original: string; applied: string }>();
   const attrOriginals = new Map<Element, Map<string, { original: string; applied: string }>>();
   let originalTitle: string | null = null;
@@ -181,6 +189,7 @@ export function startDomTranslation(dict: PhraseDictionary): () => void {
   titleObserver.observe(document.head, { subtree: true, childList: true, characterData: true });
 
   return () => {
+    if (activeDictionary === compiled) activeDictionary = null;
     observer.disconnect();
     titleObserver.disconnect();
     for (const [node, t] of textOriginals) {

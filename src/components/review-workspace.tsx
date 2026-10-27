@@ -1,3 +1,4 @@
+import { localize } from "@/lib/i18n-dom";
 import { Check, CheckCircle2, Copy, GitCompare, History, Link2, Loader2, MessageSquare, RefreshCw, RotateCcw, Send, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -64,7 +65,7 @@ export function ReviewWorkspace({ presentation: p }: { presentation: Presentatio
   };
 
   const restore = (version: PresentationVersion) => {
-    if (!window.confirm("Restore this version? The current presentation will be replaced, but you can create a snapshot first.")) return;
+    if (!window.confirm(localize("Restore this version? The current presentation will be replaced, but you can create a snapshot first."))) return;
     versionRepository.create(p, "Before restore");
     versionRepository.restore(version.id);
     toast.success("Version restored.");
